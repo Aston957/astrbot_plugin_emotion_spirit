@@ -106,6 +106,13 @@ class SemanticSignals:
     pad_dominance: float = 0.5
     pad_label: str = "neutral"
     pad_confidence: float = 0.5
+    # 新增：v1.1.1 情绪表示升级
+    pad_distribution: dict[str, float] = field(
+        default_factory=lambda: {"neutral": 1.0}
+    )
+    pad_primary: str = "neutral"
+    pad_secondary: str | None = None
+    pad_intensity: float = 0.0  # = arousal
 
     # 共振场 (v2, EMA 平滑后)
     sync_order_smoothed: float = 0.0
