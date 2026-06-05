@@ -113,6 +113,90 @@ def test_semantic_signals_v12_defaults():
     assert s.emotion_trajectory == []
 
 
+# ═══ v1.2: SurfaceConsumer 集成（session_id + per-session 状态） ═══
+
+
+def test_consume_first_frame_velocity_is_none():
+    """首帧无历史 → emotion_velocity = None。"""
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    surface = {"pad": {"valence": 0.5, "arousal": 0.5, "dominance": 0.5}}
+    s = consumer.consume(surface, session_id="s1")
+    assert s.emotion_velocity is None
+
+
+def test_consume_second_frame_computes_velocity():
+    """第二帧 → emotion_velocity 含 4 键。"""
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    consumer.consume(
+        {"pad": {"valence": 0.3, "arousal": 0.4, "dominance": 0.5}}, session_id="s1"
+    )
+    s2 = consumer.consume(
+        {"pad": {"valence": 0.5, "arousal": 0.6, "dominance": 0.7}}, session_id="s1"
+    )
+    assert s2.emotion_velocity is not None
+    # 浮点容差
+    assert abs(s2.emotion_velocity["valence"] - 0.2) < 1e-6
+    assert abs(s2.emotion_velocity["arousal"] - 0.2) < 1e-6
+    assert abs(s2.emotion_velocity["dominance"] - 0.2) < 1e-6
+    assert s2.emotion_velocity["dt"] > 0
+
+
+def test_consume_populates_ambiguity():
+    """任何帧 → emotion_ambiguity 在 [0, 1]。"""
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    s = consumer.consume(
+        {"pad": {"valence": 0.5, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"
+    )
+    assert 0.0 <= s.emotion_ambiguity <= 1.0
+
+
+def test_consume_trajectory_keeps_last_n_frames():
+    """连续 12 帧（默认 N=8）→ trajectory 只保留最后 8 帧。"""
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    for i in range(12):
+        consumer.consume(
+            {"pad": {"valence": i * 0.05, "arousal": 0.5, "dominance": 0.5}},
+            session_id="s1",
+        )
+    s = consumer.consume(
+        {"pad": {"valence": 0.7, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"
+    )
+    # 第 13 次 consume 后 trajectory 是当前 + 之前 7 帧 = 8 帧
+    assert len(s.emotion_trajectory) == 8
+
+
+def test_consume_per_session_isolation():
+    """不同 session 互不干扰。"""
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    # s1 第一帧
+    consumer.consume(
+        {"pad": {"valence": 0.0, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"
+    )
+    # s2 第一帧（不应影响 s1）
+    s2_first = consumer.consume(
+        {"pad": {"valence": 0.5, "arousal": 0.5, "dominance": 0.5}}, session_id="s2"
+    )
+    assert s2_first.emotion_velocity is None  # s2 首帧
+    # s1 第二帧（应该是 s1 的差分，不是 s1→s2）
+    s1_again = consumer.consume(
+        {"pad": {"valence": 0.1, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"
+    )
+    # s1 velocity: (0.1-0.0, 0.5-0.5, 0.5-0.5) = (0.1, 0, 0)
+    assert s1_again.emotion_velocity is not None
+    assert abs(s1_again.emotion_velocity["valence"] - 0.1) < 1e-6
+    assert abs(s1_again.emotion_velocity["arousal"]) < 1e-6
+
+
 if __name__ == "__main__":
     test_consume_returns_signals()
     test_body_integration_range()
@@ -121,4 +205,9 @@ if __name__ == "__main__":
     test_body_criticality_extreme()
     test_empty_surface_defaults()
     test_semantic_signals_v12_defaults()
+    test_consume_first_frame_velocity_is_none()
+    test_consume_second_frame_computes_velocity()
+    test_consume_populates_ambiguity()
+    test_consume_trajectory_keeps_last_n_frames()
+    test_consume_per_session_isolation()
     print("All surface_consumer tests passed!")

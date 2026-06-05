@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from .config import EMA_ALPHA
+from .config import EMA_ALPHA, TRAJECTORY_WINDOW
 from .emotion_classifier import (
     classify_distribution,
     classify_primary_secondary,
+    compute_ambiguity,  # v1.2
+    compute_velocity,   # v1.2
 )
 from .trend_utils import EMASmoother
 
@@ -136,7 +140,11 @@ class SemanticSignals:
 
 
 class SurfaceConsumer:
-    """解析 Sylanne Surface → SemanticSignals，含 EMA 平滑和派生计算。"""
+    """解析 Sylanne Surface → SemanticSignals，含 EMA 平滑和派生计算。
+
+    v1.2: 内部维护 per-session 状态（pad_history / pad_trajectory），
+    需 caller 传入 session_id 才计算 velocity/trajectory。
+    """
 
     def __init__(self) -> None:
         self._phi_smoother = EMASmoother(EMA_ALPHA["phi"])
@@ -145,8 +153,19 @@ class SurfaceConsumer:
         self._integration_smoother = EMASmoother(EMA_ALPHA["body_integration"])
         self._criticality_smoother = EMASmoother(EMA_ALPHA["body_criticality"])
 
-    def consume(self, surface: dict[str, Any]) -> SemanticSignals:
-        """解析 Surface，返回 SemanticSignals。"""
+        # v1.2: per-session 状态（velocity / trajectory）
+        # _pad_history[session_id] = last (v, a, d, t) - 用于算 velocity
+        # _pad_trajectory[session_id] = deque[(v, a, d, t), ...] maxlen=N - 时序
+        self._pad_history: dict[str, tuple[float, float, float, float]] = {}
+        self._pad_trajectory: dict[str, deque] = {}
+
+    def consume(
+        self, surface: dict[str, Any], session_id: str | None = None
+    ) -> SemanticSignals:
+        """解析 Surface，返回 SemanticSignals。
+
+        v1.2: session_id 可选；不传则不计算 velocity/trajectory（向后兼容）。
+        """
         state = surface.get("state") or {}
         dynamics = surface.get("dynamics") or {}
         decision = surface.get("decision") or {}
@@ -268,6 +287,32 @@ class SurfaceConsumer:
         signals.pad_primary = primary
         signals.pad_secondary = secondary
         signals.pad_intensity = signals.pad_arousal
+
+        # v1.2: 情绪动态派生（需 session_id）
+        if session_id is not None:
+            signals.emotion_ambiguity = compute_ambiguity(signals.pad_distribution)
+
+            # velocity: 查 _pad_history[session_id]
+            last = self._pad_history.get(session_id)
+            signals.emotion_velocity = compute_velocity(pad_tuple, last)
+
+            # 更新 _pad_history
+            now = time.time()
+            self._pad_history[session_id] = (
+                signals.pad_valence,
+                signals.pad_arousal,
+                signals.pad_dominance,
+                now,
+            )
+
+            # trajectory: 追加到 _pad_trajectory[session_id] deque
+            if session_id not in self._pad_trajectory:
+                self._pad_trajectory[session_id] = deque(maxlen=TRAJECTORY_WINDOW)
+            self._pad_trajectory[session_id].append(
+                (signals.pad_valence, signals.pad_arousal, signals.pad_dominance, now)
+            )
+            # 暴露给 caller（list 副本，deque 引用会泄漏内部状态）
+            signals.emotion_trajectory = list(self._pad_trajectory[session_id])
 
         return signals
 
