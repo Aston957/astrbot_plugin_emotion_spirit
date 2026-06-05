@@ -13,6 +13,7 @@ SylannEngine 的 pad_interop.py 维护 emotion 区域定义，本模块保留一
 from __future__ import annotations
 
 import math
+import time
 from typing import Any
 
 # 7 类基本情绪的 PAD 区域（与 SylannEngine pad_interop.py 同步）
@@ -117,6 +118,40 @@ def compute_ambiguity(distribution: dict[str, float]) -> float:
     if max_entropy == 0:
         return 0.0
     return min(1.0, entropy / max_entropy)
+
+
+def compute_velocity(
+    current: tuple[float, float, float],
+    last: tuple[float, float, float, float] | None,
+) -> dict[str, float] | None:
+    """v1.2: 算 (current - last) / dt 的瞬时变化率。
+
+    Args:
+        current: (valence, arousal, dominance) 当前帧
+        last: (valence, arousal, dominance, timestamp) 上一帧；None = 首帧
+
+    Returns:
+        {valence, arousal, dominance, dt} 或 None（首帧 / dt <= 0）
+
+    字段含义:
+        valence > 0   → 情绪向正向变（悲伤 → 喜悦）
+        arousal > 0   → 唤醒度升高（平静 → 激动）
+        dominance > 0 → 掌控感上升（被动 → 主动）
+        dt            → 两帧间隔（秒）
+    """
+    if last is None:
+        return None
+    cv, ca, cd = current
+    lv, la, ld, lt = last
+    dt = time.time() - lt
+    if dt <= 0:
+        return None
+    return {
+        "valence": cv - lv,
+        "arousal": ca - la,
+        "dominance": cd - ld,
+        "dt": dt,
+    }
 
 
 def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:

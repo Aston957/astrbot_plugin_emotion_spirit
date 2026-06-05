@@ -1,5 +1,7 @@
 """emotion_classifier 单元测试。"""
 
+import time
+
 import pytest
 from emotion_spirit.emotion_classifier import (
     CATEGORICAL_REGIONS,
@@ -9,6 +11,7 @@ from emotion_spirit.emotion_classifier import (
     classify_distribution,
     classify_primary_secondary,
     compute_ambiguity,  # v1.2
+    compute_velocity,    # v1.2
     render_description,
 )
 
@@ -254,3 +257,47 @@ def test_compute_ambiguity_empty_returns_zero():
     dist = {}
     ambiguity = compute_ambiguity(dist)
     assert ambiguity == 0.0
+
+
+# ═══ v1.2: compute_velocity() PAD 差分 ═══
+
+
+def test_compute_velocity_increase_all_dims():
+    """三维度都上升 → velocity 全正。"""
+    now = time.time()
+    last = (0.3, 0.4, 0.5, now - 1.0)
+    current = (0.5, 0.6, 0.7)
+    v = compute_velocity(current, last)
+    # 浮点容差（避免 0.5-0.3 = 0.19999...）
+    assert v["valence"] == pytest.approx(0.2, abs=1e-6)
+    assert v["arousal"] == pytest.approx(0.2, abs=1e-6)
+    assert v["dominance"] == pytest.approx(0.2, abs=1e-6)
+    assert abs(v["dt"] - 1.0) < 0.01
+
+
+def test_compute_velocity_decrease_arousal():
+    """arousal 下降 → velocity arousal < 0。"""
+    now = time.time()
+    last = (0.5, 0.8, 0.5, now - 0.5)
+    current = (0.5, 0.3, 0.5)
+    v = compute_velocity(current, last)
+    assert v["arousal"] == pytest.approx(-0.5, abs=1e-6)
+    assert v["valence"] == pytest.approx(0.0, abs=1e-6)
+    assert v["dominance"] == pytest.approx(0.0, abs=1e-6)
+    assert abs(v["dt"] - 0.5) < 0.01
+
+
+def test_compute_velocity_returns_dict_with_four_keys():
+    """velocity 总是返回 4 键 dict。"""
+    now = time.time()
+    last = (0.0, 0.0, 0.0, now)
+    current = (0.1, 0.1, 0.1)
+    v = compute_velocity(current, last)
+    assert set(v.keys()) == {"valence", "arousal", "dominance", "dt"}
+
+
+def test_compute_velocity_first_frame_returns_none():
+    """首帧无历史 → None（caller 检查 last is None）。"""
+    current = (0.5, 0.5, 0.5)
+    v = compute_velocity(current, None)
+    assert v is None
