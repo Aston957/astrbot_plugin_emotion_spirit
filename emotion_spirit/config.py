@@ -159,3 +159,4 @@ SAFETY_CONFIG: dict[str, float | int | bool | dict] = {
 # v1.2: 情绪动态表示配置
 TRAJECTORY_WINDOW: int = 8                 # trajectory 环形缓冲大小（最近 N 帧）
 PAD_SAVE_INTERVAL_SECONDS: int = 300       # pad_history/trajectory 持久化间隔（5 min）
+VELOCITY_BURST_THRESHOLD: float = 0.05     # 情绪突变阈值（|Δvalence| 或 |Δarousal| > 此值记为 burst）

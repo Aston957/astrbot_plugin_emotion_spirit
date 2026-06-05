@@ -111,6 +111,7 @@ def test_semantic_signals_v12_defaults():
     assert s.emotion_ambiguity == 0.0
     assert s.emotion_velocity is None
     assert s.emotion_trajectory == []
+    assert s.emotion_burst is False  # v1.2+
 
 
 # ═══ v1.2: SurfaceConsumer 集成（session_id + per-session 状态） ═══
@@ -210,4 +211,45 @@ if __name__ == "__main__":
     test_consume_populates_ambiguity()
     test_consume_trajectory_keeps_last_n_frames()
     test_consume_per_session_isolation()
+    test_consume_burst_detected_on_large_velocity_change()
+    test_consume_no_burst_on_small_velocity_change()
     print("All surface_consumer tests passed!")
+
+
+# ═══ v1.2+: VELOCITY_BURST_THRESHOLD 突变检测 ═══
+
+
+def test_consume_burst_detected_on_large_velocity_change():
+    """v1.2+: 帧间 |Δvalence| 或 |Δarousal| > 0.05 → emotion_burst=True。"""
+    import time as time_mod
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    # 第一帧 (平静)
+    consumer.consume(
+        {"pad": {"valence": 0.0, "arousal": 0.4, "dominance": 0.5}}, session_id="s_burst"
+    )
+    # 等 10ms 强制正 dt
+    time_mod.sleep(0.01)
+    # 第二帧 (突然愤怒，Δvalence = -0.8, |0.8| > 0.05)
+    s2 = consumer.consume(
+        {"pad": {"valence": -0.8, "arousal": 0.9, "dominance": 0.7}}, session_id="s_burst"
+    )
+    assert s2.emotion_burst is True
+
+
+def test_consume_no_burst_on_small_velocity_change():
+    """v1.2+: 帧间 |Δ| <= 0.05 → emotion_burst=False。"""
+    import time as time_mod
+    from emotion_spirit.surface_consumer import SurfaceConsumer
+
+    consumer = SurfaceConsumer()
+    consumer.consume(
+        {"pad": {"valence": 0.0, "arousal": 0.4, "dominance": 0.5}}, session_id="s_small"
+    )
+    time_mod.sleep(0.01)
+    # 第二帧轻微变化 (Δvalence = 0.03, |0.03| < 0.05)
+    s2 = consumer.consume(
+        {"pad": {"valence": 0.03, "arousal": 0.42, "dominance": 0.5}}, session_id="s_small"
+    )
+    assert s2.emotion_burst is False

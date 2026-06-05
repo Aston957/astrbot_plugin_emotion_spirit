@@ -7,7 +7,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from .config import EMA_ALPHA, TRAJECTORY_WINDOW
+from .config import EMA_ALPHA, TRAJECTORY_WINDOW, VELOCITY_BURST_THRESHOLD
 from .emotion_classifier import (
     classify_distribution,
     classify_primary_secondary,
@@ -137,6 +137,7 @@ class SemanticSignals:
     emotion_ambiguity: float = 0.0                # Shannon entropy 归一化 [0, 1]
     emotion_velocity: dict | None = None          # {valence, arousal, dominance, dt}
     emotion_trajectory: list = field(default_factory=list)  # [(v, a, d, t), ...] 最近 N 帧
+    emotion_burst: bool = False                   # v1.2+: 情绪突变事件（|Δvalence| 或 |Δarousal| > VELOCITY_BURST_THRESHOLD）
 
 
 class SurfaceConsumer:
@@ -295,6 +296,14 @@ class SurfaceConsumer:
             # velocity: 查 _pad_history[session_id]
             last = self._pad_history.get(session_id)
             signals.emotion_velocity = compute_velocity(pad_tuple, last)
+
+            # v1.2+: 情绪突变检测（基于 velocity + VELOCITY_BURST_THRESHOLD）
+            if signals.emotion_velocity is not None:
+                vel = signals.emotion_velocity
+                signals.emotion_burst = (
+                    abs(vel["valence"]) > VELOCITY_BURST_THRESHOLD
+                    or abs(vel["arousal"]) > VELOCITY_BURST_THRESHOLD
+                )
 
             # 更新 _pad_history
             now = time.time()
