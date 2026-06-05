@@ -100,6 +100,19 @@ def test_empty_surface_defaults():
     assert isinstance(signals.personality_surface, dict)
 
 
+# ═══ v1.2: 3 个新字段默认值 ═══
+
+
+def test_semantic_signals_v12_defaults():
+    """v1.2 新增字段有合理默认值（向后兼容）。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals()
+    assert s.emotion_ambiguity == 0.0
+    assert s.emotion_velocity is None
+    assert s.emotion_trajectory == []
+
+
 if __name__ == "__main__":
     test_consume_returns_signals()
     test_body_integration_range()
@@ -107,4 +120,5 @@ if __name__ == "__main__":
     test_phi_ema_convergence()
     test_body_criticality_extreme()
     test_empty_surface_defaults()
+    test_semantic_signals_v12_defaults()
     print("All surface_consumer tests passed!")

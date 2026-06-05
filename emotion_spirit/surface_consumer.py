@@ -129,6 +129,11 @@ class SemanticSignals:
     body_integration: float = 0.5
     body_criticality: float = 0.0
 
+    # v1.2: 情绪动态表示
+    emotion_ambiguity: float = 0.0                # Shannon entropy 归一化 [0, 1]
+    emotion_velocity: dict | None = None          # {valence, arousal, dominance, dt}
+    emotion_trajectory: list = field(default_factory=list)  # [(v, a, d, t), ...] 最近 N 帧
+
 
 class SurfaceConsumer:
     """解析 Sylanne Surface → SemanticSignals，含 EMA 平滑和派生计算。"""
