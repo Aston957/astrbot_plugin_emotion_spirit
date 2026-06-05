@@ -16,17 +16,19 @@ emotion_spirit 是 [SylannEngine](https://github.com/Ayleovelle/SylannEngine) �
 
 ## 版本演进
 
-| 版本 | 日期 | 关键变化 | 测试 |
-|------|------|---------|------|
-| v1.0.3 | 2026-06-05 | persona 持久化修复 + 2 阶段 relabel | 188/188 |
-| v1.0.4 | 2026-06-05 | 死代码清理（v1.0.3 残留） | 188/188 |
-| v1.1.1 | 2026-06-05 | 情绪表示升级（概率分布 + 派生） | 214/214 |
-| v1.1.2 | 2026-06-05 | DRY 重构（build_emotion_payload 共享层） | 218/218 |
-| v1.2 | 2026-06-05 | 情绪动态表示（ambiguity/velocity/trajectory） | 250/250 |
-| v1.2+ | 2026-06-05 | VELOCITY_BURST_THRESHOLD + emotion_burst 事件 | 252/252 |
-| **v1.3** | 2026-06-05 | **compute_ambiguity 改 1 - max(p)（区分度改善）** | **254/254** |
+| 版本 | 日期 | 关键变化 | 测试 | 对应 Phase |
+|------|------|---------|------|-----------|
+| v1.0.3 | 2026-06-05 | persona 持久化修复 + 2 阶段 relabel | 188/188 | Phase 0.5 |
+| v1.0.4 | 2026-06-05 | 死代码清理（v1.0.3 残留） | 188/188 | Phase 0.5 |
+| v1.1.1 | 2026-06-05 | 情绪表示升级（概率分布 + 派生） | 214/214 | Phase 1.5 |
+| v1.1.2 | 2026-06-05 | DRY 重构（build_emotion_payload 共享层） | 218/218 | Phase 1.5 |
+| v1.2 | 2026-06-05 | 情绪动态表示（ambiguity/velocity/trajectory） | 250/250 | Phase 1.5 |
+| v1.2+ | 2026-06-05 | VELOCITY_BURST_THRESHOLD + emotion_burst 事件 | 252/252 | Phase 1.5 |
+| **v1.3** | 2026-06-05 | **compute_ambiguity 改 1 - max(p)（区分度改善）** | **254/254** | **Phase 1.5** |
 
-详见 [CHANGELOG.md](CHANGELOG.md)。
+**当前阶段**: **Phase 1.5 情绪表示层 ✅ 完成**（2026-06-05）→ **Phase 2 关系记忆增强 ⏳ 待启动**
+
+详见 [CHANGELOG.md](CHANGELOG.md) 和 `docs/architecture.md` 的 Phase 描述。
 
 ## 核心能力
 
