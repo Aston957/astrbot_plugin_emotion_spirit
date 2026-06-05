@@ -133,6 +133,96 @@ def test_superego_reflection_tension_types():
         assert len(prompt) > 0
 
 
+# ═══ v1.1.1: emotion signals 注入测试 ═══
+
+def test_build_diary_prompt_with_signals_injects_emotion():
+    """build_diary_prompt 接受 signals 参数，注入结构化数据。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    pool = MemoryPool()
+    signals = BufferSignals(pool)
+    patterns = PatternExtractor(pool)
+    alignment = ValueAlignment("default")
+    conscience = ConscienceTracker()
+    diary = DiaryWriter(pool, patterns, signals, alignment, conscience)
+
+    user_signals = SemanticSignals(
+        pad_valence=0.7,
+        pad_arousal=0.5,
+        pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.3, "anger": 0.1},
+        pad_primary="joy",
+        pad_secondary=None,
+        pad_intensity=0.5,
+    )
+
+    prompt = diary.build_diary_prompt("停滞型", signals=user_signals)
+
+    # LLM-friendly 字段名注入
+    assert "你当前的情感状态" in prompt
+    assert "valence" in prompt
+    assert "arousal" in prompt
+    assert "dominance" in prompt
+    # 分布标签注入
+    assert "情绪概率分布" in prompt
+    assert "joy" in prompt
+    # 主要/次要情绪注入
+    assert "主要情绪" in prompt
+    assert "次要情绪" in prompt
+
+
+def test_build_diary_prompt_without_signals_backward_compat():
+    """build_diary_prompt 不传 signals 时行为不变（向后兼容）。"""
+    pool = MemoryPool()
+    signals = BufferSignals(pool)
+    patterns = PatternExtractor(pool)
+    alignment = ValueAlignment("default")
+    conscience = ConscienceTracker()
+    diary = DiaryWriter(pool, patterns, signals, alignment, conscience)
+
+    prompt = diary.build_diary_prompt("停滞型")
+    # 不应该有新的"你当前的情感状态"块
+    assert "你当前的情感状态" not in prompt
+    # 但基础 prompt 仍在
+    assert "最近好像什么都没发生" in prompt
+
+
+def test_build_superego_reflection_prompt_with_signals():
+    """build_superego_reflection_prompt 也接受 signals 参数。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    pool = MemoryPool()
+    signals = BufferSignals(pool)
+    patterns = PatternExtractor(pool)
+    alignment = ValueAlignment("xiaofu")
+    conscience = ConscienceTracker()
+    diary = DiaryWriter(pool, patterns, signals, alignment, conscience)
+
+    user_signals = SemanticSignals(
+        pad_valence=-0.5,
+        pad_arousal=0.8,
+        pad_dominance=0.3,
+        pad_distribution={"sadness": 0.5, "fear": 0.3, "neutral": 0.2},
+        pad_primary="sadness",
+        pad_secondary="excitement",
+        pad_intensity=0.8,
+    )
+
+    prompt = diary.build_superego_reflection_prompt(
+        tension_type="guilt",
+        conflict_values=["openness"],
+        signals=user_signals,
+    )
+
+    # emotion 数据注入
+    assert "你当前的情感状态" in prompt
+    assert "valence" in prompt
+    assert "主要情绪" in prompt
+    assert "sadness" in prompt
+    # 基础 prompt 仍在
+    assert "内在冲突" in prompt
+
+
 if __name__ == "__main__":
     test_diary_type_escalating()
     test_diary_prompt_includes_patterns()
@@ -141,4 +231,7 @@ if __name__ == "__main__":
     test_superego_reflection_prompt()
     test_superego_reflection_record()
     test_superego_reflection_tension_types()
+    test_build_diary_prompt_with_signals_injects_emotion()
+    test_build_diary_prompt_without_signals_backward_compat()
+    test_build_superego_reflection_prompt_with_signals()
     print("All diary_writer tests passed!")

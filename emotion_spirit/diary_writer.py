@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .pattern_extractor import PatternExtractor
     from .buffer_signals import BufferSignals
     from .superego import ValueAlignment, ConscienceTracker
+    from .surface_consumer import SemanticSignals  # v1.1.1
 
 
 _DIARY_PROMPTS = {
@@ -25,6 +26,27 @@ _DIARY_PROMPTS = {
     "循环型": "你看到了一个反复出现的模式。写一篇简短的日记 (3-5 句)，记录你的观察。不要提及你是AI。",
     "superego_reflection": "你最近有些内在冲突，有些价值观在和你较劲。写一篇简短的日记 (3-5 句)，诚实地面对这种冲突，不用强迫自己解决，只是记录这种感受。不要提及你是AI。",
 }
+
+
+def _format_emotion_block(signals: "SemanticSignals") -> str:
+    """v1.1.1: 把 emotion 数据格式化为 LLM-friendly 块。
+
+    输出字段名直接用英文（valence/arousal/dominance），LLM 易于理解。
+    概率分布和 primary/secondary 用中文描述让 LLM 解读。
+    """
+    lines = [
+        f"  - valence (效价): {signals.pad_valence:.2f}",
+        f"  - arousal (唤醒度): {signals.pad_arousal:.2f}",
+        f"  - dominance (支配度): {signals.pad_dominance:.2f}",
+        f"  - 情绪概率分布: {signals.pad_distribution}",
+        f"  - 主要情绪: {signals.pad_primary}",
+        f"  - 次要情绪: {signals.pad_secondary or '无'}",
+        f"  - 强度: {signals.pad_intensity:.2f}",
+    ]
+    return (
+        "你当前的情感状态（请据此理解自己的情绪，可自由用中文描述如'悲怆''狂喜'等）:\n"
+        + "\n".join(lines)
+    )
 
 
 class DiaryWriter:
@@ -59,12 +81,23 @@ class DiaryWriter:
         else:
             return "停滞型"
 
-    def build_diary_prompt(self, diary_type: str) -> str:
-        """构建日记 prompt。"""
+    def build_diary_prompt(
+        self, diary_type: str, signals: "SemanticSignals | None" = None
+    ) -> str:
+        """构建日记 prompt。
+
+        Args:
+            diary_type: 日记类型（上升型/下降型/停滞型/循环型）
+            signals: 当前情感状态（v1.1.1+，可选，向后兼容）
+        """
         base = _DIARY_PROMPTS.get(diary_type, _DIARY_PROMPTS["停滞型"])
 
         # 添加上下文
         parts = [base]
+
+        # v1.1.1: 注入情绪结构化数据（LLM 自己解读）
+        if signals is not None and signals.pad_distribution:
+            parts.append(_format_emotion_block(signals))
 
         # 最近记忆
         recent = sorted(self._pool.warm, key=lambda e: e.created_at, reverse=True)[:3]
@@ -90,6 +123,7 @@ class DiaryWriter:
         tension_type: str,
         conflict_values: list[str],
         personality: dict[str, dict[str, float]] | None = None,
+        signals: "SemanticSignals | None" = None,
     ) -> str:
         """构建超我反思日记 prompt (使用人格化叙事模板)。
 
@@ -97,9 +131,14 @@ class DiaryWriter:
             tension_type: 张力类型 (guilt/shame/doubt/righteous)
             conflict_values: 冲突的维度名列表（英文）
             personality: 当前 11 维参数 (可选，用于叙事变体选择)
+            signals: 当前情感状态（v1.1.1+，可选，向后兼容）
         """
         base = _DIARY_PROMPTS["superego_reflection"]
         parts = [base]
+
+        # v1.1.1: 注入情绪结构化数据
+        if signals is not None and signals.pad_distribution:
+            parts.append(_format_emotion_block(signals))
 
         # 使用叙事模板生成人格化描述
         if conflict_values:
