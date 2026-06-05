@@ -155,3 +155,7 @@ SAFETY_CONFIG: dict[str, float | int | bool | dict] = {
     # critical 级别节流 (24h 内最多触发次数)
     "critical_max_per_day": 3,
 }
+
+# v1.2: 情绪动态表示配置
+TRAJECTORY_WINDOW: int = 8                 # trajectory 环形缓冲大小（最近 N 帧）
+PAD_SAVE_INTERVAL_SECONDS: int = 300       # pad_history/trajectory 持久化间隔（5 min）
