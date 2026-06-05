@@ -141,7 +141,37 @@ class SemanticSignals:
     relational_interval: float  # 距上次互动间隔 (秒)
 
     # PAD 标签
-    pad_label: str              # pleasure/arousal/dominance 综合标签
+    pad_label: str              # pleasure/arousal/dominance 综合标签 (向后兼容)
+    pad_confidence: float       # pad_label 置信度 (向后兼容)
+
+    # v1.1.1: 结构化情绪数据 (LLM 消费者读这些字段)
+    pad_valence: float          # 效价 [-1, 1]
+    pad_arousal: float          # 唤醒度 [0, 1]
+    pad_dominance: float        # 支配度 [0, 1]
+    pad_distribution: dict      # 7 类基本情绪概率分布 (e.g. {"joy": 0.6, "neutral": 0.3})
+    pad_primary: str            # 主要情绪 (e.g. "joy")
+    pad_secondary: str | None   # 次要情绪 (e.g. "excitement" or None)
+    pad_intensity: float        # 强度 (即 pad_arousal, 派生冗余字段便于直接读)
+```
+
+**v1.1.1 情绪数据流**：
+
+```
+SylannEngine Surface
+  ↓ (raw pad + 60+ signals)
+SurfaceConsumer.consume()
+  ├── EMA 平滑
+  ├── compute_pad()
+  ├── emotion_classifier.classify_distribution()  ← 新增
+  ├── emotion_classifier.classify_primary_secondary()  ← 新增
+  └── 填充 pad_* 4 个新字段
+  ↓
+SemanticSignals (完整结构化数据)
+  ↓
+3 个 LLM 消费者:
+  - get_emotion_state() 公开 API (9 字段，懒渲染 description)
+  - diary_writer.build_diary_prompt() (注入结构化块)
+  - life_simulator Mode A/B payload (注入 emotion 块)
 ```
 
 ### 4.2 MemoryPool 四层结构
@@ -247,6 +277,51 @@ initialize()
 3. **优雅降级**: 禁用的模块设为 None，所有调用点检查后跳过
 4. **配置即代码**: 所有数值参数在 `config.py` 中集中管理
 5. **持久化透明**: SpiritStore 提供原子写入 + dirty flag 优化
+
+## 7.5 v1.1.1 情绪表示升级 (2026-06-05)
+
+emotion_spirit 从"单一字符串 pad_label"升级为"概率分布 + 派生数据"。
+
+### 核心变化
+
+- `SemanticSignals` 扩展 4 个字段：`pad_distribution` / `pad_primary` / `pad_secondary` / `pad_intensity`
+- 新增 `emotion_spirit/emotion_classifier.py` 模块：
+  - `CATEGORICAL_REGIONS` (7 类基本情绪 PAD 区域)
+  - `COMPOUND_REGIONS` (4 类复合情绪: sad_excitement/angry_despair/joyful_anxiety/sad_calm)
+  - `classify_distribution(pad)` → 概率分布
+  - `classify_primary_secondary(distribution, pad)` → (primary, secondary)
+  - `render_description(distribution, intensity)` → 中文描述（仅人类辅助层）
+- 公开 API: 新增 `get_emotion_state()` (9 字段) + `get_body_state()` (4 字段)
+- 删除: 未实现的 `get_emotion_snapshot()` (v1.1 决定)
+- 重命名: `get_emotion_values → get_body_state` (v1.1.1)
+- 不加: `get_latest_signals()` 暴露全量 60+ 字段 (v1.1.1 决定，隐私边界)
+
+### 架构原则
+
+- **数据驱动**: LLM 直接读 `signals.pad_distribution` (结构化数据，零信息损失)
+- **description 是辅助层**: 仅人类查看 (WebUI, `/spirit_status`)，每次 `get_emotion_state()` 懒渲染
+- **最小必要公开**: 公开 9+4=13 字段，不暴露 damage/intimacy/conscience 等隐私数据
+- **5 形态分布**: single_dominant / mixed / blended / calm_baseline / multi_color
+
+### 严格规则
+
+`top1 > 0.5 AND ratio > 2.5` (用于 single_dominant 判断) 在 `classify_primary_secondary` 和 `render_description` 中**必须一致**，避免 description 跳脱于数据。
+
+### 影响的消费者
+
+| 消费者 | 改动 |
+|--------|------|
+| `diary_writer.build_diary_prompt()` | 接受 `signals: SemanticSignals \| None`，注入结构化数据块 |
+| `diary_writer.build_superego_reflection_prompt()` | 接受 `signals: SemanticSignals \| None` |
+| `life_simulator.check_mode_a()` payload | signals 块新增 `pad` / `emotion_distribution` / `emotion_primary` / `emotion_secondary` / `emotion_intensity` |
+| `life_simulator.check_mode_b()` payload (life_event/reflection/soliloquy) | 新增 `emotion` 块（统一从 `_build_emotion_payload()` 生成） |
+| `main.py` 记忆 tag | `signals.pad_label` → `signals.pad_primary` (更稳定) |
+| `main.py` get_emotion_state() API | 9 字段 dict 返回 |
+
+### 详细设计
+
+- Spec: `docs/superpowers/specs/2026-06-05-emotion-representation-design.md`
+- Plan: `docs/superpowers/plans/2026-06-05-emotion-representation.md`
 
 ## 8. 已知限制
 
