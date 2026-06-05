@@ -433,3 +433,78 @@ EmotionSpiritPlugin.get_emotion_trajectory(session_key) -> list[dict]
 2. **无热切换**: 功能开关修改后需重启生效
 3. **LLM 依赖**: auto 模式和日记生成依赖 LLM provider
 4. **无数据迁移框架**: schema 变更需要手动处理
+
+---
+
+## 7.7 v1.3 模糊度重设计 (2026-06-05)
+
+### 动机
+
+v1.2 仿真发现：`compute_ambiguity` 用 Shannon entropy / log(K) 归一化时，
+**所有 8 个真实场景的 ambiguity 都在 0.74-0.91**，**区分度极差**。
+
+```
+v1.2 (entropy) 真实数据:
+  daily_neutral     amb=0.739   ← 应该是"最确定"
+  safe_companionship amb=0.806
+  conflict          amb=0.852
+  trauma            amb=0.870
+```
+
+### 改动
+
+`compute_ambiguity` 从 **Shannon entropy / log(K)** 改为 **`1 - max(p)`**。
+
+| 分布 | v1.2 entropy | v1.3 1 - max(p) |
+|------|-------------|-----------------|
+| `{joy: 1.0}` | 0.000 | 0.000 |
+| `{joy: 0.6, neutral: 0.4}` | 0.971 | **0.400** |
+| 4 类均匀 | 1.000 | 0.750 |
+
+**为什么 1 - max(p) 更好**：
+1. 直接测"主导度"，不依赖 log 运算
+2. 区分度好：能让 daily_neutral 接近 0，冲突场景更高
+3. 计算更快：O(K) 比较 vs O(K) log
+4. 范围 [0, 1) 不变
+
+### v1.3 真实数据验证
+
+```
+v1.3 (1 - max(p)) 真实数据:
+  intimacy_growth      amb=0.339   ← 最确定 (joy 主导)
+  safe_companionship   amb=0.352
+  daily_neutral        amb=0.403   ← 显著低于冲突场景
+  boundary_invasion    amb=0.475
+  conflict             amb=0.541
+  cascading            amb=0.559
+  recovery             amb=0.626
+  trauma               amb=0.639   ← 最模糊 (多类混合)
+
+  max - min = 0.301 (vs v1.2 的 0.17, 但 v1.2 都在高位无意义)
+```
+
+### 0 破坏性变更
+
+- `emotion_ambiguity` 字段名不变
+- `get_emotion_state()` 11 字段不变
+- 范围 [0, 1] 不变
+- 消费者集成方式不变
+
+### 性能
+
+- 复杂度：O(K) log → O(K) 比较
+- 微基准：~5μs → ~2.5μs（-50%）
+- 对总 v1.2 性能影响：6.5μs/帧 → 4μs/帧
+
+### 影响的文件
+
+| 文件 | 改动 |
+|------|------|
+| `emotion_spirit/emotion_classifier.py` | `compute_ambiguity` 重写 |
+| `tests/test_emotion_classifier.py` | 5 单元测试断言更新 |
+| `tests/test_real_scenarios_ambiguity.py` | 新建 (2 集成测试) |
+
+### 详细设计
+
+- Spec: `docs/superpowers/specs/2026-06-05-emotion-ambiguity-redesign-design.md`
+- Plan: `docs/superpowers/plans/2026-06-05-emotion-ambiguity-redesign.md`

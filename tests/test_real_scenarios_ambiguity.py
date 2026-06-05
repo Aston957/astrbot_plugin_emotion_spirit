@@ -1,27 +1,39 @@
 """v1.3: 真实场景 ambiguity 区分度测试。
 
-v1.2 仿真发现问题：所有 8 个 SCENARIOS 的 ambiguity 都在 0.74-0.91，
+v1.2 仿真发现问题：所有场景的 ambiguity 都在 0.74-0.91，
 区分度极差。v1.3 用 1 - max(p) 应能让不同场景有显著不同的 ambiguity。
+
+注：场景数据内联（不依赖 verification/），确保三目录同步后能跑。
+源数据来自 verification/surface_generator.py SCENARIOS (PAD base_surface)。
 """
 
+import os
 import sys
 from pathlib import Path
 
-# 添加项目根到 path（必须在导入 SCENARIOS 之前）
+# 添加项目根到 path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from emotion_spirit.emotion_classifier import compute_ambiguity, classify_distribution
-from verification.surface_generator import SCENARIOS
+
+
+# 8 个 SCENARIOS 的 PAD 中心点（来自 verification/surface_generator.py）
+SCENARIOS = {
+    "safe_companionship":   (0.60, 0.30, 0.60),
+    "conflict":             (-0.40, 0.70, 0.30),
+    "cascading":            (-0.70, 0.90, 0.10),
+    "recovery":             (0.30, 0.30, 0.50),
+    "daily_neutral":        (0.00, 0.30, 0.50),
+    "boundary_invasion":    (-0.50, 0.60, 0.20),
+    "intimacy_growth":      (0.70, 0.40, 0.60),
+    "trauma":               (-0.90, 0.95, 0.00),
+}
 
 
 def _get_scenario_ambiguity(name: str) -> float:
     """辅助: 算指定 SCENARIOS 的 ambiguity。"""
-    profile = SCENARIOS[name]
-    pad_dict = profile.base_surface.get("pad", {})
-    v = pad_dict.get("valence", 0.0)
-    a = pad_dict.get("arousal", 0.0)
-    d = pad_dict.get("dominance", 0.5)
+    v, a, d = SCENARIOS[name]
     dist = classify_distribution((v, a, d))
     return compute_ambiguity(dist)
 
