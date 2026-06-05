@@ -68,3 +68,36 @@ def test_classify_distribution_filters_low_probability():
     assert len(dist) <= 7
     for v in dist.values():
         assert v >= 0.05
+
+
+def test_classify_primary_secondary_single_dominant():
+    """单极主导: top1 > 0.5, top1/top2 > 2.5 → (top1, None)。"""
+    dist = {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
+    primary, secondary = classify_primary_secondary(dist)
+    assert primary == "joy"
+    assert secondary is None
+
+
+def test_classify_primary_secondary_mixed_shape():
+    """主+副混合: top1 > 0.35, top2 > 0.20, ratio < 2.5 → (top1, top2)。"""
+    dist = {"joy": 0.4, "surprise": 0.35, "neutral": 0.25}
+    primary, secondary = classify_primary_secondary(dist)
+    assert primary == "joy"
+    assert secondary == "surprise"
+
+
+def test_classify_primary_secondary_compound_region_match():
+    """复合区域匹配: PAD 落在 COMPOUND_REGIONS 内 → 用 compound primary/secondary。"""
+    dist = {"sadness": 0.4, "neutral": 0.3, "fear": 0.3}
+    # PAD = (-0.5, 0.8, 0.2) 落在 sad_excitement 区域
+    primary, secondary = classify_primary_secondary(dist, pad=(-0.5, 0.8, 0.2))
+    assert primary == "sadness"
+    assert secondary == "excitement"
+
+
+def test_classify_primary_secondary_blended_shape():
+    """双极交织: top1, top2 ∈ [0.25, 0.45] & |diff| < 0.10 → (top1, top2)。"""
+    dist = {"joy": 0.35, "surprise": 0.32, "neutral": 0.2, "anger": 0.13}
+    primary, secondary = classify_primary_secondary(dist)
+    assert primary == "joy"
+    assert secondary == "surprise"

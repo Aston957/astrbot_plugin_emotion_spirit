@@ -115,12 +115,63 @@ def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
     return {k: v / total for k, v in filtered.items()}
 
 
+def _in_compound_region(pad: tuple[float, float, float]) -> dict[str, Any] | None:
+    """检查 PAD 是否落在某个复合区域。返回 compound dict 或 None。"""
+    valence, arousal, dominance = pad
+    for compound in COMPOUND_REGIONS.values():
+        v_ok = compound["valence"][0] <= valence <= compound["valence"][1]
+        a_ok = compound["arousal"][0] <= arousal <= compound["arousal"][1]
+        d_ok = compound["dominance"][0] <= dominance <= compound["dominance"][1]
+        if v_ok and a_ok and d_ok:
+            return compound
+    return None
+
+
 def classify_primary_secondary(
     distribution: dict[str, float],
     pad: tuple[float, float, float] | None = None,
 ) -> tuple[str, str | None]:
-    """从分布提取主要/次要情绪。Task 3 实现。"""
-    return ("neutral", None)
+    """从分布中提取主要/次要情绪（核心 API）。
+
+    判定顺序（见 spec §3.4）：
+    1. 平静基调 (neutral > 0.4) → ("neutral", None)
+    2. COMPOUND_REGIONS 匹配 → 用 compound primary/secondary
+    3. 单极主导 (max > 0.5 & ratio > 2.5) → (top1, None)
+    4. 主+副混合 (max > 0.35 & top2 > 0.20 & ratio < 2.5) → (top1, top2)
+    5. 双极交织 (top1, top2 在 0.25-0.45 & |diff| < 0.10) → (top1, top2)
+    6. 多色混合 (max < 0.3) → (top1, None)
+    7. 兜底 → (top1, None)
+    """
+    # 1. 平静基调
+    if distribution.get("neutral", 0) > 0.4:
+        return ("neutral", None)
+
+    sorted_d = sorted(distribution.items(), key=lambda x: -x[1])
+    top1_name, top1_val = sorted_d[0]
+    top2_name, top2_val = (sorted_d[1] if len(sorted_d) > 1 else (None, 0.0))
+    ratio = top1_val / top2_val if top2_val > 0 else float('inf')
+
+    # 2. COMPOUND_REGIONS 匹配（仅在有 pad 时）
+    if pad is not None:
+        compound = _in_compound_region(pad)
+        if compound is not None:
+            return (compound["primary"], compound["secondary"])
+
+    # 3. 单极主导
+    if top1_val > 0.5:
+        return (top1_name, None)
+
+    # 4. 主+副混合
+    if top1_val > 0.35 and top2_val > 0.20 and ratio < 2.5:
+        return (top1_name, top2_name)
+
+    # 5. 双极交织
+    if (0.30 <= top1_val <= 0.45 and 0.25 <= top2_val <= 0.45
+            and abs(top1_val - top2_val) < 0.10):
+        return (top1_name, top2_name)
+
+    # 6. 多色混合 / 7. 兜底
+    return (top1_name, None)
 
 
 def render_description(distribution: dict[str, float], intensity: float) -> str:
