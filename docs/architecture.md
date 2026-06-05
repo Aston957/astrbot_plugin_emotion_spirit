@@ -323,6 +323,110 @@ emotion_spirit 从"单一字符串 pad_label"升级为"概率分布 + 派生数�
 - Spec: `docs/superpowers/specs/2026-06-05-emotion-representation-design.md`
 - Plan: `docs/superpowers/plans/2026-06-05-emotion-representation.md`
 
+---
+
+## 7.6 v1.2 情绪动态表示 (2026-06-05)
+
+### 动机
+
+v1.1.1 把 emotion 从"单一字符串"升级为"概率分布 + 派生数据"，但仍是**静态快照**。v1.2 解决：
+- 不表达"情绪**怎么变**"（动态/轨迹）
+- 不表达"情绪**多确定**"（置信度/熵）
+
+### 3 个新字段
+
+| 字段 | 类型 | 数据源 | 持久化 |
+|------|------|--------|--------|
+| `emotion_ambiguity` | `float` (0-1) | Shannon 熵归一化，从 `pad_distribution` 派生 | 否（无状态） |
+| `emotion_velocity` | `dict` {v, a, d, dt} | 历史 raw PAD 差分 | 是（仅末帧） |
+| `emotion_trajectory` | `list[(v, a, d, t)]` | 环形缓冲（deque maxlen=8） | 是（定时写） |
+
+### 状态归属
+
+**SurfaceConsumer 是 per-plugin 单例**（不接收 session_id）—— 内部用 `dict[session_id, deque]` 维护 per-session 状态：
+
+```python
+class SurfaceConsumer:
+    def __init__(self):
+        self._pad_history: dict[str, tuple] = {}      # session_id → last (v, a, d, t)
+        self._pad_trajectory: dict[str, deque] = {}   # session_id → 最近 N 帧
+```
+
+`consume(surface, session_id=None)` —— session_id 不传时不计算 velocity/trajectory（向后兼容）。
+
+### 持久化策略
+
+**SpiritStore schema v2**:
+- 加 `pad_history` / `pad_trajectory` 命名空间
+- **5 min 定时写** + dirty flag（避免每帧序列化）
+- 最多丢 5 min 历史（断电场景）
+- 老数据自动迁移（schema_version 1 → 2，无破坏）
+
+### 公开 API 分层
+
+**层次 1（默认）**:
+```python
+EmotionSpiritPlugin.get_emotion_state(session_key) -> dict
+# 11 字段（9 原有 + emotion_ambiguity + emotion_velocity）
+```
+
+**层次 2（高级 opt-in）**:
+```python
+EmotionSpiritPlugin.get_emotion_trajectory(session_key) -> list[dict]
+# N=8 帧 [{"valence", "arousal", "dominance", "timestamp"}]
+```
+
+**隐私边界**:
+- 默认暴露 11 字段 + 身体 4 字段
+- trajectory 需 opt-in 调用高级 API
+- damage/intimacy/conscience 仍不暴露
+
+### 消费者集成
+
+`build_emotion_payload()` 共享层 +2 字段（**v1.1.2 DRY 设计的延续**）:
+- `diary_writer._format_emotion_block()` 加 2 行（ambiguity + velocity）
+- `life_simulator.check_mode_a()` payload 加 2 字段
+- `life_simulator.check_mode_b()` payload 通过共享层自动获得
+
+### 关键决策（已拍板）
+
+| 决策 | 选择 | 理由 |
+|------|------|------|
+| 1. PAD 处理 | **保持 raw**（不引入 EMA） | 0 破坏性变更；velocity 从 raw 算；抖动 ±0.02 可接受 |
+| 2. 持久化 | **定时写 5 min** | 平衡性能 + 断电恢复 |
+| 3. API 暴露 | **N=8 + 可配置 + trajectory 高级 API** | 隐私分层 |
+
+### 性能评估
+
+- 每帧总开销 ~6.5μs（5μs ambiguity + 1μs velocity + 0.5μs deque）
+- 100 session × 8 帧 = 25.6KB JSON
+- 5 分钟定时写 = 平均 0.085μs/帧
+- **总 CPU 占用 < 0.01%**
+
+### 向后兼容
+
+- SemanticSignals 加 3 字段（默认值 0/None/[]）
+- `consume(surface)` 不传 session_id 仍工作
+- 老公开 API（get_emotion_state 9 字段）→ 11 字段（多 2 个不影响老消费者）
+- 老 spirit_data.json 自动迁移 v2
+- **0 破坏性变更**
+
+### 影响的消费者
+
+| 消费者 | 改动 |
+|--------|------|
+| `emotion_classifier.build_emotion_payload()` | +emotion_ambiguity +emotion_velocity |
+| `diary_writer._format_emotion_block()` | +2 行（ambiguity + velocity 文本） |
+| `life_simulator.check_mode_a()` payload | +emotion_ambiguity +emotion_velocity |
+| `main.py` get_emotion_state() | 9 → 11 字段（+ambiguity +velocity） |
+| `main.py` get_emotion_trajectory() | 新增高级 API |
+
+### 详细设计
+
+- Spec: `docs/superpowers/specs/2026-06-05-emotion-dynamics-design.md`
+- Plan: `docs/superpowers/plans/2026-06-05-emotion-dynamics.md`
+- Memory: `memory/emotion-spirit-v12-design.md`
+
 ## 8. 已知限制
 
 1. **单会话**: 数据按 `session_id` 隔离，不同会话不共享记忆
