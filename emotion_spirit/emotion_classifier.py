@@ -67,6 +67,7 @@ EMOTION_ZH: dict[str, str] = {
 
 def build_emotion_payload(signals: Any) -> dict[str, Any]:
     """v1.1.2: 把 emotion 字段打包成稳定 schema dict（共享层）。
+    v1.2: +emotion_ambiguity +emotion_velocity
 
     单一数据源：diary_writer 和 life_simulator 都基于此。
     字段命名约定: emotion_* 前缀（区分原始 PAD）。
@@ -78,6 +79,8 @@ def build_emotion_payload(signals: Any) -> dict[str, Any]:
             "emotion_primary": ...,
             "emotion_secondary": ...,
             "emotion_intensity": ...,
+            "emotion_ambiguity": ...,
+            "emotion_velocity": ...,
         }
     """
     return {
@@ -90,6 +93,9 @@ def build_emotion_payload(signals: Any) -> dict[str, Any]:
         "emotion_primary": signals.pad_primary,
         "emotion_secondary": signals.pad_secondary,
         "emotion_intensity": signals.pad_intensity,
+        # v1.2 新增 2 字段
+        "emotion_ambiguity": signals.emotion_ambiguity,
+        "emotion_velocity": signals.emotion_velocity,
     }
 
 

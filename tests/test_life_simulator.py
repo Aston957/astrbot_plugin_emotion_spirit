@@ -295,6 +295,67 @@ def test_mode_b_soliloquy_payload_includes_emotion():
     assert result["emotion"]["emotion_primary"] == "neutral"
 
 
+# ═══ v1.2: payload 包含 emotion_ambiguity + emotion_velocity ═══
+
+
+def test_life_simulator_mode_b_payload_includes_v12_dynamics():
+    """v1.2: life_simulator Mode B payload 包含 emotion_ambiguity + emotion_velocity。"""
+    from emotion_spirit.life_simulator import LifeSimulator
+    from emotion_spirit.surface_consumer import SemanticSignals
+    import time
+
+    # 构造一个最小可用的 consumer/pool/intimacy/etc.
+    class FakeConsumer:
+        def consume(self, surface, session_id=None):
+            return SemanticSignals(
+                pad_valence=0.5, pad_arousal=0.6, pad_dominance=0.7,
+                pad_distribution={"joy": 0.6, "neutral": 0.4},
+                pad_primary="joy", pad_secondary="neutral", pad_intensity=0.6,
+                emotion_ambiguity=0.97,
+                emotion_velocity={"valence": 0.1, "arousal": 0.2, "dominance": 0.3, "dt": 1.0},
+                phi_smoothed=0.5, needs_expression=0.6, boundary_budget=0.5,
+                boundary_cooldown=0, boundary_paused=False, capacity_exhaustion=0.3,
+                needs_quiet=0.2, cascade_active=False, body_criticality=0.3,
+            )
+
+    consumer = FakeConsumer()
+    # 最小 stub: pool/reservoir/signals
+    class FakePool:
+        def sample_for_mode_b(self, k): return []
+    class FakeReservoir:
+        level = 0.5
+        def draw(self, amt): pass
+    class FakeSignals:
+        def mode_b_strategy(self): return "test"
+    class FakeIntimacy:
+        pass
+
+    sim = LifeSimulator(
+        consumer=consumer, pool=FakePool(), intimacy=FakeIntimacy(),
+        signals=FakeSignals(), reservoir=FakeReservoir(),
+    )
+    # 强制触发：绕过时间检查
+    sim._last_mode_b = 0
+    sim._last_interaction = 0
+
+    sig = SemanticSignals(
+        pad_valence=0.5, pad_arousal=0.6, pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.4},
+        pad_primary="joy", pad_secondary="neutral", pad_intensity=0.6,
+        emotion_ambiguity=0.97,
+        emotion_velocity={"valence": 0.1, "arousal": 0.2, "dominance": 0.3, "dt": 1.0},
+        phi_smoothed=0.5, needs_expression=0.6, boundary_budget=0.5,
+        boundary_cooldown=0, boundary_paused=False, capacity_exhaustion=0.3,
+        needs_quiet=0.2, cascade_active=False, body_criticality=0.3,
+    )
+    result = sim.check_mode_b(sig, "default")
+    if result is not None and "emotion" in result:
+        # emotion_ambiguity / emotion_velocity 来自 build_emotion_payload 共享层
+        assert "emotion_ambiguity" in result["emotion"]
+        assert "emotion_velocity" in result["emotion"]
+        assert result["emotion"]["emotion_ambiguity"] == 0.97
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()

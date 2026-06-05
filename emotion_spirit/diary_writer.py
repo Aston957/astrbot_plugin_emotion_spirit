@@ -30,13 +30,21 @@ _DIARY_PROMPTS = {
 
 
 def _format_emotion_block(signals: "SemanticSignals") -> str:
-    """v1.1.2: 调用共享 payload，再格式化为 LLM 友好文本。
+    """v1.1.2 + v1.2: 调用共享 payload，再格式化为 LLM 友好文本。
 
     共享数据来自 emotion_classifier.build_emotion_payload()，本函数只负责
     字典→文本的展示层格式化。
     """
     payload = build_emotion_payload(signals)
     pad = payload["pad"]
+    velocity = payload["emotion_velocity"]
+    if velocity is None:
+        velocity_str = "首帧无历史"
+    else:
+        velocity_str = (
+            f"v={velocity['valence']:+.2f} a={velocity['arousal']:+.2f} "
+            f"d={velocity['dominance']:+.2f} (dt={velocity['dt']:.1f}s)"
+        )
     lines = [
         f"  - valence (效价): {pad['valence']:.2f}",
         f"  - arousal (唤醒度): {pad['arousal']:.2f}",
@@ -45,6 +53,10 @@ def _format_emotion_block(signals: "SemanticSignals") -> str:
         f"  - 主要情绪: {payload['emotion_primary']}",
         f"  - 次要情绪: {payload['emotion_secondary'] or '无'}",
         f"  - 强度: {payload['emotion_intensity']:.2f}",
+        # v1.2 新增 2 行
+        f"  - 情绪模糊度 (ambiguity): {payload['emotion_ambiguity']:.2f} "
+        f"(0=确定单一情绪, 1=完全模糊)",
+        f"  - 情绪变化率 (velocity): {velocity_str}",
     ]
     return (
         "你当前的情感状态（请据此理解自己的情绪，可自由用中文描述如'悲怆''狂喜'等）:\n"

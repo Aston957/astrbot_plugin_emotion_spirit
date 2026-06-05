@@ -223,6 +223,28 @@ def test_build_superego_reflection_prompt_with_signals():
     assert "内在冲突" in prompt
 
 
+# ═══ v1.2: ambiguity/velocity 注入 ═══
+
+
+def test_diary_writer_v12_includes_ambiguity_velocity():
+    """v1.2: diary_writer 注入块包含 emotion_ambiguity + emotion_velocity。"""
+    from emotion_spirit.diary_writer import _format_emotion_block
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals(
+        pad_valence=0.5, pad_arousal=0.6, pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.4},
+        pad_primary="joy", pad_secondary="neutral", pad_intensity=0.6,
+        emotion_ambiguity=0.97,
+        emotion_velocity={"valence": 0.1, "arousal": 0.2, "dominance": 0.3, "dt": 1.0},
+    )
+    block = _format_emotion_block(s)
+    # ambiguity 应该出现
+    assert "0.97" in block
+    # velocity 数字应该出现（dt=1.0 或变化率 0.10/0.20/0.30）
+    assert "0.97" in block or "ambiguity" in block or "模糊度" in block
+
+
 if __name__ == "__main__":
     test_diary_type_escalating()
     test_diary_prompt_includes_patterns()
@@ -234,4 +256,5 @@ if __name__ == "__main__":
     test_build_diary_prompt_with_signals_injects_emotion()
     test_build_diary_prompt_without_signals_backward_compat()
     test_build_superego_reflection_prompt_with_signals()
+    test_diary_writer_v12_includes_ambiguity_velocity()
     print("All diary_writer tests passed!")

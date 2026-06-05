@@ -76,6 +76,9 @@ class LifeSimulator:
                         "emotion_primary": signals.pad_primary,
                         "emotion_secondary": signals.pad_secondary,
                         "emotion_intensity": signals.pad_intensity,
+                        # v1.2: 动态字段
+                        "emotion_ambiguity": signals.emotion_ambiguity,
+                        "emotion_velocity": signals.emotion_velocity,
                     },
                 }
         return None

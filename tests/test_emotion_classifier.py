@@ -155,16 +155,17 @@ def test_build_emotion_payload_basic():
 
 
 def test_build_emotion_payload_default_signals():
-    """默认 SemanticSignals 返回完整 schema（向后兼容）。"""
+    """默认 SemanticSignals 返回完整 schema（向后兼容）。v1.2: 7 字段。"""
     from emotion_spirit.surface_consumer import SemanticSignals
 
     s = SemanticSignals()  # 所有字段用默认
 
     payload = build_emotion_payload(s)
 
-    # 必须有 5 个 top-level keys
+    # v1.2: 5 字段 + 2 新字段 = 7 top-level keys
     assert set(payload.keys()) == {
-        "pad", "emotion_distribution", "emotion_primary", "emotion_secondary", "emotion_intensity"
+        "pad", "emotion_distribution", "emotion_primary", "emotion_secondary",
+        "emotion_intensity", "emotion_ambiguity", "emotion_velocity",
     }
     # pad 是子 dict
     assert set(payload["pad"].keys()) == {"valence", "arousal", "dominance"}
@@ -176,6 +177,9 @@ def test_build_emotion_payload_default_signals():
     assert payload["emotion_primary"] == "neutral"
     assert payload["emotion_secondary"] is None
     assert payload["emotion_intensity"] == 0.0
+    # v1.2 新增字段默认值
+    assert payload["emotion_ambiguity"] == 0.0
+    assert payload["emotion_velocity"] is None
 
 
 def test_build_emotion_payload_compound_emotion():
