@@ -1,0 +1,139 @@
+"""Prompt 组装器 — 将记忆、关系、超我、阴影组装为注入文本。
+
+注入到 system_prompt，不会被持久化到对话历史。
+"""
+
+from __future__ import annotations
+
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .memory_pool import MemoryPool
+    from .intimacy import IntimacyTracker
+    from .superego import ValueAlignment, ConscienceTracker, IdealSelf
+    from .shadow_detector import ShadowDetector
+    from .diary_writer import DiaryWriter
+
+
+class PromptInjector:
+    """Prompt 上下文组装器。"""
+
+    def __init__(
+        self,
+        pool: MemoryPool,
+        intimacy: IntimacyTracker,
+        alignment: ValueAlignment,
+        conscience: ConscienceTracker,
+        ideal: IdealSelf,
+        shadow: ShadowDetector,
+        diary: DiaryWriter,
+    ) -> None:
+        self._pool = pool
+        self._intimacy = intimacy
+        self._alignment = alignment
+        self._conscience = conscience
+        self._ideal = ideal
+        self._shadow = shadow
+        self._diary = diary
+
+    def build_context(
+        self,
+        user_id: str,
+        persona: str,
+        current_personality: dict[str, dict[str, float]] | None = None,
+        safety_level: str = "normal",
+        safety_note: str | None = None,
+        repair_advice: str | None = None,
+    ) -> str:
+        """构建注入到 system_prompt 的上下文。
+
+        Args:
+            safety_level: SuperegoGuard 输出的干预级别 ("normal"|"warning"|"critical")
+            safety_note: 人格化安全提示文本 (critical 时由 SuperegoGuard 生成)
+            repair_advice: 修复建议文本 (critical 时由 SuperegoGuard 生成)
+        """
+        from .config import SAFETY_CONFIG
+
+        parts: list[str] = []
+
+        # [印象] 温池最近 3 条
+        recent = sorted(self._pool.warm, key=lambda e: e.created_at, reverse=True)[:3]
+        if recent:
+            impressions = "; ".join(e.text[:30] for e in recent)
+            parts.append(f"[印象] 最近你感觉: {impressions}")
+
+        # [日记] 最近日记摘要
+        diary_entries = self._diary.get_recent_diary(days=3)
+        if diary_entries:
+            parts.append(f"[日记] 你上次写到: {diary_entries[-1]['text'][:50]}")
+
+        # [关系] 亲密度阶段
+        lifecycle = self._intimacy.get_lifecycle(user_id)
+        score = self._intimacy.get_intimacy(user_id, persona)
+        parts.append(f"[关系] 你和TA的关系: {lifecycle} (亲密度: {score:.2f})")
+
+        # ═══ 超我: 价值冲突 (阈值随安全级别动态调整) ═══
+        conscience_threshold = SAFETY_CONFIG.get(
+            f"conscience_threshold_{safety_level}",
+            SAFETY_CONFIG["conscience_threshold_normal"],
+        )
+        breakdown = self._conscience.get_pressure_breakdown()
+        if breakdown["pressure"] > conscience_threshold:
+            dominant = breakdown.get("dominant_tension")
+            type_notes = {
+                "guilt": "你觉得最近有些事违背了你的价值观",
+                "shame": "你最近对自己不太满意",
+                "doubt": "你最近有些事觉得说不通",
+                "righteous": "你最近在坚持一些事，虽然不容易",
+                "value_conflict": "有些事和你的价值观冲突了",
+                "guard_reflex": "你的直觉在阻止一些事",
+                "guard_rejected": "你的直觉在阻止一些事",
+            }
+            note = type_notes.get(dominant, "你最近有些内在冲突")
+            parts.append(f"[内在冲突] {note} (压力: {breakdown['pressure']:.2f})")
+
+        # ═══ 价值对齐 (计数阈值随安全级别动态调整) ═══
+        alignment_count_threshold = SAFETY_CONFIG.get(
+            f"alignment_show_count_{safety_level}",
+            SAFETY_CONFIG["alignment_show_count_normal"],
+        )
+        alignments = self._conscience.get_recent_alignments(hours=24)
+        if len(alignments) >= alignment_count_threshold:
+            value_names = list(set(a.value_name for a in alignments[-5:]))
+            parts.append(f"[价值对齐] 你最近在践行: {'、'.join(value_names)}")
+
+        # ═══ 理想自我 ═══
+        if current_personality:
+            gap = self._ideal.compute_gap(current_personality)
+            if gap > 0.2:
+                direction = self._ideal.get_direction(current_personality)
+                top_drift = sorted(direction.items(), key=lambda x: abs(x[1]), reverse=True)[:2]
+                drift_desc = ", ".join(
+                    f"{k.split('.')[-1]}({'↑' if v > 0 else '↓'})" for k, v in top_drift
+                )
+                parts.append(f"[理想] 你想成为的样子，最近在: {drift_desc} 偏离")
+
+        # ═══ 安全提示 (critical 时由 SuperegoGuard 提供) ═══
+        if safety_note:
+            parts.append(f"[安全提示] {safety_note}")
+
+        # ═══ 修复建议 (critical 时由 SuperegoGuard 提供) ═══
+        if repair_advice:
+            parts.append(f"[修复] {repair_advice}")
+
+        # [阴影] 阴影检测 (如果有)
+        if self._shadow:
+            shadows = self._shadow.detect()
+        else:
+            shadows = []
+        if shadows:
+            top = shadows[0]
+            parts.append(f"[阴影] 你一直在回避关于 {top['tag']} 的事")
+
+        return "\n".join(parts) if parts else ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {}
+
+    def from_dict(self, data: dict[str, Any]) -> None:
+        pass

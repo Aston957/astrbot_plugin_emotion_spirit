@@ -1,0 +1,11 @@
+name: astrbot_plugin_emotion_spirit
+display_name: "Emotion Spirit"
+desc: "长期记忆、人格演化与超我调控 — Sylanne Engine 之上的自我层"
+author: "emotion_spirit"
+version: "1.0.2v3"
+repo: ""
+support_platforms:
+  - aiocqhttp
+  - telegram
+  - qq_official
+astrbot_version: ">=4.9.2,<5"

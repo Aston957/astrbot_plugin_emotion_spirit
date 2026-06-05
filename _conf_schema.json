@@ -1,0 +1,53 @@
+{
+  "persona_mode": {
+    "description": "人格管理模式",
+    "type": "string",
+    "options": ["auto", "disabled"],
+    "default": "disabled",
+    "hint": "disabled: 使用 Sylanne 默认行为（推荐新手）; auto: 选择人格后发送 /spirit_init 初始化人格参数（解析标签 + 生成 11 维参数）"
+  },
+  "auto_source": {
+    "description": "【自动模式】读取的人格",
+    "type": "string",
+    "_special": "select_persona",
+    "hint": "仅 auto 模式生效。选择人格后，发送 /spirit_init 初始化人格参数（解析标签 + 生成 11 维参数）"
+  },
+  "feature_toggles": {
+    "description": "功能模块开关（修改后需重启生效）",
+    "type": "object",
+    "hint": "关闭的模块不会加载，不占用资源，不影响其他功能",
+    "items": {
+      "enable_shadow_detector": {
+        "description": "阴影检测",
+        "type": "bool",
+        "default": true,
+        "hint": "检测未符号化的情绪模式（echo、回避、确认偏差）。关闭后 /spirit_shadows 不可用"
+      },
+      "enable_sentinel": {
+        "description": "预警系统",
+        "type": "bool",
+        "default": true,
+        "hint": "13 信号早期预警。关闭后 /spirit_sentinel 不可用"
+      },
+      "enable_narrative": {
+        "description": "叙事身份",
+        "type": "bool",
+        "default": true,
+        "hint": "月度叙事弧生成。关闭后 bot 不再生成月度自我叙事"
+      },
+      "enable_life_simulator": {
+        "description": "自主生活模拟",
+        "type": "bool",
+        "default": true,
+        "hint": "关闭后 bot 变为纯被动响应，不会主动发起对话"
+      },
+      "life_simulator_mode": {
+        "description": "生活模拟模式",
+        "type": "string",
+        "options": ["both", "passive", "silent"],
+        "default": "both",
+        "hint": "both=空闲插入+长沉默后发言; passive=仅空闲插入; silent=仅长沉默后发言。仅在自主生活开启时生效"
+      }
+    }
+  }
+}
