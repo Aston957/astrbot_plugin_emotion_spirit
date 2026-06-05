@@ -6,6 +6,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .config import EMA_ALPHA
+from .emotion_classifier import (
+    classify_distribution,
+    classify_primary_secondary,
+)
 from .trend_utils import EMASmoother
 
 
@@ -249,6 +253,16 @@ class SurfaceConsumer:
         # 派生信号 EMA
         self._integration_smoother.update(signals.body_integration)
         self._criticality_smoother.update(signals.body_criticality)
+
+        # v1.1.1: 情绪分类（从 PAD 原始值计算）
+        pad_tuple = (signals.pad_valence, signals.pad_arousal, signals.pad_dominance)
+        signals.pad_distribution = classify_distribution(pad_tuple)
+        primary, secondary = classify_primary_secondary(
+            signals.pad_distribution, pad=pad_tuple
+        )
+        signals.pad_primary = primary
+        signals.pad_secondary = secondary
+        signals.pad_intensity = signals.pad_arousal
 
         return signals
 
