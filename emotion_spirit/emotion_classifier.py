@@ -92,6 +92,33 @@ def build_emotion_payload(signals: Any) -> dict[str, Any]:
     }
 
 
+def compute_ambiguity(distribution: dict[str, float]) -> float:
+    """v1.2: 从概率分布算 Shannon 熵，归一化到 [0, 1]。
+
+    0.0 = 单一情绪（delta 分布，非常确定）
+    1.0 = 均匀分布（完全模糊）
+
+    算法:
+    - 过滤零概率项
+    - 计算 H = -Σ p*log(p)
+    - 归一化: H / log(N)，N 是分布中的类别数
+
+    Examples:
+        {"joy": 1.0}                    → 0.0   (单点)
+        {"joy": 0.5, "neutral": 0.5}    → 1.0   (2 类均匀)
+        {"joy": 0.25, ... (4 类)}       → 1.0   (4 类均匀)
+        {"joy": 0.5, "sadness": 0.3, "anger": 0.2}  → ~0.95
+    """
+    probs = [p for p in distribution.values() if p > 0]
+    if not probs:
+        return 0.0
+    entropy = -sum(p * math.log(p) for p in probs)
+    max_entropy = math.log(len(distribution)) if len(distribution) > 1 else 1.0
+    if max_entropy == 0:
+        return 0.0
+    return min(1.0, entropy / max_entropy)
+
+
 def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
     """PAD → 概率分布（核心 API）。
 

@@ -8,6 +8,7 @@ from emotion_spirit.emotion_classifier import (
     build_emotion_payload,
     classify_distribution,
     classify_primary_secondary,
+    compute_ambiguity,  # v1.2
     render_description,
 )
 
@@ -212,3 +213,44 @@ def test_build_emotion_payload_returns_independent_dict():
     # 修改外层 dict 也不应影响 signals
     payload["pad"]["valence"] = 999.0
     assert s.pad_valence == 0.0
+
+
+# ═══ v1.2: compute_ambiguity() Shannon 熵 ═══
+
+
+def test_compute_ambiguity_uniform_distribution_returns_one():
+    """均匀分布 (max entropy) → 1.0。"""
+    dist = {"joy": 0.25, "sadness": 0.25, "anger": 0.25, "neutral": 0.25}
+    ambiguity = compute_ambiguity(dist)
+    assert abs(ambiguity - 1.0) < 0.001
+
+
+def test_compute_ambiguity_delta_distribution_returns_zero():
+    """单点分布 (min entropy) → 0.0。"""
+    dist = {"joy": 1.0}
+    ambiguity = compute_ambiguity(dist)
+    assert abs(ambiguity - 0.0) < 0.001
+
+
+def test_compute_ambiguity_two_equal_categories_returns_one():
+    """2 类均匀分布 → log(2)/log(2) = 1.0。"""
+    dist = {"joy": 0.5, "neutral": 0.5}
+    ambiguity = compute_ambiguity(dist)
+    assert abs(ambiguity - 1.0) < 0.001
+
+
+def test_compute_ambiguity_three_equal_returns_one():
+    """3 类均匀分布 → 1.0（归一化后）。"""
+    dist = {"joy": 0.5, "sadness": 0.3, "anger": 0.2}
+    # entropy = -(0.5*log(0.5) + 0.3*log(0.3) + 0.2*log(0.2))
+    # max_entropy = log(3) (uniform over 3)
+    # actual ratio < 1.0 (非均匀)
+    ambiguity = compute_ambiguity(dist)
+    assert 0.9 < ambiguity < 1.0
+
+
+def test_compute_ambiguity_empty_returns_zero():
+    """空分布 → 0.0 (无信号)。"""
+    dist = {}
+    ambiguity = compute_ambiguity(dist)
+    assert ambiguity == 0.0
