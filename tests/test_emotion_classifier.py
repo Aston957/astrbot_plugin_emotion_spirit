@@ -222,38 +222,36 @@ def test_build_emotion_payload_returns_independent_dict():
     assert s.pad_valence == 0.0
 
 
-# ═══ v1.2: compute_ambiguity() Shannon 熵 ═══
+# ═══ v1.3: compute_ambiguity() = 1 - max(p) ═══
 
 
-def test_compute_ambiguity_uniform_distribution_returns_one():
-    """均匀分布 (max entropy) → 1.0。"""
-    dist = {"joy": 0.25, "sadness": 0.25, "anger": 0.25, "neutral": 0.25}
-    ambiguity = compute_ambiguity(dist)
-    assert abs(ambiguity - 1.0) < 0.001
-
-
-def test_compute_ambiguity_delta_distribution_returns_zero():
-    """单点分布 (min entropy) → 0.0。"""
+def test_compute_ambiguity_delta_returns_zero():
+    """单点分布 (max=1) → 0.0 (完全确定)。"""
     dist = {"joy": 1.0}
     ambiguity = compute_ambiguity(dist)
-    assert abs(ambiguity - 0.0) < 0.001
+    assert ambiguity == 0.0
 
 
-def test_compute_ambiguity_two_equal_categories_returns_one():
-    """2 类均匀分布 → log(2)/log(2) = 1.0。"""
+def test_compute_ambiguity_two_equal_returns_half():
+    """2 类均匀 (max=0.5) → 0.5。"""
     dist = {"joy": 0.5, "neutral": 0.5}
     ambiguity = compute_ambiguity(dist)
-    assert abs(ambiguity - 1.0) < 0.001
+    assert ambiguity == 0.5
 
 
-def test_compute_ambiguity_three_equal_returns_one():
-    """3 类均匀分布 → 1.0（归一化后）。"""
-    dist = {"joy": 0.5, "sadness": 0.3, "anger": 0.2}
-    # entropy = -(0.5*log(0.5) + 0.3*log(0.3) + 0.2*log(0.2))
-    # max_entropy = log(3) (uniform over 3)
-    # actual ratio < 1.0 (非均匀)
+def test_compute_ambiguity_three_uniform_returns_two_thirds():
+    """3 类均匀 (max=1/3) → 2/3 ≈ 0.667。"""
+    dist = {"joy": 0.3334, "neutral": 0.3333, "anger": 0.3333}
     ambiguity = compute_ambiguity(dist)
-    assert 0.9 < ambiguity < 1.0
+    assert abs(ambiguity - 0.6666) < 0.01
+
+
+def test_compute_ambiguity_uneven_distribution():
+    """不均匀分布 → 1 - max(p)。"""
+    dist = {"joy": 0.6, "neutral": 0.4}
+    ambiguity = compute_ambiguity(dist)
+    # 0.6 主导, 1 - 0.6 = 0.4
+    assert ambiguity == 0.4
 
 
 def test_compute_ambiguity_empty_returns_zero():

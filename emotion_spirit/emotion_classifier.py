@@ -100,30 +100,26 @@ def build_emotion_payload(signals: Any) -> dict[str, Any]:
 
 
 def compute_ambiguity(distribution: dict[str, float]) -> float:
-    """v1.2: 从概率分布算 Shannon 熵，归一化到 [0, 1]。
+    """v1.3: 模糊度 = 1 - max(p)。
 
-    0.0 = 单一情绪（delta 分布，非常确定）
-    1.0 = 均匀分布（完全模糊）
+    0.0 = 完全确定（单一情绪主导，max=1）
+    1.0 = 完全模糊（max≈0，几乎无主导）
 
-    算法:
-    - 过滤零概率项
-    - 计算 H = -Σ p*log(p)
-    - 归一化: H / log(N)，N 是分布中的类别数
+    v1.2 → v1.3 变更理由：
+    - 真实数据仿真发现 Shannon entropy / log(K) 让所有场景 ambiguity 偏高
+      (0.74-0.91, 区分度差)
+    - 1 - max(p) 直接测"主导度", 区分度更好
 
     Examples:
-        {"joy": 1.0}                    → 0.0   (单点)
-        {"joy": 0.5, "neutral": 0.5}    → 1.0   (2 类均匀)
-        {"joy": 0.25, ... (4 类)}       → 1.0   (4 类均匀)
-        {"joy": 0.5, "sadness": 0.3, "anger": 0.2}  → ~0.95
+        {"joy": 1.0}                              → 0.0   (确定)
+        {"joy": 0.5, "neutral": 0.5}              → 0.5
+        {"joy": 0.6, "neutral": 0.4}              → 0.4   (joy 主导)
+        {"joy": 0.4, "neutral": 0.3, "anger": 0.3} → 0.6
     """
-    probs = [p for p in distribution.values() if p > 0]
-    if not probs:
+    if not distribution:
         return 0.0
-    entropy = -sum(p * math.log(p) for p in probs)
-    max_entropy = math.log(len(distribution)) if len(distribution) > 1 else 1.0
-    if max_entropy == 0:
-        return 0.0
-    return min(1.0, entropy / max_entropy)
+    max_p = max(distribution.values())
+    return 1.0 - max_p
 
 
 def compute_velocity(
