@@ -9,6 +9,7 @@ import time
 from typing import Any, TYPE_CHECKING
 
 from .config import DIARY_CONFIG
+from .emotion_classifier import build_emotion_payload  # v1.1.2
 from .persona_profiles import DIMENSION_DISPLAY, get_narrative
 
 if TYPE_CHECKING:
@@ -29,19 +30,21 @@ _DIARY_PROMPTS = {
 
 
 def _format_emotion_block(signals: "SemanticSignals") -> str:
-    """v1.1.1: 把 emotion 数据格式化为 LLM-friendly 块。
+    """v1.1.2: 调用共享 payload，再格式化为 LLM 友好文本。
 
-    输出字段名直接用英文（valence/arousal/dominance），LLM 易于理解。
-    概率分布和 primary/secondary 用中文描述让 LLM 解读。
+    共享数据来自 emotion_classifier.build_emotion_payload()，本函数只负责
+    字典→文本的展示层格式化。
     """
+    payload = build_emotion_payload(signals)
+    pad = payload["pad"]
     lines = [
-        f"  - valence (效价): {signals.pad_valence:.2f}",
-        f"  - arousal (唤醒度): {signals.pad_arousal:.2f}",
-        f"  - dominance (支配度): {signals.pad_dominance:.2f}",
-        f"  - 情绪概率分布: {signals.pad_distribution}",
-        f"  - 主要情绪: {signals.pad_primary}",
-        f"  - 次要情绪: {signals.pad_secondary or '无'}",
-        f"  - 强度: {signals.pad_intensity:.2f}",
+        f"  - valence (效价): {pad['valence']:.2f}",
+        f"  - arousal (唤醒度): {pad['arousal']:.2f}",
+        f"  - dominance (支配度): {pad['dominance']:.2f}",
+        f"  - 情绪概率分布: {payload['emotion_distribution']}",
+        f"  - 主要情绪: {payload['emotion_primary']}",
+        f"  - 次要情绪: {payload['emotion_secondary'] or '无'}",
+        f"  - 强度: {payload['emotion_intensity']:.2f}",
     ]
     return (
         "你当前的情感状态（请据此理解自己的情绪，可自由用中文描述如'悲怆''狂喜'等）:\n"

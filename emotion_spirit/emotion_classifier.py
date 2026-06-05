@@ -64,6 +64,34 @@ EMOTION_ZH: dict[str, str] = {
 
 # === 占位实现（后续 Task 替换） ===
 
+def build_emotion_payload(signals: Any) -> dict[str, Any]:
+    """v1.1.2: 把 emotion 字段打包成稳定 schema dict（共享层）。
+
+    单一数据源：diary_writer 和 life_simulator 都基于此。
+    字段命名约定: emotion_* 前缀（区分原始 PAD）。
+
+    Returns:
+        {
+            "pad": {"valence": ..., "arousal": ..., "dominance": ...},
+            "emotion_distribution": ...,
+            "emotion_primary": ...,
+            "emotion_secondary": ...,
+            "emotion_intensity": ...,
+        }
+    """
+    return {
+        "pad": {
+            "valence": signals.pad_valence,
+            "arousal": signals.pad_arousal,
+            "dominance": signals.pad_dominance,
+        },
+        "emotion_distribution": dict(signals.pad_distribution),  # 防御性拷贝
+        "emotion_primary": signals.pad_primary,
+        "emotion_secondary": signals.pad_secondary,
+        "emotion_intensity": signals.pad_intensity,
+    }
+
+
 def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
     """PAD → 概率分布（核心 API）。
 

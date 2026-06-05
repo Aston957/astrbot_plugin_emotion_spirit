@@ -19,20 +19,7 @@ if TYPE_CHECKING:
     from .meaning_reservoir import MeaningReservoir
     from .surface_consumer import SurfaceConsumer
 
-
-def _build_emotion_payload(signals: SemanticSignals) -> dict[str, Any]:
-    """v1.1.1: 把 SemanticSignals 中的 emotion 字段打包成 dict。"""
-    return {
-        "pad": {
-            "valence": signals.pad_valence,
-            "arousal": signals.pad_arousal,
-            "dominance": signals.pad_dominance,
-        },
-        "emotion_distribution": signals.pad_distribution,
-        "emotion_primary": signals.pad_primary,
-        "emotion_secondary": signals.pad_secondary,
-        "emotion_intensity": signals.pad_intensity,
-    }
+from .emotion_classifier import build_emotion_payload  # v1.1.2: 共享层
 
 
 class LifeSimulator:
@@ -117,8 +104,8 @@ class LifeSimulator:
         reservoir_level = self._reservoir.level
         phi = signals.phi_smoothed
 
-        # v1.1.1: 把 emotion 数据打包，传给生成函数
-        emotion_payload = _build_emotion_payload(signals)
+        # v1.1.2: 从共享 emotion_classifier.build_emotion_payload 获取
+        emotion_payload = build_emotion_payload(signals)
 
         if entries and reservoir_level > 0.3:
             return self._generate_life_event(

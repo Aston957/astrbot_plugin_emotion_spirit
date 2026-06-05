@@ -5,6 +5,7 @@ from emotion_spirit.emotion_classifier import (
     CATEGORICAL_REGIONS,
     COMPOUND_REGIONS,
     EMOTION_ZH,
+    build_emotion_payload,
     classify_distribution,
     classify_primary_secondary,
     render_description,
@@ -120,3 +121,94 @@ def test_render_description_mixed_shape_chinese_labels():
     assert "悲伤" in desc
     assert "激动" in desc
     assert "带有" in desc
+
+
+# ═══ v1.1.2: build_emotion_payload() 共享层 ═══
+
+def test_build_emotion_payload_basic():
+    """build_emotion_payload 把 7 字段打包成稳定 schema dict。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals(
+        pad_valence=0.7,
+        pad_arousal=0.5,
+        pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.3, "anger": 0.1},
+        pad_primary="joy",
+        pad_secondary=None,
+        pad_intensity=0.5,
+    )
+
+    payload = build_emotion_payload(s)
+
+    assert payload["pad"]["valence"] == 0.7
+    assert payload["pad"]["arousal"] == 0.5
+    assert payload["pad"]["dominance"] == 0.7
+    assert payload["emotion_distribution"] == {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
+    assert payload["emotion_primary"] == "joy"
+    assert payload["emotion_secondary"] is None
+    assert payload["emotion_intensity"] == 0.5
+
+
+def test_build_emotion_payload_default_signals():
+    """默认 SemanticSignals 返回完整 schema（向后兼容）。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals()  # 所有字段用默认
+
+    payload = build_emotion_payload(s)
+
+    # 必须有 5 个 top-level keys
+    assert set(payload.keys()) == {
+        "pad", "emotion_distribution", "emotion_primary", "emotion_secondary", "emotion_intensity"
+    }
+    # pad 是子 dict
+    assert set(payload["pad"].keys()) == {"valence", "arousal", "dominance"}
+    # 默认值正确
+    assert payload["pad"]["valence"] == 0.0
+    assert payload["pad"]["arousal"] == 0.0
+    assert payload["pad"]["dominance"] == 0.5
+    assert payload["emotion_distribution"] == {"neutral": 1.0}
+    assert payload["emotion_primary"] == "neutral"
+    assert payload["emotion_secondary"] is None
+    assert payload["emotion_intensity"] == 0.0
+
+
+def test_build_emotion_payload_compound_emotion():
+    """复合情绪（primary + secondary）正确打包。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals(
+        pad_valence=-0.5,
+        pad_arousal=0.8,
+        pad_dominance=0.3,
+        pad_distribution={"sadness": 0.5, "fear": 0.3, "neutral": 0.2},
+        pad_primary="sadness",
+        pad_secondary="excitement",
+        pad_intensity=0.8,
+    )
+
+    payload = build_emotion_payload(s)
+
+    assert payload["emotion_primary"] == "sadness"
+    assert payload["emotion_secondary"] == "excitement"
+    assert payload["pad"]["valence"] == -0.5
+
+
+def test_build_emotion_payload_returns_independent_dict():
+    """返回独立 dict（防御性拷贝），不持有 signals 引用。"""
+    from emotion_spirit.surface_consumer import SemanticSignals
+
+    s = SemanticSignals(
+        pad_distribution={"joy": 1.0},
+    )
+
+    payload = build_emotion_payload(s)
+
+    # 修改 payload 不应影响原 signals
+    payload["emotion_distribution"]["joy"] = 0.5
+    assert s.pad_distribution["joy"] == 1.0
+
+    # 修改外层 dict 也不应影响 signals
+    payload["pad"]["valence"] = 999.0
+    assert s.pad_valence == 0.0
