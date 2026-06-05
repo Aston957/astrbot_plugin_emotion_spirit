@@ -39,3 +39,32 @@ def test_emotion_zh_translates_all_labels():
     assert EMOTION_ZH["excitement"] == "激动"
     assert EMOTION_ZH["calm"] == "宁静"
     assert EMOTION_ZH["neutral"] == "平静"
+
+
+def test_classify_distribution_neutral():
+    """中性 PAD 返回 neutral 主导分布。"""
+    dist = classify_distribution((0.0, 0.4, 0.5))
+    assert "neutral" in dist
+    assert dist["neutral"] > 0.5
+
+
+def test_classify_distribution_joy_dominant():
+    """喜悦 PAD 返回 joy 主导分布。"""
+    dist = classify_distribution((0.7, 0.5, 0.7))
+    assert dist["joy"] > 0.5
+    assert dist["joy"] == max(dist.values())
+
+
+def test_classify_distribution_sums_to_one():
+    """概率分布求和 = 1.0。"""
+    dist = classify_distribution((0.3, 0.6, 0.4))
+    total = sum(dist.values())
+    assert abs(total - 1.0) < 0.001
+
+
+def test_classify_distribution_filters_low_probability():
+    """过滤低概率项后，标签数 <= 7。"""
+    dist = classify_distribution((-0.9, 0.9, 0.2))
+    assert len(dist) <= 7
+    for v in dist.values():
+        assert v >= 0.05
