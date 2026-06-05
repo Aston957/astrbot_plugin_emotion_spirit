@@ -26,7 +26,12 @@ emotion_spirit 是 [SylannEngine](https://github.com/Ayleovelle/SylannEngine) �
 | v1.2+ | 2026-06-05 | VELOCITY_BURST_THRESHOLD + emotion_burst 事件 | 252/252 | Phase 1.5 |
 | **v1.3** | 2026-06-05 | **compute_ambiguity 改 1 - max(p)（区分度改善）** | **254/254** | **Phase 1.5** |
 
-**当前阶段**: **Phase 1.5 情绪表示层 ✅ 完成**（2026-06-05）→ **Phase 2 关系记忆增强 ⏳ 待启动**
+**当前阶段**: **Phase 1.5 情绪表示层 ✅ 完成**（2026-06-05）→ **Phase 2.0 Per-user 记忆视图 ⏳ 待启动**
+
+**路线图细化** (2026-06-05):
+- Phase 2 拆成 **2.0** (Per-user 记忆视图基础设施) + **2.5** (亲密度分化 + 关系人格微调)
+- Phase 3 拆成 **3.0** (三元力学引擎基础) + **3.5** (力学驱动叙事 + Superego 升级)
+- 理由：原 Phase 2/3 各含 4+6 个功能，工作量过大；按"基础→应用"分层更可执行
 
 详见 [CHANGELOG.md](CHANGELOG.md) 和 `docs/architecture.md` 的 Phase 描述。
 
