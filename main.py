@@ -1640,10 +1640,10 @@ class EmotionSpiritPlugin(Star):
             self._store.set("narrative", self._narrative.to_dict())
         self._store.set("counterfactual", self._counterfactual.to_dict())
 
-    # ═══ 公开 API（v1.1.1）═══
+    # ═══ 公开 API（v1.1.1 + v1.2 扩展）═══
 
     async def get_emotion_state(self, session_key: str) -> dict | None:
-        """统一情绪状态 API（v1.1.1 主 API，9 字段）。
+        """统一情绪状态 API（v1.1.1 9 字段 + v1.2 +ambiguity +velocity = 11 字段）。
 
         Args:
             session_key: 通常是 event.unified_msg_origin 或 session_id
@@ -1657,6 +1657,8 @@ class EmotionSpiritPlugin(Star):
             - intensity: float
             - description: str  # 懒计算，每次调用都重新渲染
             - label: str (向后兼容)
+            - emotion_ambiguity: float (v1.2) 分布 Shannon 熵 [0, 1]
+            - emotion_velocity: dict | None (v1.2) {valence, arousal, dominance, dt}
         """
         signals = self._latest_signals.get(session_key)
         if signals is None:
@@ -1679,7 +1681,35 @@ class EmotionSpiritPlugin(Star):
             "intensity": signals.pad_intensity,
             "description": description,
             "label": signals.pad_label,  # 向后兼容
+            # v1.2 新增 2 字段
+            "emotion_ambiguity": signals.emotion_ambiguity,
+            "emotion_velocity": signals.emotion_velocity,
         }
+
+    async def get_emotion_trajectory(self, session_key: str) -> list[dict]:
+        """v1.2 高级 API: 返回最近 N 帧 raw PAD 时间序列。
+
+        不混入 get_emotion_state() —— 调用方明确知道自己在拿历史数据。
+        journal/diary/life_simulator 等高级消费者使用。
+
+        Args:
+            session_key: session 标识
+
+        Returns:
+            list of dict, 每项含 valence/arousal/dominance/timestamp:
+            [
+                {"valence": 0.5, "arousal": 0.6, "dominance": 0.7, "timestamp": 1234.0},
+                ...
+            ]
+            未知 session_key → []
+        """
+        signals = self._latest_signals.get(session_key)
+        if signals is None:
+            return []
+        return [
+            {"valence": v, "arousal": a, "dominance": d, "timestamp": t}
+            for v, a, d, t in signals.emotion_trajectory
+        ]
 
     async def get_body_state(self, session_key: str) -> dict | None:
         """身体生理状态 API（v1.1.1 重命名自 get_emotion_values，4 字段）。
