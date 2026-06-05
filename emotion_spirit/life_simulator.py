@@ -20,6 +20,21 @@ if TYPE_CHECKING:
     from .surface_consumer import SurfaceConsumer
 
 
+def _build_emotion_payload(signals: SemanticSignals) -> dict[str, Any]:
+    """v1.1.1: 把 SemanticSignals 中的 emotion 字段打包成 dict。"""
+    return {
+        "pad": {
+            "valence": signals.pad_valence,
+            "arousal": signals.pad_arousal,
+            "dominance": signals.pad_dominance,
+        },
+        "emotion_distribution": signals.pad_distribution,
+        "emotion_primary": signals.pad_primary,
+        "emotion_secondary": signals.pad_secondary,
+        "emotion_intensity": signals.pad_intensity,
+    }
+
+
 class LifeSimulator:
     """双模式 Life Sim。"""
 
@@ -64,6 +79,16 @@ class LifeSimulator:
                         "rhythm_beat": signals.rhythm_beat,
                         "valence_warmth": signals.valence_warmth,
                         "needs_expression": signals.needs_expression,
+                        # v1.1.1: 结构化情绪数据
+                        "pad": {
+                            "valence": signals.pad_valence,
+                            "arousal": signals.pad_arousal,
+                            "dominance": signals.pad_dominance,
+                        },
+                        "emotion_distribution": signals.pad_distribution,
+                        "emotion_primary": signals.pad_primary,
+                        "emotion_secondary": signals.pad_secondary,
+                        "emotion_intensity": signals.pad_intensity,
                     },
                 }
         return None
@@ -92,12 +117,17 @@ class LifeSimulator:
         reservoir_level = self._reservoir.level
         phi = signals.phi_smoothed
 
+        # v1.1.1: 把 emotion 数据打包，传给生成函数
+        emotion_payload = _build_emotion_payload(signals)
+
         if entries and reservoir_level > 0.3:
-            return self._generate_life_event(entries, phi, self._signals.mode_b_strategy())
+            return self._generate_life_event(
+                entries, phi, self._signals.mode_b_strategy(), emotion_payload
+            )
         elif entries:
-            return self._generate_reflection(entries, phi)
+            return self._generate_reflection(entries, phi, emotion_payload)
         else:
-            return self._generate_soliloquy(phi)
+            return self._generate_soliloquy(phi, emotion_payload)
 
     def _can_mode_b_trigger(self, signals: SemanticSignals) -> bool:
         """Mode B 触发条件 (全部从 Surface 读)。"""
@@ -130,10 +160,11 @@ class LifeSimulator:
         entries: list[BufferEntry],
         phi: float,
         strategy: str,
+        emotion_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Mode B 生活事件。"""
         self._reservoir.draw(0.1)
-        return {
+        result: dict[str, Any] = {
             "type": "mode_b",
             "subtype": "life_event",
             "strategy": strategy,
@@ -141,24 +172,42 @@ class LifeSimulator:
             "phi": phi,
             "reservoir_used": 0.1,
         }
+        if emotion_payload is not None:
+            result["emotion"] = emotion_payload  # v1.1.1
+        return result
 
-    def _generate_reflection(self, entries: list[BufferEntry], phi: float) -> dict[str, Any]:
+    def _generate_reflection(
+        self,
+        entries: list[BufferEntry],
+        phi: float,
+        emotion_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """反思性独白。"""
-        return {
+        result: dict[str, Any] = {
             "type": "mode_b",
             "subtype": "reflection",
             "entries": [e.text for e in entries],
             "phi": phi,
         }
+        if emotion_payload is not None:
+            result["emotion"] = emotion_payload  # v1.1.1
+        return result
 
-    def _generate_soliloquy(self, phi: float) -> dict[str, Any]:
+    def _generate_soliloquy(
+        self,
+        phi: float,
+        emotion_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """纯独白 (存在性思考)。"""
-        return {
+        result: dict[str, Any] = {
             "type": "mode_b",
             "subtype": "soliloquy",
             "entries": [],
             "phi": phi,
         }
+        if emotion_payload is not None:
+            result["emotion"] = emotion_payload  # v1.1.1
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         return {

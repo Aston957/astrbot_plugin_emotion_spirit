@@ -157,6 +157,144 @@ def test_serialization():
     assert sim2._turn_count == sim._turn_count
 
 
+# ═══ v1.1.1: emotion 字段在 Mode A/B payload 中 ═══
+
+def test_mode_a_payload_includes_emotion():
+    """Mode A payload signals 块包含 pad / emotion_distribution / emotion_primary 等。"""
+    consumer = SurfaceConsumer()
+    pool = MemoryPool()
+    intimacy = IntimacyTracker()
+    signals = BufferSignals(pool)
+    reservoir = MeaningReservoir()
+    sim = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
+
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
+    sim._last_interaction = time.time() - 120  # 2 minutes ago
+
+    sig = _make_signals(
+        pad_valence=0.7, pad_arousal=0.5, pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.3, "anger": 0.1},
+        pad_primary="joy", pad_secondary=None, pad_intensity=0.5,
+    )
+
+    result = sim.check_mode_a(sig)
+    assert result is not None
+    assert result["type"] == "mode_a"
+    sig_block = result["signals"]
+    # v1.1.1: 旧的 rhythm_beat/valence_warmth/needs_expression 仍存在
+    assert "rhythm_beat" in sig_block
+    assert "valence_warmth" in sig_block
+    assert "needs_expression" in sig_block
+    # v1.1.1 新增字段
+    assert "pad" in sig_block
+    assert sig_block["pad"]["valence"] == 0.7
+    assert "emotion_distribution" in sig_block
+    assert sig_block["emotion_primary"] == "joy"
+    assert sig_block["emotion_secondary"] is None
+    assert "emotion_intensity" in sig_block
+
+
+def test_mode_b_life_event_payload_includes_emotion():
+    """Mode B life_event payload 包含 emotion 块。"""
+    consumer = SurfaceConsumer()
+    pool = MemoryPool()
+    intimacy = IntimacyTracker()
+    signals = BufferSignals(pool)
+    reservoir = MeaningReservoir()
+    sim = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
+
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
+    reservoir.level = 0.5
+    sim._last_interaction = time.time() - 5 * 3600
+    sim._last_mode_b = time.time() - 10 * 3600
+
+    sig = _make_signals(
+        needs_expression=0.7,
+        boundary_budget=0.5,
+        boundary_cooldown=0,
+        capacity_exhaustion=0.2,
+        needs_quiet=0.1,
+        body_criticality=0.2,
+        pad_valence=-0.5, pad_arousal=0.8, pad_dominance=0.3,
+        pad_distribution={"sadness": 0.5, "fear": 0.3, "neutral": 0.2},
+        pad_primary="sadness", pad_secondary="excitement", pad_intensity=0.8,
+    )
+
+    result = sim.check_mode_b(sig, "default")
+    assert result is not None
+    assert result["type"] == "mode_b"
+    # v1.1.1 新增 emotion 块
+    assert "emotion" in result
+    assert result["emotion"]["pad"]["valence"] == -0.5
+    assert result["emotion"]["emotion_primary"] == "sadness"
+    assert result["emotion"]["emotion_secondary"] == "excitement"
+
+
+def test_mode_b_reflection_payload_includes_emotion():
+    """Mode B reflection payload 包含 emotion 块。"""
+    consumer = SurfaceConsumer()
+    pool = MemoryPool()
+    intimacy = IntimacyTracker()
+    signals = BufferSignals(pool)
+    reservoir = MeaningReservoir()
+    sim = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
+
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
+    # reservoir.level 保持 0，触发 reflection 分支
+    sim._last_interaction = time.time() - 5 * 3600
+    sim._last_mode_b = time.time() - 10 * 3600
+
+    sig = _make_signals(
+        needs_expression=0.7,
+        boundary_budget=0.5,
+        boundary_cooldown=0,
+        capacity_exhaustion=0.2,
+        needs_quiet=0.1,
+        body_criticality=0.2,
+        pad_valence=0.5, pad_arousal=0.5, pad_dominance=0.5,
+        pad_distribution={"joy": 0.7, "neutral": 0.3},
+        pad_primary="joy", pad_secondary=None, pad_intensity=0.5,
+    )
+
+    result = sim.check_mode_b(sig, "default")
+    assert result is not None
+    assert result["type"] == "mode_b"
+    assert "emotion" in result
+    assert result["emotion"]["emotion_primary"] == "joy"
+
+
+def test_mode_b_soliloquy_payload_includes_emotion():
+    """Mode B soliloquy payload 包含 emotion 块。"""
+    consumer = SurfaceConsumer()
+    pool = MemoryPool()
+    intimacy = IntimacyTracker()
+    signals = BufferSignals(pool)
+    reservoir = MeaningReservoir()
+    sim = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
+
+    # pool 空，触发 soliloquy
+    sim._last_interaction = time.time() - 5 * 3600
+    sim._last_mode_b = time.time() - 10 * 3600
+
+    sig = _make_signals(
+        needs_expression=0.7,
+        boundary_budget=0.5,
+        boundary_cooldown=0,
+        capacity_exhaustion=0.2,
+        needs_quiet=0.1,
+        body_criticality=0.2,
+        pad_valence=0.0, pad_arousal=0.4, pad_dominance=0.5,
+        pad_distribution={"neutral": 0.6, "joy": 0.4},
+        pad_primary="neutral", pad_secondary=None, pad_intensity=0.4,
+    )
+
+    result = sim.check_mode_b(sig, "default")
+    assert result is not None
+    assert result["subtype"] == "soliloquy"
+    assert "emotion" in result
+    assert result["emotion"]["emotion_primary"] == "neutral"
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()
@@ -165,4 +303,8 @@ if __name__ == "__main__":
     test_mode_b_interval_xiaofu()
     test_mode_b_interval_xiaotian()
     test_serialization()
+    test_mode_a_payload_includes_emotion()
+    test_mode_b_life_event_payload_includes_emotion()
+    test_mode_b_reflection_payload_includes_emotion()
+    test_mode_b_soliloquy_payload_includes_emotion()
     print("All life_simulator tests passed!")
