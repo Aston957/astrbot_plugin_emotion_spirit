@@ -681,7 +681,7 @@ class EmotionSpiritPlugin(Star):
             text=text,
             raw_weight=raw_weight,
             phi=signals.phi_smoothed,
-            tags=[signals.pad_label, signals.decision_action],
+            tags=[signals.pad_primary, signals.decision_action],  # v1.1.1: pad_primary 替代 pad_label
             source_user=session_id,
         )
         confirmed = self._pool.confirm_check()
