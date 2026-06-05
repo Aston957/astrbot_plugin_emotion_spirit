@@ -18,6 +18,7 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 from .emotion_spirit.store import SpiritStore
 from .emotion_spirit.surface_consumer import SurfaceConsumer
+from .emotion_spirit.emotion_classifier import render_description
 from .emotion_spirit.memory_pool import MemoryPool
 from .emotion_spirit.intimacy import IntimacyTracker
 from .emotion_spirit.superego import ValueAlignment, ConscienceTracker, IdealSelf, ValueResistance
@@ -150,6 +151,9 @@ class EmotionSpiritPlugin(Star):
 
         # 多人格支持: 扫描并缓存所有人格参数
         self._personas_cache: dict[str, dict[str, Any]] = self._scan_all_personas()
+
+        # v1.1.1: 最近一次 surface 的 SemanticSignals（公开 API 缓存层）
+        self._latest_signals: dict[str, Any] = {}
 
     def _save_plugin_config(self) -> None:
         """将当前配置持久化到 AstrBot 配置文件。"""
@@ -663,6 +667,9 @@ class EmotionSpiritPlugin(Star):
     def _consume_surface(self, session_id: str, surface: dict[str, Any]) -> None:
         """消费 Surface，更新所有状态。"""
         signals = self._consumer.consume(surface)
+
+        # v1.1.1: 缓存最近一次 signals 供公开 API 读取
+        self._latest_signals[session_id] = signals
 
         # 获取最近的用户消息文本
         text = self._last_texts.get(session_id, "")
@@ -1632,4 +1639,63 @@ class EmotionSpiritPlugin(Star):
         if self._narrative:
             self._store.set("narrative", self._narrative.to_dict())
         self._store.set("counterfactual", self._counterfactual.to_dict())
+
+    # ═══ 公开 API（v1.1.1）═══
+
+    async def get_emotion_state(self, session_key: str) -> dict | None:
+        """统一情绪状态 API（v1.1.1 主 API，9 字段）。
+
+        Args:
+            session_key: 通常是 event.unified_msg_origin 或 session_id
+
+        Returns:
+            None if no signals for session_key, else dict with:
+            - pad: {valence, arousal, dominance}
+            - distribution: dict[str, float]
+            - primary: str
+            - secondary: str | None
+            - intensity: float
+            - description: str  # 懒计算，每次调用都重新渲染
+            - label: str (向后兼容)
+        """
+        signals = self._latest_signals.get(session_key)
+        if signals is None:
+            return None
+
+        # 懒渲染 description（每次调用都重新计算，< 1μs）
+        description = render_description(
+            signals.pad_distribution, signals.pad_intensity
+        )
+
+        return {
+            "pad": {
+                "valence": signals.pad_valence,
+                "arousal": signals.pad_arousal,
+                "dominance": signals.pad_dominance,
+            },
+            "distribution": dict(signals.pad_distribution),
+            "primary": signals.pad_primary,
+            "secondary": signals.pad_secondary,
+            "intensity": signals.pad_intensity,
+            "description": description,
+            "label": signals.pad_label,  # 向后兼容
+        }
+
+    async def get_body_state(self, session_key: str) -> dict | None:
+        """身体生理状态 API（v1.1.1 重命名自 get_emotion_values，4 字段）。
+
+        Returns:
+            None if no signals for session_key, else dict with:
+            - warmth, pulse, expression, repair (各 1 浮点)
+        """
+        signals = self._latest_signals.get(session_key)
+        if signals is None:
+            return None
+
+        return {
+            "warmth": signals.valence_warmth,
+            "pulse": signals.connection_circulation,
+            "expression": signals.needs_expression,
+            "repair": signals.valence_repair_heat,
+        }
         self._store.save()

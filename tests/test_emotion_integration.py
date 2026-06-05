@@ -67,3 +67,37 @@ def test_consume_populates_primary_secondary():
         set(CATEGORICAL_REGIONS.keys()) | {"excitement", "despair", "anxiety", "calm"}
     )
     assert signals.pad_intensity == signals.pad_arousal
+
+
+def test_get_emotion_state_lazy_description():
+    """get_emotion_state() 返回 9 字段 dict，description 每次调用都重新计算。"""
+    import asyncio
+    from main import EmotionSpiritPlugin
+    plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
+    from emotion_spirit.surface_consumer import SemanticSignals
+    signals = SemanticSignals(
+        pad_valence=0.7, pad_arousal=0.5, pad_dominance=0.7,
+        pad_distribution={"joy": 0.6, "neutral": 0.3, "anger": 0.1},
+        pad_primary="joy", pad_secondary=None, pad_intensity=0.5,
+    )
+    plugin._latest_signals = {"test_key": signals}
+
+    state = asyncio.run(plugin.get_emotion_state("test_key"))
+    assert state is not None
+    assert state["pad"] == {"valence": 0.7, "arousal": 0.5, "dominance": 0.7}
+    assert state["distribution"] == {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
+    assert state["primary"] == "joy"
+    assert state["secondary"] is None
+    assert state["intensity"] == 0.5
+    assert "description" in state
+    assert "label" in state
+    assert isinstance(state["description"], str)
+
+
+def test_get_emotion_state_returns_none_for_unknown_key():
+    """未知 session_key 返回 None。"""
+    import asyncio
+    from main import EmotionSpiritPlugin
+    plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
+    plugin._latest_signals = {}
+    assert asyncio.run(plugin.get_emotion_state("nonexistent")) is None
