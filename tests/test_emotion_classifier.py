@@ -72,7 +72,7 @@ def test_classify_distribution_filters_low_probability():
 
 def test_classify_primary_secondary_single_dominant():
     """单极主导: top1 > 0.5, top1/top2 > 2.5 → (top1, None)。"""
-    dist = {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
+    dist = {"joy": 0.6, "neutral": 0.2, "anger": 0.2}  # ratio=3.0
     primary, secondary = classify_primary_secondary(dist)
     assert primary == "joy"
     assert secondary is None
@@ -101,3 +101,22 @@ def test_classify_primary_secondary_blended_shape():
     primary, secondary = classify_primary_secondary(dist)
     assert primary == "joy"
     assert secondary == "surprise"
+
+
+def test_render_description_single_dominant_with_intensity():
+    """单极主导 + 高 arousal = "非常强烈" + "以 X 为主"。"""
+    desc = render_description({"joy": 0.7, "neutral": 0.3}, 0.8)
+    assert "非常强烈" in desc
+    assert "喜悦" in desc
+    assert "为主" in desc
+
+
+def test_render_description_mixed_shape_chinese_labels():
+    """主+副混合: 包含 primary 和 secondary 的中文标签。"""
+    desc = render_description(
+        {"sadness": 0.6, "excitement": 0.4}, 0.8
+    )
+    assert "非常强烈" in desc
+    assert "悲伤" in desc
+    assert "激动" in desc
+    assert "带有" in desc

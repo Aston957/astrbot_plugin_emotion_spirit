@@ -158,7 +158,7 @@ def classify_primary_secondary(
             return (compound["primary"], compound["secondary"])
 
     # 3. 单极主导
-    if top1_val > 0.5:
+    if top1_val > 0.5 and ratio > 2.5:
         return (top1_name, None)
 
     # 4. 主+副混合
@@ -174,6 +174,51 @@ def classify_primary_secondary(
     return (top1_name, None)
 
 
+def _intensity_word(arousal: float) -> str:
+    """arousal → 强度词。"""
+    if arousal >= 0.7:
+        return "非常强烈"
+    if arousal >= 0.5:
+        return "明显的"
+    if arousal >= 0.3:
+        return "隐约的"
+    return "淡淡的"
+
+
 def render_description(distribution: dict[str, float], intensity: float) -> str:
-    """概率分布 + 强度 → 中文描述。Task 4 实现。"""
-    return "当前情绪平静"
+    """概率分布 + 强度 → 中文描述（辅助层，仅人类用）。
+
+    5 种分布形态 × 4 种强度词 = 20 种组合。
+    ⚠️ LLM 消费者不应使用此函数（直接读 distribution 更精确）。
+    """
+    # 1. 平静基调
+    if distribution.get("neutral", 0) > 0.4:
+        return f"你现在的情绪{_intensity_word(intensity)}，偏向平静"
+
+    sorted_d = sorted(distribution.items(), key=lambda x: -x[1])
+    top1_name, top1_val = sorted_d[0]
+    top2_name, top2_val = (sorted_d[1] if len(sorted_d) > 1 else (None, 0.0))
+    ratio = top1_val / top2_val if top2_val > 0 else float('inf')
+
+    intensity_w = _intensity_word(intensity)
+
+    # 2. 单极主导
+    if top1_val > 0.5 and ratio > 2.5:
+        return f"你现在的情绪{intensity_w}，以{EMOTION_ZH.get(top1_name, top1_name)}为主"
+
+    # 3. 主+副混合
+    if top1_val > 0.35 and top2_val > 0.20 and ratio < 2.5:
+        p1_zh = EMOTION_ZH.get(top1_name, top1_name)
+        p2_zh = EMOTION_ZH.get(top2_name, top2_name)
+        return f"你现在的情绪{intensity_w}，以{p1_zh}为主，带有{p2_zh}色彩"
+
+    # 4. 双极交织
+    if (0.30 <= top1_val <= 0.45 and 0.25 <= top2_val <= 0.45
+            and abs(top1_val - top2_val) < 0.10):
+        p1_zh = EMOTION_ZH.get(top1_name, top1_name)
+        p2_zh = EMOTION_ZH.get(top2_name, top2_name)
+        return f"你现在的情绪{intensity_w}在{p1_zh}与{p2_zh}之间交织"
+
+    # 5. 多色混合 / 兜底
+    p1_zh = EMOTION_ZH.get(top1_name, top1_name)
+    return f"你现在的情绪{intensity_w}，混合了多种色彩（{p1_zh}略占优势）"
