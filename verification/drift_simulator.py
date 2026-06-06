@@ -33,8 +33,10 @@ SURFACE_DIMS = [
 ]
 
 # 每轮的回归强度 (深层 vs 表层)
-DEEP_REGRESSION_RATE = 0.002   # 0.2%/轮 → 向基线拉回
-SURFACE_REGRESSION_RATE = 0.001  # 0.1%/轮
+# v1.7.1: 0.001→0.005 (5x 增强) — 原 0.001 太弱, 1000 轮后 noise 累计 std=0.158 主导
+# 新 0.005: 1000 轮后 baseline retention = exp(-5) ≈ 0.7%, half-life = 138 turn (合理)
+DEEP_REGRESSION_RATE = 0.010   # 0.2%/轮 → 1.0%/轮 (5x)
+SURFACE_REGRESSION_RATE = 0.005  # 0.1%/轮 → 0.5%/轮 (5x)
 
 
 class DriftSimulator:

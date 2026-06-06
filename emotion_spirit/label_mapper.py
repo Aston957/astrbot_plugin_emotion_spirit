@@ -36,10 +36,10 @@ _BASELINE: dict[str, dict[str, float]] = {
         "directness": 0.85,
         "curiosity": 0.60,
         "patience": 0.70,
-        "intimacy_pull": 0.15,
+        "intimacy_pull": 0.25,  # v1.7.1: 0.15→0.25 (留 noise margin 避免触底 0)
         # v1.7: autonomy_guard 拆分
         "relational_autonomy": 0.60,  # 略高, 反映"bot 普遍偏独立"
-        "exploration_openness": 0.50,  # 中性
+        "exploration_openness": 0.55,  # v1.7.1: 0.50→0.55 (留 noise margin)
     },
 }
 
