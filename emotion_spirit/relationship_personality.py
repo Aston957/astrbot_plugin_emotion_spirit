@@ -8,7 +8,7 @@
 
 数据结构:
 - _deltas: dict[user_id, dict[dim_name, accumulated_value]]
-- apply_to(base, user_id) 返回新 dict (不修改 base)
+- apply_to_layers(layers, user_id) 返回新 dict (不修改 layers)
 
 11 维人格参数 (与 label_mapper 对齐):
 - warmth, autonomy, intimacy_pull, expression_drive, conscience_pressure
@@ -22,32 +22,26 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from .label_mapper import ALL_PERSONALITY_DIMS
+
 
 # Delta 累加范围 (微调应小)
 _DELTA_MIN = -0.3
 _DELTA_MAX = 0.3
 
-# 11 维人格参数 (Phase 1.7 后的全量)
-ALL_DIMS = (
-    "warmth",
-    "autonomy",
-    "intimacy_pull",
-    "expression_drive",
-    "conscience_pressure",
-    "relational_autonomy",
-    "exploration_openness",
-    "shadow_suppression",
-    "narrative_coherence",
-    "value_resistance",
-    "drift_pull",
-)
+# v1.7.2: ALL_DIMS 改为引用 label_mapper 权威集合 (13 维)
+# 单一真相: label_mapper.ALL_PERSONALITY_DIMS = 5 deep + 8 surface
+# 之前 hardcoded 11 维 (含 warmth/autonomy/conscience_pressure/shadow_suppression/
+# narrative_coherence/value_resistance/drift_pull) 是 12 维 SylannEngine 的子集
+# 且漏掉 gossip_tendency (v1.7.2 新增)
+ALL_DIMS: tuple[str, ...] = tuple(sorted(ALL_PERSONALITY_DIMS))
 
 
 class RelationshipPersonality:
     """per-user 11 维人格微调。
 
     每次与 user 互动, bot 可以"调整"对这位 user 的微调面 (set_delta)。
-    读取时, apply_to(base, user_id) 返回合成后的 effective_personality。
+    读取时, apply_to_layers(layers, user_id) 返回合成后的 effective_personality。
     """
 
     def __init__(self) -> None:
@@ -89,38 +83,6 @@ class RelationshipPersonality:
             self._deltas[user_id].pop(dim, None)
             if not self._deltas[user_id]:
                 del self._deltas[user_id]
-
-    def apply_to(
-        self,
-        base_personality: dict[str, Any],
-        user_id: str,
-    ) -> dict[str, Any]:
-        """合成 effective_personality = base + delta_for_user。
-
-        Args:
-            base_personality: 11 维 base 格式 {"personality": {dim: {"baseline": x, "current": y}}}
-            user_id: 目标 user (其 delta 将叠加)
-
-        Returns:
-            新 dict, 不修改 base_personality
-
-        行为:
-        - 无 delta 时: 返回 deep copy of base (避免外部修改影响)
-        - 有 delta 时: 临时合成 current = clamp(base + delta, [0, 1])
-        """
-        # Deep copy 保证不修改 base
-        effective = copy.deepcopy(base_personality)
-        user_delta = self._deltas.get(user_id)
-        if not user_delta:
-            return effective
-
-        personality = effective.get("personality", {})
-        for dim, delta in user_delta.items():
-            if dim in personality:
-                base_current = personality[dim].get("current", 0.0)
-                new_current = max(0.0, min(1.0, base_current + delta))
-                personality[dim]["current"] = new_current
-        return effective
 
     def apply_to_layers(
         self,

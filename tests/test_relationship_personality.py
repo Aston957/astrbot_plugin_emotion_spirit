@@ -8,7 +8,7 @@
 API:
 - get_delta(user_id) → dict[dim, delta_value]
 - set_delta(user_id, dim, value) → 累加 (或按 dim 策略)
-- apply_to(base_personality, user_id) → effective_personality
+- apply_to_layers(layers, user_id) → effective_personality
 - 序列化: to_dict / from_dict
 """
 
@@ -28,7 +28,8 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.relationship_personality import RelationshipPersonality
+from emotion_spirit.relationship_personality import RelationshipPersonality, ALL_DIMS
+from emotion_spirit.label_mapper import ALL_PERSONALITY_DIMS
 
 
 # ═══ 基础 API ═══
@@ -88,49 +89,6 @@ def test_multiple_dims_per_user():
     assert delta["intimacy_pull"] == 0.15
 
 
-# ═══ apply_to (合成 effective personality) ═══
-
-def test_apply_to_combines_base_and_delta():
-    """apply_to(base, user_id) 应返回 base + delta 的合成。"""
-    rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.2)
-    base = {"personality": {"warmth": {"baseline": 0.5, "current": 0.5}}}
-    effective = rp.apply_to(base, "alice")
-    # current = 0.5 + 0.2 = 0.7
-    assert effective["personality"]["warmth"]["current"] == 0.7
-    # baseline 不被修改
-    assert effective["personality"]["warmth"]["baseline"] == 0.5
-
-
-def test_apply_to_no_delta_returns_base_unchanged():
-    """无 delta 时, effective 应等于 base (无副作用)。"""
-    rp = RelationshipPersonality()
-    base = {"personality": {"warmth": {"baseline": 0.5, "current": 0.5}}}
-    effective = rp.apply_to(base, "unknown_user")
-    assert effective == base
-
-
-def test_apply_to_does_not_mutate_base():
-    """apply_to 必须返回新 dict, 不能修改 base。"""
-    rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.2)
-    base = {"personality": {"warmth": {"baseline": 0.5, "current": 0.5}}}
-    base_copy = {"personality": {"warmth": {"baseline": 0.5, "current": 0.5}}}
-    _ = rp.apply_to(base, "alice")
-    # base 不变
-    assert base == base_copy
-
-
-def test_apply_to_clamps_current_to_0_1():
-    """apply 后的 current 应 clamp 到 [0, 1]。"""
-    rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.3)
-    base = {"personality": {"warmth": {"baseline": 0.9, "current": 0.9}}}
-    effective = rp.apply_to(base, "alice")
-    # 0.9 + 0.3 = 1.2 → clamp 到 1.0
-    assert effective["personality"]["warmth"]["current"] == 1.0
-
-
 # ═══ 序列化 ═══
 
 def test_serialization_round_trip():
@@ -158,6 +116,22 @@ def test_adjust_delta_for_unspecified_user():
     assert d2["warmth"] == 0.1
 
 
+# ═══ Phase A: ALL_DIMS 权威引用 (P0-1a) ═══
+
+def test_all_dims_references_label_mapper_authority():
+    """Phase A: ALL_DIMS 必须引用 label_mapper.ALL_PERSONALITY_DIMS (权威 13 维)。
+
+    之前 ALL_DIMS 是 hardcoded 11 维 tuple, 与 label_mapper 13 维不一致,
+    导致下游 apply_to_layers 静默丢失 2 维 delta (gossip_tendency 等)。
+    修复后: ALL_DIMS = sorted(ALL_PERSONALITY_DIMS) 保证单一真相。
+    """
+    assert set(ALL_DIMS) == ALL_PERSONALITY_DIMS, (
+        f"ALL_DIMS 必须等于 label_mapper.ALL_PERSONALITY_DIMS, "
+        f"差集: {set(ALL_DIMS) ^ ALL_PERSONALITY_DIMS}"
+    )
+    assert len(ALL_DIMS) == 13  # 12 + gossip_tendency (v1.7.2)
+
+
 if __name__ == "__main__":
     test_get_delta_default_empty()
     test_set_and_get_delta_single_dim()
@@ -165,10 +139,7 @@ if __name__ == "__main__":
     test_set_delta_clamped_to_range()
     test_per_user_delta_isolation()
     test_multiple_dims_per_user()
-    test_apply_to_combines_base_and_delta()
-    test_apply_to_no_delta_returns_base_unchanged()
-    test_apply_to_does_not_mutate_base()
-    test_apply_to_clamps_current_to_0_1()
     test_serialization_round_trip()
     test_adjust_delta_for_unspecified_user()
+    test_all_dims_references_label_mapper_authority()
     print("All RelationshipPersonality tests passed!")
