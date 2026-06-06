@@ -4,7 +4,8 @@
 而非插件自身目录，遵循 AstrBot 插件开发规范。
 
 v1.2 schema v2: +pad_history / +pad_trajectory 命名空间。
-老数据自动迁移（schema_version 1 → 2）。
+v2.0 schema v3: +memory_pools (per-user) + social_graph 命名空间。
+老数据自动迁移（schema_version 2 → 3）。
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from astrbot.api import logger
 
 
 _STORE_FILE = "spirit_data.json"
-_CURRENT_SCHEMA_VERSION = 2
+_CURRENT_SCHEMA_VERSION = 3
 
 
 class SpiritStore:
@@ -30,6 +31,7 @@ class SpiritStore:
     - dirty flag 避免不必要写入
 
     v1.2: 加 pad_history / pad_trajectory 命名空间 + periodic_save()
+    v2.0 (Step 5): +memory_pools (per-user) + social_graph 命名空间
     """
 
     def __init__(self, data_dir: str | Path) -> None:
@@ -78,16 +80,19 @@ class SpiritStore:
     def load(self) -> None:
         if not self._path.exists():
             self._migrate_to_v2()
+            self._migrate_to_v3()
             return
         try:
             with open(self._path, "r", encoding="utf-8") as f:
                 self._data = json.load(f)
             self._dirty = False
             self._migrate_to_v2()  # 老数据补 v2 字段
+            self._migrate_to_v3()  # 老数据补 v3 字段
         except (json.JSONDecodeError, OSError):
             logger.warning("emotion_spirit: Failed to load spirit data", exc_info=True)
             self._data = {}
             self._migrate_to_v2()
+            self._migrate_to_v3()
 
     def _migrate_to_v2(self) -> None:
         """v1.2: 老数据补 pad_history / pad_trajectory 字段。
@@ -99,6 +104,54 @@ class SpiritStore:
             self._data["pad_history"] = {}
         if "pad_trajectory" not in self._data:
             self._data["pad_trajectory"] = {}
+
+    def _migrate_to_v3(self) -> None:
+        """v2.0 (Step 5): 迁移到 v3 schema。
+
+        主要变化:
+        1. memory_pool (单 key) → memory_pools (per-user dict)
+        2. 初始化 social_graph 命名空间 (Step 6 完整实现)
+        3. schema_version → 3
+        """
+        # 1. 迁移 memory_pool → memory_pools
+        if "memory_pool" in self._data and "memory_pools" not in self._data:
+            old_pool = self._data.pop("memory_pool")
+            # 旧 v2 格式: 顶层 buffer/warm/cold/ghosts → 视为 <global> 池
+            if "buffer" in old_pool or "warm" in old_pool:
+                # 旧 v2 格式 (顶层) → 包装为 <global> 池
+                memory_pools = {
+                    "pools": {
+                        "<global>": {
+                            "buffer": old_pool.get("buffer", []),
+                            "warm": old_pool.get("warm", []),
+                            "cold": old_pool.get("cold", []),
+                            "ghosts": old_pool.get("ghosts", []),
+                            "next_id": old_pool.get("next_id", 0),
+                        }
+                    }
+                }
+            else:
+                # 已经是 v2 嵌套格式 (有 pools 键)
+                memory_pools = old_pool
+            self._data["memory_pools"] = memory_pools
+            self._dirty = True
+            logger.info("emotion_spirit: schema v2→v3, memory_pool → memory_pools migrated")
+
+        if "memory_pools" not in self._data:
+            self._data["memory_pools"] = {"pools": {}}
+
+        # 2. 初始化 social_graph 命名空间
+        if "social_graph" not in self._data:
+            self._data["social_graph"] = {
+                "edges": {},       # {src: {dst: edge_dict}}
+                "user_index": {},  # {user_id: {trust, last_active}}
+                "topics": {},      # 未来: 话题-隐私映射
+            }
+            # 注意: 补默认值不算"脏", 避免空 store 被标 dirty
+            logger.info("emotion_spirit: schema v2→v3, social_graph namespace initialized")
+
+        # 3. schema_version
+        self._data["schema_version"] = 3
 
     # === v1.2: pad_history / pad_trajectory 命名空间 API ===
 
