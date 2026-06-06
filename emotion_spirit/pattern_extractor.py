@@ -56,10 +56,15 @@ class PatternExtractor:
         self._patterns: list[Pattern] = []
         self._next_id = 0
 
-    def extract(self, window_days: int = 10) -> list[Pattern]:
-        """从温池提取模式。"""
+    def extract(self, window_days: int = 10, user_id: str = "<global>") -> list[Pattern]:
+        """从温池提取模式。
+
+        Args:
+            window_days: 时间窗 (默认 10 天)
+            user_id: Phase 2.0, 哪个 user 的池子 (默认 <global>)
+        """
         cutoff = time.time() - window_days * 86400
-        entries = [e for e in self._pool.warm if e.created_at > cutoff]
+        entries = [e for e in self._pool.warm_for(user_id) if e.created_at > cutoff]
 
         if len(entries) < 3:
             return []

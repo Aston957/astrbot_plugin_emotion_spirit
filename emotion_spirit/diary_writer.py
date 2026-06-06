@@ -97,13 +97,14 @@ class DiaryWriter:
             return "停滞型"
 
     def build_diary_prompt(
-        self, diary_type: str, signals: "SemanticSignals | None" = None
+        self, diary_type: str, signals: "SemanticSignals | None" = None, user_id: str = "<global>",
     ) -> str:
         """构建日记 prompt。
 
         Args:
             diary_type: 日记类型（上升型/下降型/停滞型/循环型）
-            signals: 当前情感状态（v1.1.1+，可选，向后兼容）
+            signals: v1.1.1+ 情绪信号 (可选)
+            user_id: Phase 2.0, 哪个 user 的 warm 池
         """
         base = _DIARY_PROMPTS.get(diary_type, _DIARY_PROMPTS["停滞型"])
 
@@ -115,7 +116,7 @@ class DiaryWriter:
             parts.append(_format_emotion_block(signals))
 
         # 最近记忆
-        recent = sorted(self._pool.warm, key=lambda e: e.created_at, reverse=True)[:3]
+        recent = sorted(self._pool.warm_for(user_id), key=lambda e: e.created_at, reverse=True)[:3]
         if recent:
             memories = "; ".join(e.text[:30] for e in recent)
             parts.append(f"最近的记忆: {memories}")
@@ -172,13 +173,17 @@ class DiaryWriter:
 
         return "\n\n".join(parts)
 
-    def record_diary(self, text: str, diary_type: str) -> dict[str, Any]:
-        """记录一篇日记。"""
+    def record_diary(self, text: str, diary_type: str, user_id: str = "<global>") -> dict[str, Any]:
+        """记录一篇日记。
+
+        Args:
+            user_id: Phase 2.0, 哪个 user 的 warm 池 (供 pool_size)
+        """
         entry = {
             "text": text,
             "type": diary_type,
             "timestamp": time.time(),
-            "pool_size": len(self._pool.warm),
+            "pool_size": len(self._pool.warm_for(user_id)),
             "alignment_score": self._alignment.get_score(),
         }
         self._entries.append(entry)

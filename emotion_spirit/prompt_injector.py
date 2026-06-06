@@ -56,8 +56,8 @@ class PromptInjector:
 
         parts: list[str] = []
 
-        # [印象] 温池最近 3 条
-        recent = sorted(self._pool.warm, key=lambda e: e.created_at, reverse=True)[:3]
+        # [印象] 温池最近 3 条 (Phase 2.0: per-user)
+        recent = sorted(self._pool.warm_for(user_id), key=lambda e: e.created_at, reverse=True)[:3]
         if recent:
             impressions = "; ".join(e.text[:30] for e in recent)
             parts.append(f"[印象] 最近你感觉: {impressions}")

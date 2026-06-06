@@ -28,13 +28,17 @@ class Counterfactual:
         self._pool = pool
         self._processed_ghosts: list[dict[str, Any]] = []
 
-    def get_eligible_ghosts(self) -> list[MemoryEntry]:
-        """获取可以进行反事实模拟的幽灵。"""
+    def get_eligible_ghosts(self, user_id: str = "<global>") -> list[MemoryEntry]:
+        """获取可以进行反事实模拟的幽灵。
+
+        Args:
+            user_id: Phase 2.0, 哪个 user 的 ghosts 池
+        """
         now = time.time()
         two_weeks = 14 * 86400
         eligible = []
 
-        for ghost in self._pool.ghosts:
+        for ghost in self._pool.ghosts_for(user_id):
             age = now - ghost.created_at
             if age >= two_weeks and ghost.ghost_sensitivity_shift >= 0.25:
                 eligible.append(ghost)
@@ -72,18 +76,24 @@ class Counterfactual:
         self._processed_ghosts.append(result)
         return result
 
-    def check_ghost_decay(self, repair_count: int) -> list[dict[str, Any]]:
-        """检查幽灵消化。修复经验可以消化幽灵。"""
+    def check_ghost_decay(self, repair_count: int, user_id: str = "<global>") -> list[dict[str, Any]]:
+        """检查幽灵消化。修复经验可以消化幽灵。
+
+        Args:
+            user_id: Phase 2.0, 哪个 user 的 ghosts/cold 池
+        """
         digested: list[dict[str, Any]] = []
 
-        for ghost in list(self._pool.ghosts):
+        ghosts = self._pool.ghosts_for(user_id)
+        cold = self._pool.cold_for(user_id)
+        for ghost in list(ghosts):
             ghost.ghost_sensitivity_shift *= (1 - repair_count * 0.1)
             if ghost.ghost_sensitivity_shift < 0.05:
                 # 幽灵安息: 降级为冷池记忆
                 ghost.is_ghost = False
                 ghost.tier = "cold"
-                self._pool.ghosts.remove(ghost)
-                self._pool.cold.append(ghost)
+                ghosts.remove(ghost)
+                cold.append(ghost)
                 digested.append({
                     "ghost_id": ghost.id,
                     "text": ghost.text,
@@ -92,10 +102,14 @@ class Counterfactual:
 
         return digested
 
-    def ghost_resonance(self, new_entry: MemoryEntry) -> float:
-        """幽灵共振: 新记忆和幽灵匹配 → 权重放大。"""
+    def ghost_resonance(self, new_entry: MemoryEntry, user_id: str = "<global>") -> float:
+        """幽灵共振: 新记忆和幽灵匹配 → 权重放大。
+
+        Args:
+            user_id: Phase 2.0, 哪个 user 的 ghosts 池
+        """
         resonance_boost = 0.0
-        for ghost in self._pool.ghosts:
+        for ghost in self._pool.ghosts_for(user_id):
             overlap = set(new_entry.tags) & set(ghost.tags)
             if overlap:
                 resonance_boost += ghost.emotional_weight * len(overlap) * 0.1
