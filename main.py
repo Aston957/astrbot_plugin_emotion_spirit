@@ -173,6 +173,9 @@ class EmotionSpiritPlugin(Star):
             topic_privacy=self._topic_privacy,
             gossip_tendency=0.0,  # Phase 2.0: 保守, Phase 4 接通
         )
+        # Phase 2.5: 关系人格微调 (per-user 11 维 delta)
+        from .emotion_spirit.relationship_personality import RelationshipPersonality
+        self._relationship_personality = RelationshipPersonality()
         self._narrative = NarrativeIdentity(
             self._pool, self._patterns, self._drift,
             self._buffer_signals, self._diary,
@@ -978,6 +981,17 @@ class EmotionSpiritPlugin(Star):
             "deep": self._consumer.consume({}).personality_deep or {},
             "surface": self._consumer.consume({}).personality_surface or {},
         }
+        # Phase 2.5: 应用 per-user 关系人格微调
+        current_personality = self._relationship_personality.apply_to_layers(
+            current_personality, user_id,
+        )
+        # Phase 2.5: 应用亲密段色调 (累积到 delta)
+        tone = self._intimacy.get_relationship_tone(user_id)
+        if tone:
+            self._relationship_personality.apply_tone(user_id, tone)
+        # Phase 2.5: 设置亲密度段 (PromptInjector 内部用)
+        segment = self._intimacy.get_segment(user_id)
+        self._injector.set_intimacy_segment(user_id, segment)
         context = self._injector.build_context(
             user_id=user_id,
             persona=self._current_persona,

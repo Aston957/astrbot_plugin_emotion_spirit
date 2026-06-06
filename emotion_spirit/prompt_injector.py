@@ -35,6 +35,19 @@ class PromptInjector:
         self._ideal = ideal
         self._shadow = shadow
         self._diary = diary
+        # Phase 2.5: 亲密度段 (per-user 4 段)
+        self._intimacy_segment: dict[str, str] = {}
+
+    def set_intimacy_segment(self, user_id: str, segment: str) -> None:
+        """Phase 2.5: 设置 user 的亲密度段 (stranger/acquaintance/friend/inner_circle)。
+
+        由 caller (main.py) 在调用 build_context 之前设置。
+        """
+        self._intimacy_segment[user_id] = segment
+
+    def get_intimacy_segment(self, user_id: str) -> str:
+        """Phase 2.5: 获取 user 的亲密度段 (未设置返回 default 'stranger')。"""
+        return self._intimacy_segment.get(user_id, "stranger")
 
     def build_context(
         self,
@@ -67,10 +80,13 @@ class PromptInjector:
         if diary_entries:
             parts.append(f"[日记] 你上次写到: {diary_entries[-1]['text'][:50]}")
 
-        # [关系] 亲密度阶段
+        # [关系] 亲密度阶段 (Phase 2.5: 加 segment 标签)
         lifecycle = self._intimacy.get_lifecycle(user_id)
         score = self._intimacy.get_intimacy(user_id, persona)
-        parts.append(f"[关系] 你和TA的关系: {lifecycle} (亲密度: {score:.2f})")
+        segment = self.get_intimacy_segment(user_id)
+        parts.append(
+            f"[关系] 你和TA的关系: {lifecycle} (亲密度: {score:.2f}, 段: {segment})"
+        )
 
         # ═══ 超我: 价值冲突 (阈值随安全级别动态调整) ═══
         conscience_threshold = SAFETY_CONFIG.get(

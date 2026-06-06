@@ -122,6 +122,51 @@ class RelationshipPersonality:
                 personality[dim]["current"] = new_current
         return effective
 
+    def apply_to_layers(
+        self,
+        layers: dict[str, dict[str, float]],
+        user_id: str,
+    ) -> dict[str, dict[str, float]]:
+        """Phase 2.5 集成: 应用 delta 到 layer 格式 (deep/surface)。
+
+        Args:
+            layers: 格式 {"deep": {dim: val}, "surface": {dim: val}}
+            user_id: 目标 user
+
+        Returns:
+            新 dict (不修改 layers), 每个 layer 的每个 dim += delta
+        """
+        effective = copy.deepcopy(layers)
+        user_delta = self._deltas.get(user_id)
+        if not user_delta:
+            return effective
+
+        for layer_name, layer in effective.items():
+            if not isinstance(layer, dict):
+                continue
+            for dim, delta in user_delta.items():
+                if dim in layer:
+                    base_val = layer[dim]
+                    new_val = max(0.0, min(1.0, base_val + delta))
+                    layer[dim] = new_val
+        return effective
+
+    def apply_tone(
+        self,
+        user_id: str,
+        tone: dict[str, float],
+    ) -> None:
+        """Phase 2.5 集成: 应用 IntimacyTracker.get_relationship_tone() 返回的色调。
+
+        把 tone dict 的所有值累加到 user 的 delta (不覆盖既有 delta)。
+
+        Args:
+            user_id: 目标 user
+            tone: 11 维色调 dict, 如 {"warmth": 0.1, "expression_drive": 0.05, ...}
+        """
+        for dim, value in tone.items():
+            self.set_delta(user_id, dim, value)
+
     def list_users_with_deltas(self) -> list[str]:
         """列出有 delta 记录的所有 user。"""
         return list(self._deltas.keys())
