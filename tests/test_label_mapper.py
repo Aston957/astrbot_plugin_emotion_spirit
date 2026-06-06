@@ -85,9 +85,26 @@ def test_personality_to_labels():
     print(f"[OK] test_personality_to_labels: {labels}")
 
 
+def test_all_personality_dims_is_13():
+    """v1.7.2: label_mapper 必须暴露 13 维权威集合 (含 gossip_tendency)。"""
+    from emotion_spirit.label_mapper import (
+        ALL_PERSONALITY_DIMS,
+        PERSONALITY_DIMS_DEEP,
+        PERSONALITY_DIMS_SURFACE,
+    )
+    # 5 deep + 7 surface + gossip_tendency = 13
+    assert len(PERSONALITY_DIMS_DEEP) == 5
+    assert len(PERSONALITY_DIMS_SURFACE) == 8  # 7 原 + gossip_tendency
+    assert len(ALL_PERSONALITY_DIMS) == 13
+    # gossip_tendency 必须在 surface
+    assert "gossip_tendency" in PERSONALITY_DIMS_SURFACE
+    print("[OK] test_all_personality_dims_is_13")
+
+
 if __name__ == "__main__":
     test_clamp()
     test_labels_to_personality()
     test_labels_enfp()
     test_personality_to_labels()
+    test_all_personality_dims_is_13()
     print("\n[OK] 所有测试通过")

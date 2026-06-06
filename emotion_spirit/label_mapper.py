@@ -44,6 +44,30 @@ _BASELINE: dict[str, dict[str, float]] = {
 }
 
 
+# ═══ 13 维 personality 权威集合 (v1.7.2: 12→13, +gossip_tendency) ═══
+
+PERSONALITY_DIMS_DEEP: frozenset[str] = frozenset({
+    "expression_drive",
+    "perception_acuity",
+    "boundary_permeability",
+    "inner_coherence",
+    "relational_gravity",
+})
+
+PERSONALITY_DIMS_SURFACE: frozenset[str] = frozenset({
+    "warmth_bias",
+    "directness",
+    "curiosity",
+    "patience",
+    "intimacy_pull",
+    "relational_autonomy",
+    "exploration_openness",
+    "gossip_tendency",  # v1.7.2: Erdoğan 2014 + HEXACO 2007 支撑
+})
+
+ALL_PERSONALITY_DIMS: frozenset[str] = PERSONALITY_DIMS_DEEP | PERSONALITY_DIMS_SURFACE
+
+
 # ═══ MBTI 增量 (每个字母维度的贡献) ═══
 
 _MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
