@@ -43,6 +43,14 @@ from .emotion_spirit.persona_analyzer import (
 )
 from .emotion_spirit.label_mapper import labels_to_personality
 
+# Phase 1 观察期: Surface 数据记录 (默认不启用)
+try:
+    from .verification.surface_logger import SurfaceLogger
+    _SURFACE_LOGGER_AVAILABLE = True
+except ImportError:
+    SurfaceLogger = None  # type: ignore
+    _SURFACE_LOGGER_AVAILABLE = False
+
 
 class EmotionSpiritPlugin(Star):
     """emotion_spirit — 自我层 + 超我反思层。
@@ -97,6 +105,25 @@ class EmotionSpiritPlugin(Star):
         self._enable_narrative = toggles.get("enable_narrative", True)
         self._enable_life = toggles.get("enable_life_simulator", True)
         self._life_mode = toggles.get("life_simulator_mode", "both")
+        self._enable_surface_logging = toggles.get("enable_surface_logging", False)
+
+        # Phase 1 观察期: Surface 日志记录器 (可选)
+        self._surface_logger: SurfaceLogger | None = None
+        if self._enable_surface_logging and _SURFACE_LOGGER_AVAILABLE:
+            try:
+                from pathlib import Path
+                from astrbot.core.utils.astrbot_path import get_astrbot_data_path
+                log_dir = Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit" / "surface_logs"
+                self._surface_logger = SurfaceLogger(
+                    output_dir=str(log_dir),
+                    anonymize=True,
+                    max_age_days=7,
+                )
+                logger.info("emotion_spirit: Surface 日志已启用 → %s", log_dir)
+            except Exception:
+                logger.warning("emotion_spirit: Surface 日志初始化失败", exc_info=True)
+        elif self._enable_surface_logging and not _SURFACE_LOGGER_AVAILABLE:
+            logger.warning("emotion_spirit: enable_surface_logging=True 但 surface_logger 不可用")
 
         # Phase 1 组件
         self._consumer = SurfaceConsumer()
@@ -664,6 +691,14 @@ class EmotionSpiritPlugin(Star):
         except Exception:
             logger.warning("emotion_spirit: _on_surface 异常", exc_info=True)
 
+    def _resolve_user_id(self, session_id: str) -> str:
+        """Phase 2.0: 从 session_id 解析 user_id。
+
+        当前实现: session_id 即 user_id (AstrBot 中 event.get_sender_id() 是人 ID)
+        抽象层: 未来如果 session_id 语义改变 (如: 加入群/频道维度), 只改此方法。
+        """
+        return session_id
+
     def _consume_surface(self, session_id: str, surface: dict[str, Any]) -> None:
         """消费 Surface，更新所有状态。"""
         signals = self._consumer.consume(surface)
@@ -674,24 +709,28 @@ class EmotionSpiritPlugin(Star):
         # 获取最近的用户消息文本
         text = self._last_texts.get(session_id, "")
 
-        # Phase 1: 基础更新
-        self._pool.update_phi(signals.phi_smoothed)
+        # Phase 2.0: 解析 user_id (session_id 即 user_id in this codebase)
+        user_id = self._resolve_user_id(session_id)
+
+        # Phase 1: 基础更新 (per-user)
+        self._pool.update_phi_for_user(user_id, signals.phi_smoothed)
         raw_weight = signals.damage_open + signals.valence_volatility + signals.cascade_intensity
-        self._pool.add(
+        self._pool.add_for_user(
+            user_id=user_id,
             text=text,
             raw_weight=raw_weight,
             phi=signals.phi_smoothed,
             tags=[signals.pad_primary, signals.decision_action],  # v1.1.1: pad_primary 替代 pad_label
             source_user=session_id,
         )
-        confirmed = self._pool.confirm_check()
+        confirmed = self._pool.confirm_check_for_user(user_id)
 
         # 日志: Surface 消费
         logger.debug(
             "emotion_spirit surface: user=%s action=%s phi=%.3f weight=%.3f "
             "buffer=%d warm=%d confirmed=%d",
             session_id[:8], signals.decision_action, signals.phi_smoothed,
-            raw_weight, len(self._pool.buffer), len(self._pool.warm), len(confirmed),
+            raw_weight, len(self._pool.buffer_for(user_id)), len(self._pool.warm_for(user_id)), len(confirmed),
         )
         self._intimacy.update(
             session_id,
@@ -814,22 +853,23 @@ class EmotionSpiritPlugin(Star):
                     reflection_prompt = self._diary.build_superego_reflection_prompt(
                         dominant_tension, conflict_values,
                     )
-                    self._diary.record_diary(reflection_prompt, "superego_reflection")
+                    self._diary.record_diary(reflection_prompt, "superego_reflection", user_id=user_id)
                     logger.info(
                         "emotion_spirit: superego reflection diary recorded for user=%s",
                         session_id[:8],
                     )
 
-        # 模式提取 (每 100 条)
-        if len(self._pool.warm) % 100 == 0 and len(self._pool.warm) > 0:
-            self._patterns.extract()
+        # 模式提取 (每 100 条) (Phase 2.0: per-user)
+        user_warm = self._pool.warm_for(user_id)
+        if len(user_warm) % 100 == 0 and len(user_warm) > 0:
+            self._patterns.extract(user_id=user_id)
 
-        # 幽灵共振
-        if self._pool.warm:
-            boost = self._counterfactual.ghost_resonance(self._pool.warm[-1])
+        # 幽灵共振 (Phase 2.0: per-user)
+        if user_warm:
+            boost = self._counterfactual.ghost_resonance(user_warm[-1], user_id=user_id)
             if boost > 0:
-                self._pool.warm[-1].emotional_weight = min(
-                    1.0, self._pool.warm[-1].emotional_weight + boost,
+                user_warm[-1].emotional_weight = min(
+                    1.0, user_warm[-1].emotional_weight + boost,
                 )
 
         # 良心事件 → inject 队列
@@ -849,6 +889,34 @@ class EmotionSpiritPlugin(Star):
                 "emotion_spirit cascade: user=%s intensity=%.3f",
                 session_id[:8], signals.cascade_intensity,
             )
+
+        # Phase 1 观察期: Surface 数据落盘 (CSV)
+        # 用于 A/B 对照验证 (真实数据 vs 模拟数据)
+        if self._surface_logger is not None:
+            try:
+                # 计算该 session 当前的交互轮次
+                turn = self._interaction_count
+                self._surface_logger.log(
+                    session_id=session_id,
+                    turn=turn,
+                    personality=current_personality,
+                    action=signals.decision_action,
+                    resistance=resistance_result.resistance,
+                    tension_type=resistance_result.tension_type or "",
+                    conflict_values=resistance_result.conflict_values or None,
+                    aligned_values=resistance_result.aligned_values or None,
+                    pressure=self._conscience.get_pressure(),
+                    alignment_score=self._alignment.get_score(),
+                    safety_level=self._safety_level,
+                    phi_smoothed=signals.phi_smoothed,
+                    body_criticality=signals.body_criticality,
+                    cascade_active=signals.cascade_active,
+                    guard_allowed=signals.guard_allowed,
+                    guard_risk_score=signals.guard_risk_score,
+                )
+            except Exception:
+                # 日志失败不能阻塞主流程
+                logger.debug("emotion_spirit: surface log failed", exc_info=True)
 
         self._save_if_dirty()
 
