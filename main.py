@@ -166,6 +166,13 @@ class EmotionSpiritPlugin(Star):
         from .emotion_spirit.topic_privacy import TopicPrivacy
         self._social_graph = SocialGraph()
         self._topic_privacy = TopicPrivacy()
+        # Phase 2.0 (Step 7): 决策 stub (Phase 4 完整实现)
+        from .emotion_spirit.bot_decision import BotDecisionMaker
+        self._decision = BotDecisionMaker(
+            social_graph=self._social_graph,
+            topic_privacy=self._topic_privacy,
+            gossip_tendency=0.0,  # Phase 2.0: 保守, Phase 4 接通
+        )
         self._narrative = NarrativeIdentity(
             self._pool, self._patterns, self._drift,
             self._buffer_signals, self._diary,
