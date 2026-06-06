@@ -2,6 +2,11 @@
 
 供 sentinel / diary / drift / mode_b 消费。
 纯计算，不修改缓冲池状态。
+
+Phase 2.0 (Step 2): per-user 读路径
+- 构造接受 user_id (默认 "<global>"), 实例方法只读该 user 的 buffer
+- 聚合类方法 BufferSignals.aggregate_* 跨用户读 (供跨用户场景)
+- confirmation_history / recent_expired 仍为实例级 (per-instance)
 """
 
 from __future__ import annotations
@@ -10,19 +15,26 @@ import math
 import time
 from typing import Any, TYPE_CHECKING
 
+from .memory_pool import GLOBAL_USER_ID
+
 if TYPE_CHECKING:
     from .memory_pool import MemoryPool, BufferEntry
 
 
 class BufferSignals:
-    """缓冲池信号计算器。"""
+    """缓冲池信号计算器 (Phase 2.0: per-user 读路径)。"""
 
-    def __init__(self, pool: MemoryPool) -> None:
+    def __init__(self, pool: MemoryPool, user_id: str = GLOBAL_USER_ID) -> None:
         self._pool = pool
+        self._user_id = user_id  # Phase 2.0: 该实例绑定到哪个 user
         self._confirmation_history: list[dict[str, Any]] = []
         self._recent_expired: list[dict[str, Any]] = []
         self._timeout_count_7d = 0
         self._total_entries_7d = 0
+
+    def _buffer(self) -> list:
+        """Phase 2.0: 返回 user_id 对应池的 buffer 引用。"""
+        return self._pool.buffer_for(self._user_id)
 
     def record_confirmation(self, entry_id: str, dwell_seconds: float, confirmed: bool, tags: list[str]) -> None:
         """记录确认/超时事件。"""
@@ -52,7 +64,7 @@ class BufferSignals:
 
     def emotional_momentum(self) -> dict[str, Any]:
         """情感动量: 方向 + 强度。"""
-        buffer = self._pool.buffer
+        buffer = self._buffer()
         if len(buffer) < 3:
             return {"direction": "stable", "strength": 0.0, "avg_weight": 0.0}
 
@@ -100,7 +112,7 @@ class BufferSignals:
 
     def buffer_temperature(self) -> float:
         """缓冲池温度: [0, 1], 高=大量未处理情感堆积。"""
-        buffer = self._pool.buffer
+        buffer = self._buffer()
         if not buffer:
             return 0.0
 
@@ -115,7 +127,7 @@ class BufferSignals:
         tag_buffer: dict[str, int] = {}
         tag_expired: dict[str, int] = {}
 
-        for entry in self._pool.buffer:
+        for entry in self._buffer():
             for tag in entry.tags:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
                 tag_buffer[tag] = tag_buffer.get(tag, 0) + 1
@@ -172,10 +184,47 @@ class BufferSignals:
             return "narrative"
         elif velocity < 0.3:
             return "integrative"
-        elif len(self._pool.buffer) < 5:
+        elif len(self._buffer()) < 5:
             return "exploratory"
         else:
             return "balanced"
+
+    # ═══ 聚合类方法 (Phase 2.0: 跨用户读, 供跨用户场景) ═══
+
+    @classmethod
+    def aggregate_temperature(cls, pool: MemoryPool) -> float:
+        """跨用户聚合温度: 统计所有 user 的 buffer 总量。
+
+        容量压力用绝对阈值 30 (而非 per-user * user_count), 反映"全局未处理堆积"。
+        """
+        all_buffer = pool.all_buffer()
+        if not all_buffer:
+            return 0.0
+        total_intensity = sum(e.raw_weight for e in all_buffer)
+        capacity_pressure = len(all_buffer) / max(1, 30)  # 全局容量 30
+        return round(min(1.0, total_intensity * 0.5 + capacity_pressure * 0.5), 4)
+
+    @classmethod
+    def aggregate_echo_patterns(cls, pool: MemoryPool) -> list[dict[str, Any]]:
+        """跨用户聚合回声模式: 所有 user 的 buffer + 合并 echo。"""
+        tag_counts: dict[str, int] = {}
+        tag_buffer: dict[str, int] = {}
+
+        for entry in pool.all_buffer():
+            for tag in entry.tags:
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+                tag_buffer[tag] = tag_buffer.get(tag, 0) + 1
+
+        echoes = []
+        for tag, count in tag_counts.items():
+            if count >= 3:
+                echoes.append({
+                    "tag": tag,
+                    "count": count,
+                    "in_buffer": tag_buffer.get(tag, 0),
+                    "expired": 0,  # 聚合视图不含 expired (需实例 history)
+                })
+        return echoes
 
     def to_dict(self) -> dict[str, Any]:
         return {
