@@ -161,6 +161,11 @@ class EmotionSpiritPlugin(Star):
         self._superego_guard = SuperegoGuard(
             self._conscience, self._alignment, self._ideal, self._current_persona,
         )
+        # Phase 2.0 (Step 6): 社交智能组件
+        from .emotion_spirit.social_graph import SocialGraph
+        from .emotion_spirit.topic_privacy import TopicPrivacy
+        self._social_graph = SocialGraph()
+        self._topic_privacy = TopicPrivacy()
         self._narrative = NarrativeIdentity(
             self._pool, self._patterns, self._drift,
             self._buffer_signals, self._diary,
