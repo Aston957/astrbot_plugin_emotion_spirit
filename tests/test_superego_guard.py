@@ -85,9 +85,9 @@ def test_advise_guilt():
 
 def test_advise_shame():
     guard, _, _, _ = _make_guard()
-    advice = guard.advise("shame", ["autonomy_guard"])
-    # 叙事模板: autonomy_guard 高变体 advice = "回到你自己的节奏里，不需要迎合谁"
-    assert "节奏" in advice or "迎合" in advice
+    advice = guard.advise("shame", ["relational_autonomy"])  # v1.7: autonomy_guard 拆分
+    # 叙事模板: relational_autonomy 高变体 advice = "有时候让别人靠近一点也没关系"
+    assert "靠近" in advice or "让别人" in advice
 
 
 def test_advise_doubt():

@@ -32,7 +32,7 @@ def _make_surface(**overrides) -> dict:
         "guard": {"allowed": True, "reason": "", "risk_score": 0.1},
         "personality": {
             "deep": {"expression_drive": 0.5, "perception_acuity": 0.5, "boundary_permeability": 0.5, "inner_coherence": 0.5, "relational_gravity": 0.5},
-            "surface": {"warmth_bias": 0.5, "directness": 0.5, "curiosity": 0.5, "patience": 0.5, "intimacy_pull": 0.5, "autonomy_guard": 0.5},
+            "surface": {"warmth_bias": 0.5, "directness": 0.5, "curiosity": 0.5, "patience": 0.5, "intimacy_pull": 0.5, "relational_autonomy": 0.5, "exploration_openness": 0.5},  # v1.7: autonomy_guard 拆分
         },
         "pad": {"valence": 0.3, "arousal": 0.5, "dominance": 0.6, "label": "neutral", "confidence": 0.7},
         "pipeline": {

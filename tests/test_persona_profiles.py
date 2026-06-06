@@ -20,11 +20,11 @@ from emotion_spirit.persona_profiles import (
 
 
 def test_value_behaviors_generic():
-    """通用映射返回维度名作为 key。"""
+    """通用映射返回维度名作为 key (v1.7: 12 维)。"""
     vb = get_value_behaviors()
     assert isinstance(vb, dict)
     assert len(vb) > 0
-    # key 应该是 11 维维度名
+    # key 应该是 12 维维度名 (v1.7: 11→12)
     for dim_name in vb:
         assert dim_name in DIMENSION_DISPLAY, f"{dim_name} not in DIMENSION_DISPLAY"
 
@@ -60,12 +60,13 @@ def test_action_align_coverage():
 
 
 def test_dimension_display_coverage():
-    """DIMENSION_DISPLAY 应覆盖 11 维。"""
-    assert len(DIMENSION_DISPLAY) == 11
+    """DIMENSION_DISPLAY 应覆盖 12 维 (v1.7: 11→12)。"""
+    assert len(DIMENSION_DISPLAY) == 12
     expected = {
         "expression_drive", "perception_acuity", "boundary_permeability",
         "inner_coherence", "relational_gravity", "warmth_bias",
-        "directness", "curiosity", "patience", "intimacy_pull", "autonomy_guard",
+        "directness", "curiosity", "patience", "intimacy_pull",
+        "relational_autonomy", "exploration_openness",  # v1.7: autonomy_guard 拆分
     }
     assert set(DIMENSION_DISPLAY.keys()) == expected
 
@@ -96,11 +97,12 @@ def test_intimacy_modulation():
 # ═══ Phase 3: 叙事模板测试 ═══
 
 def test_narrative_templates_coverage():
-    """NARRATIVE_TEMPLATES 应覆盖 11 维 × 3 场景。"""
+    """NARRATIVE_TEMPLATES 应覆盖 12 维 × 3 场景 (v1.7: 11→12)。"""
     expected_dims = {
         "expression_drive", "perception_acuity", "boundary_permeability",
         "inner_coherence", "relational_gravity", "warmth_bias",
-        "directness", "curiosity", "patience", "intimacy_pull", "autonomy_guard",
+        "directness", "curiosity", "patience", "intimacy_pull",
+        "relational_autonomy", "exploration_openness",  # v1.7: autonomy_guard 拆分
     }
     assert set(NARRATIVE_TEMPLATES.keys()) == expected_dims
     scenes = {"violation", "alignment", "advice"}

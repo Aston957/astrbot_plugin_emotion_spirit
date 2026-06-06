@@ -22,7 +22,7 @@ def test_clamp():
 
 
 def test_labels_to_personality():
-    """测试标签到 11 维参数的映射。"""
+    """测试标签到 12 维参数的映射 (v1.7: 11→12)。"""
     # ISTJ 基线
     labels = {
         "mbti": "ISTJ",
@@ -35,10 +35,10 @@ def test_labels_to_personality():
     assert "deep" in p
     assert "surface" in p
     assert len(p["deep"]) == 5
-    assert len(p["surface"]) == 6
+    assert len(p["surface"]) == 7  # v1.7: 6→7 (autonomy_guard 拆为 2 维)
     assert all(0.0 <= v <= 1.0 for v in p["deep"].values())
     assert all(0.0 <= v <= 1.0 for v in p["surface"].values())
-    print("[OK] test_labels_to_personality (ISTJ baseline)")
+    print("[OK] test_labels_to_personality (ISTJ baseline, 12 dims)")
 
 
 def test_labels_enfp():
@@ -58,7 +58,7 @@ def test_labels_enfp():
 
 
 def test_personality_to_labels():
-    """测试 11 维参数到标签的反向推断。"""
+    """测试 12 维参数到标签的反向推断 (v1.7: 11→12)。"""
     p = {
         "deep": {
             "expression_drive": 0.75,
@@ -73,7 +73,9 @@ def test_personality_to_labels():
             "curiosity": 0.75,
             "patience": 0.75,
             "intimacy_pull": 0.80,
-            "autonomy_guard": 0.35,
+            # v1.7: autonomy_guard 拆为 relational_autonomy + exploration_openness
+            "relational_autonomy": 0.35,
+            "exploration_openness": 0.50,
         },
     }
     labels = personality_to_labels(p)

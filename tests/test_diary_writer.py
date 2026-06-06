@@ -129,7 +129,7 @@ def test_superego_reflection_tension_types():
 
     # 测试不同 tension_type
     for tension_type in ["guilt", "shame", "doubt", "righteous"]:
-        prompt = diary.build_superego_reflection_prompt(tension_type, ["warmth_bias", "autonomy_guard"])
+        prompt = diary.build_superego_reflection_prompt(tension_type, ["warmth_bias", "relational_autonomy"])  # v1.7: autonomy_guard 拆分
         assert len(prompt) > 0
 
 
