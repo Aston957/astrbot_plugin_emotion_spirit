@@ -40,6 +40,7 @@ _BASELINE: dict[str, dict[str, float]] = {
         # v1.7: autonomy_guard 拆分
         "relational_autonomy": 0.60,  # 略高, 反映"bot 普遍偏独立"
         "exploration_openness": 0.55,  # v1.7.1: 0.50→0.55 (留 noise margin)
+        "gossip_tendency": 0.40,  # v1.7.2: +gossip_tendency (HEXACO H 反向 + E 正向)
     },
 }
 
@@ -66,6 +67,34 @@ PERSONALITY_DIMS_SURFACE: frozenset[str] = frozenset({
 })
 
 ALL_PERSONALITY_DIMS: frozenset[str] = PERSONALITY_DIMS_DEEP | PERSONALITY_DIMS_SURFACE
+
+
+# ═══ 5 persona baseline (含 gossip_tendency, v1.7.2) ═══
+# 依据: Erdoğan 2014 (gossip 实证) + HEXACO 2007 (H 维度) + Dark Triad (低 A → 战略 gossip)
+# spread 0.55, 强区分, 全部在 HEXACO 预测区间
+
+PERSONA_BASELINES: dict[str, dict[str, float]] = {
+    "INFP-A": {
+        "warmth_bias": 0.45, "intimacy_pull": 0.30, "relational_autonomy": 0.20,
+        "exploration_openness": 0.75, "gossip_tendency": 0.30,
+    },
+    "ISTJ-S": {
+        "warmth_bias": 0.30, "intimacy_pull": 0.15, "relational_autonomy": 0.90,
+        "exploration_openness": 0.40, "gossip_tendency": 0.15,
+    },
+    "ENTP-AV": {
+        "warmth_bias": 0.40, "intimacy_pull": 0.45, "relational_autonomy": 0.85,
+        "exploration_openness": 0.95, "gossip_tendency": 0.65,
+    },
+    "ISFJ-D": {
+        "warmth_bias": 0.50, "intimacy_pull": 0.40, "relational_autonomy": 0.55,
+        "exploration_openness": 0.15, "gossip_tendency": 0.40,
+    },
+    "ESTP-A": {
+        "warmth_bias": 0.35, "intimacy_pull": 0.50, "relational_autonomy": 0.45,
+        "exploration_openness": 0.55, "gossip_tendency": 0.70,
+    },
+}
 
 
 # ═══ MBTI 增量 (每个字母维度的贡献) ═══
