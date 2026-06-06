@@ -81,7 +81,7 @@ def test_segment_4_levels_have_different_tones():
     # 这里只验证函数不抛异常, 不验证内容差异 (因为无交互都是 stranger)
     for tone in tones.values():
         assert isinstance(tone, dict)
-        assert "warmth" in tone  # 至少包含 warmth 调整
+        assert "warmth_bias" in tone  # 至少包含 warmth_bias 调整
 
 
 def test_get_relationship_tone_returns_dict():
@@ -96,7 +96,7 @@ def test_get_relationship_tone_returns_dict():
 
 
 def test_inner_circle_tone_is_warmer():
-    """inner_circle 段: warmth 微调 > 0, intimacy_pull > 0。"""
+    """inner_circle 段: warmth_bias 微调 > 0, intimacy_pull > 0。"""
     tracker = IntimacyTracker()
     # 模拟高亲密度
     tracker.update(
@@ -112,18 +112,18 @@ def test_inner_circle_tone_is_warmer():
     seg = tracker.get_segment("alice")
     # 即使没到 inner_circle, 至少不应该是 stranger
     assert seg != "stranger"
-    # tone 的 warmth 在 inner_circle/friend 应 >= 0
+    # tone 的 warmth_bias 在 inner_circle/friend 应 >= 0
     tone = tracker.get_relationship_tone("alice")
-    # high intimacy 段 → warmth >= 0
-    assert tone.get("warmth", 0) >= 0
+    # high intimacy 段 → warmth_bias >= 0
+    assert tone.get("warmth_bias", 0) >= 0
 
 
 def test_stranger_tone_is_formal():
-    """stranger 段: warmth 微调 <= 0, expression_drive <= 0 (保守)。"""
+    """stranger 段: warmth_bias 微调 <= 0, expression_drive <= 0 (保守)。"""
     tracker = IntimacyTracker()
     tone = tracker.get_relationship_tone("alice")  # 无交互 → stranger
-    # stranger 应该是保守: warmth <= 0
-    assert tone.get("warmth", 0) <= 0
+    # stranger 应该是保守: warmth_bias <= 0
+    assert tone.get("warmth_bias", 0) <= 0
     # expression_drive <= 0 (不主动)
     assert tone.get("expression_drive", 0) <= 0
 
@@ -151,6 +151,32 @@ def test_segment_per_user_isolation():
     assert seg_a != seg_b
 
 
+# ═══ Phase A: P0-1b segment_tones dim 校准 ═══
+
+def test_segment_tones_uses_warmth_bias_not_narrative_coherence():
+    """Phase A: 4 段 tone 必须用 warmth_bias (不是错名 warmth), 不能有 narrative_coherence。
+
+    背景 (P0-1b): segment_tones 之前用 'warmth' (deprecated 11 维) 和 'narrative_coherence'
+    (不是 personality dim), 导致 apply_to_layers 静默失败。修复后: 用 'warmth_bias' (13 维
+    权威) 且不含非 personality dim。
+    """
+    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.label_mapper import ALL_PERSONALITY_DIMS
+
+    tracker = IntimacyTracker()
+
+    # 4 个段都返回 13 维 dict
+    for user_id in ["alice", "bob", "carol", "dave"]:
+        tone = tracker.get_relationship_tone(user_id)
+        # 必须是 13 维 personality dim 的子集
+        unknown = set(tone.keys()) - ALL_PERSONALITY_DIMS
+        assert not unknown, f"{user_id} tone 含非 personality dim: {unknown}"
+        # 必须有 warmth_bias (不是 warmth)
+        assert "warmth" not in tone, f"{user_id} tone 用了错名 warmth, 应是 warmth_bias"
+        # 不能有 narrative_coherence (不是 personality dim)
+        assert "narrative_coherence" not in tone
+
+
 if __name__ == "__main__":
     test_get_segment_default_stranger()
     test_get_segment_returns_4_levels()
@@ -160,4 +186,5 @@ if __name__ == "__main__":
     test_inner_circle_tone_is_warmer()
     test_stranger_tone_is_formal()
     test_segment_per_user_isolation()
+    test_segment_tones_uses_warmth_bias_not_narrative_coherence()
     print("All Intimacy segmentation tests passed!")

@@ -156,16 +156,16 @@ class IntimacyTracker:
         return "stranger"
 
     def get_relationship_tone(self, user_id: str) -> dict[str, float]:
-        """Phase 2.5: 获取 user 的关系色调 (11 维微调建议)。
+        """Phase 2.5: 获取 user 的关系色调 (13 维微调建议)。
 
         基于亲密度段映射的色调:
-        - stranger: 保守/正式 (warmth ↓, expression ↓, intimacy_pull ↓)
+        - stranger: 保守/正式 (warmth_bias ↓, expression ↓, intimacy_pull ↓)
         - acquaintance: 中性 (无微调 = 0.0)
-        - friend: 温暖/主动 (warmth ↑, intimacy_pull ↑)
-        - inner_circle: 深度/共情 (warmth ↑↑, expression ↑, intimacy_pull ↑↑)
+        - friend: 温暖/主动 (warmth_bias ↑, intimacy_pull ↑)
+        - inner_circle: 深度/共情 (warmth_bias ↑↑, expression ↑, intimacy_pull ↑↑)
 
         Returns:
-            dict[dim_name, delta_value]: 11 维全部返回 (未提到的 dim = 0.0),
+            dict[dim_name, delta_value]: 13 维全部返回 (未提到的 dim = 0.0),
             可直接应用到 RelationshipPersonality.set_delta
         """
         from .relationship_personality import ALL_DIMS
@@ -175,7 +175,7 @@ class IntimacyTracker:
         # 段特定的微调 (覆盖默认值)
         segment_tones = {
             "stranger": {
-                "warmth": -0.05,
+                "warmth_bias": -0.05,
                 "expression_drive": -0.05,
                 "intimacy_pull": -0.10,
                 "relational_autonomy": 0.05,  # 保持边界
@@ -183,17 +183,16 @@ class IntimacyTracker:
             },
             "acquaintance": {},
             "friend": {
-                "warmth": 0.10,
+                "warmth_bias": 0.10,
                 "expression_drive": 0.05,
                 "intimacy_pull": 0.10,
                 "relational_autonomy": -0.05,  # 适度依赖
             },
             "inner_circle": {
-                "warmth": 0.20,
+                "warmth_bias": 0.20,
                 "expression_drive": 0.15,
                 "intimacy_pull": 0.25,
                 "relational_autonomy": -0.10,  # 深度共情
-                "narrative_coherence": 0.10,  # 故事连贯
             },
         }
         tone.update(segment_tones.get(segment, {}))

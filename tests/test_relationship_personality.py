@@ -44,23 +44,23 @@ def test_get_delta_default_empty():
 def test_set_and_get_delta_single_dim():
     """set_delta + get_delta 应返回该 dim 的值。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.1)
-    assert rp.get_delta("alice")["warmth"] == 0.1
+    rp.set_delta("alice", "warmth_bias", 0.1)
+    assert rp.get_delta("alice")["warmth_bias"] == 0.1
 
 
 def test_set_delta_accumulates():
     """同 dim 多次 set 应累加 (非覆盖)。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.05)
-    rp.set_delta("alice", "warmth", 0.05)
-    assert abs(rp.get_delta("alice")["warmth"] - 0.1) < 1e-9
+    rp.set_delta("alice", "warmth_bias", 0.05)
+    rp.set_delta("alice", "warmth_bias", 0.05)
+    assert abs(rp.get_delta("alice")["warmth_bias"] - 0.1) < 1e-9
 
 
 def test_set_delta_clamped_to_range():
     """delta 范围 [-0.3, 0.3]: 微调不应剧烈改变人格。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.5)  # 超出上限
-    delta = rp.get_delta("alice")["warmth"]
+    rp.set_delta("alice", "warmth_bias", 0.5)  # 超出上限
+    delta = rp.get_delta("alice")["warmth_bias"]
     assert delta <= 0.3
     rp.set_delta("alice", "expression_drive", -0.5)  # 超出下限
     assert rp.get_delta("alice")["expression_drive"] >= -0.3
@@ -71,20 +71,20 @@ def test_set_delta_clamped_to_range():
 def test_per_user_delta_isolation():
     """alice 的 delta 不影响 bob。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.2)
-    rp.set_delta("bob", "warmth", -0.1)
-    assert rp.get_delta("alice")["warmth"] == 0.2
-    assert rp.get_delta("bob")["warmth"] == -0.1
+    rp.set_delta("alice", "warmth_bias", 0.2)
+    rp.set_delta("bob", "warmth_bias", -0.1)
+    assert rp.get_delta("alice")["warmth_bias"] == 0.2
+    assert rp.get_delta("bob")["warmth_bias"] == -0.1
 
 
 def test_multiple_dims_per_user():
     """一个 user 可以有多个 dim 的 delta。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.1)
+    rp.set_delta("alice", "warmth_bias", 0.1)
     rp.set_delta("alice", "expression_drive", -0.05)
     rp.set_delta("alice", "intimacy_pull", 0.15)
     delta = rp.get_delta("alice")
-    assert delta["warmth"] == 0.1
+    assert delta["warmth_bias"] == 0.1
     assert delta["expression_drive"] == -0.05
     assert delta["intimacy_pull"] == 0.15
 
@@ -94,12 +94,12 @@ def test_multiple_dims_per_user():
 def test_serialization_round_trip():
     """to_dict + from_dict 保留所有 user 的 delta。"""
     rp1 = RelationshipPersonality()
-    rp1.set_delta("alice", "warmth", 0.15)
+    rp1.set_delta("alice", "warmth_bias", 0.15)
     rp1.set_delta("bob", "expression_drive", -0.1)
     data = rp1.to_dict()
 
     rp2 = RelationshipPersonality.from_dict(data)
-    assert rp2.get_delta("alice")["warmth"] == 0.15
+    assert rp2.get_delta("alice")["warmth_bias"] == 0.15
     assert rp2.get_delta("bob")["expression_drive"] == -0.1
 
 
@@ -108,12 +108,12 @@ def test_serialization_round_trip():
 def test_adjust_delta_for_unspecified_user():
     """get_delta 返回的 dict 是 copy, 修改不影响内部状态。"""
     rp = RelationshipPersonality()
-    rp.set_delta("alice", "warmth", 0.1)
+    rp.set_delta("alice", "warmth_bias", 0.1)
     d1 = rp.get_delta("alice")
-    d1["warmth"] = 0.5  # 修改 copy
+    d1["warmth_bias"] = 0.5  # 修改 copy
     d2 = rp.get_delta("alice")
     # 内部状态不变
-    assert d2["warmth"] == 0.1
+    assert d2["warmth_bias"] == 0.1
 
 
 # ═══ Phase A: ALL_DIMS 权威引用 (P0-1a) ═══
