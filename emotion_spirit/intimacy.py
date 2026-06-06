@@ -133,6 +133,72 @@ class IntimacyTracker:
     def get_lifecycle(self, user_id: str) -> str:
         return self.get_profile(user_id).lifecycle
 
+    # ═══ Phase 2.5: 亲密度分段 + 关系色调 ═══
+
+    # 4 段阈值 (基于 get_intimacy 分数 [0, 1])
+    _SEGMENT_THRESHOLDS = (
+        (0.65, "inner_circle"),  # 深度共情
+        (0.40, "friend"),        # 朋友
+        (0.15, "acquaintance"),  # 熟人
+        (0.0,  "stranger"),      # 陌生人
+    )
+
+    def get_segment(self, user_id: str) -> str:
+        """Phase 2.5: 获取 user 的亲密度段。
+
+        4 段: stranger / acquaintance / friend / inner_circle
+        基于 get_intimacy 分数的离散桶, 决定 bot 与 user 互动的"色调"。
+        """
+        score = self.get_intimacy(user_id)
+        for threshold, name in self._SEGMENT_THRESHOLDS:
+            if score >= threshold:
+                return name
+        return "stranger"
+
+    def get_relationship_tone(self, user_id: str) -> dict[str, float]:
+        """Phase 2.5: 获取 user 的关系色调 (11 维微调建议)。
+
+        基于亲密度段映射的色调:
+        - stranger: 保守/正式 (warmth ↓, expression ↓, intimacy_pull ↓)
+        - acquaintance: 中性 (无微调 = 0.0)
+        - friend: 温暖/主动 (warmth ↑, intimacy_pull ↑)
+        - inner_circle: 深度/共情 (warmth ↑↑, expression ↑, intimacy_pull ↑↑)
+
+        Returns:
+            dict[dim_name, delta_value]: 11 维全部返回 (未提到的 dim = 0.0),
+            可直接应用到 RelationshipPersonality.set_delta
+        """
+        from .relationship_personality import ALL_DIMS
+        segment = self.get_segment(user_id)
+        # 全部 11 维初始化为 0
+        tone = {dim: 0.0 for dim in ALL_DIMS}
+        # 段特定的微调 (覆盖默认值)
+        segment_tones = {
+            "stranger": {
+                "warmth": -0.05,
+                "expression_drive": -0.05,
+                "intimacy_pull": -0.10,
+                "relational_autonomy": 0.05,  # 保持边界
+                "exploration_openness": -0.05,  # 不主动探索
+            },
+            "acquaintance": {},
+            "friend": {
+                "warmth": 0.10,
+                "expression_drive": 0.05,
+                "intimacy_pull": 0.10,
+                "relational_autonomy": -0.05,  # 适度依赖
+            },
+            "inner_circle": {
+                "warmth": 0.20,
+                "expression_drive": 0.15,
+                "intimacy_pull": 0.25,
+                "relational_autonomy": -0.10,  # 深度共情
+                "narrative_coherence": 0.10,  # 故事连贯
+            },
+        }
+        tone.update(segment_tones.get(segment, {}))
+        return tone
+
     def _compute_lifecycle(self, profile: IntimacyProfile) -> str:
         intimacy = (
             profile.temporal_depth / max(1.0, profile.temporal_depth + 720) * 0.3
