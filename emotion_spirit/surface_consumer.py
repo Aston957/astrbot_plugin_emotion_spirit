@@ -90,7 +90,7 @@ class SemanticSignals:
     guard_allowed: bool = True
     guard_risk_score: float = 0.0
 
-    # personality (11 维)
+    # personality (13 维)
     personality_deep: dict[str, float] = field(default_factory=dict)
     personality_surface: dict[str, float] = field(default_factory=dict)
 

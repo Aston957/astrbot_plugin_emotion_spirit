@@ -128,7 +128,7 @@ class SuperegoGuard:
         Args:
             tension_type: 张力类型 (guilt/shame/doubt/righteous)
             conflict_values: 维度名列表（英文）
-            personality: 当前 11 维参数 (可选，用于叙事变体选择)
+            personality: 当前 13 维参数 (可选，用于叙事变体选择)
         Returns:
             人格化修复建议
         """

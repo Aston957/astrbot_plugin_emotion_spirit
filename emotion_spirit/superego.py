@@ -69,7 +69,7 @@ class ValueResistance:
       2. Top-K 核心维度筛选（Schwartz + ACT: 3-5 个核心价值观）
       3. 基线引力锚定（Kagan + Bowlby: 气质底色 + 压力重现）
 
-    不持有标签引用。权重直接从当前 11 维参数推导，
+    不持有标签引用。权重直接从当前 13 维参数推导，
     参数漂移后权重自动跟随。
     """
 
@@ -93,7 +93,7 @@ class ValueResistance:
         Args:
             action: SylannEngine decision action (express/withdraw/recover/...)
             context: 上下文信号 (可选)
-            current_personality: 当前 11 维参数 (deep/surface)
+            current_personality: 当前 13 维参数 (deep/surface)
             stress_level: 当前压力水平 [0, 1]，用于基线引力加成
         """
         self._current_personality = current_personality

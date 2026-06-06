@@ -211,7 +211,7 @@ def get_narrative(
     Args:
         dimension: 维度名 (如 "relational_gravity")
         scene: 场景 ("violation" / "alignment" / "advice")
-        personality: 当前 11 维参数
+        personality: 当前 13 维参数
 
     Returns:
         人格化的中文叙事文本
@@ -315,7 +315,7 @@ def get_value_behaviors() -> dict[str, dict[str, list[str]]]:
 
 
 def get_personality_from_labels(labels: dict[str, str]) -> dict[str, dict[str, float]]:
-    """从标签组合推导 11 维参数。"""
+    """从标签组合推导 13 维参数。"""
     from .label_mapper import labels_to_personality
     return labels_to_personality(labels)
 

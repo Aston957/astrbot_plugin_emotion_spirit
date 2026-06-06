@@ -4,13 +4,13 @@
     "type": "string",
     "options": ["auto", "disabled"],
     "default": "disabled",
-    "hint": "disabled: 使用 Sylanne 默认行为（推荐新手）; auto: 选择人格后发送 /spirit_init 初始化人格参数（解析标签 + 生成 11 维参数）"
+    "hint": "disabled: 使用 Sylanne 默认行为（推荐新手）; auto: 选择人格后发送 /spirit_init 初始化人格参数（解析标签 + 生成 13 维参数）"
   },
   "auto_source": {
     "description": "【自动模式】读取的人格",
     "type": "string",
     "_special": "select_persona",
-    "hint": "仅 auto 模式生效。选择人格后，发送 /spirit_init 初始化人格参数（解析标签 + 生成 11 维参数）"
+    "hint": "仅 auto 模式生效。选择人格后，发送 /spirit_init 初始化人格参数（解析标签 + 生成 13 维参数）"
   },
   "feature_toggles": {
     "description": "功能模块开关（修改后需重启生效）",
@@ -47,6 +47,12 @@
         "options": ["both", "passive", "silent"],
         "default": "both",
         "hint": "both=空闲插入+长沉默后发言; passive=仅空闲插入; silent=仅长沉默后发言。仅在自主生活开启时生效"
+      },
+      "enable_surface_logging": {
+        "description": "Surface 数据日志 (Phase 1 观察期用)",
+        "type": "bool",
+        "default": false,
+        "hint": "记录每轮 Surface 数据到 CSV。包含 13 维人格 + tension + 良心压力 + 安全层。session_id 自动 SHA256 匿名化。日志自动清理 7 天前数据。"
       }
     }
   }

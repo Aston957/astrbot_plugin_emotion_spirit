@@ -170,7 +170,7 @@ class IntimacyTracker:
         """
         from .relationship_personality import ALL_DIMS
         segment = self.get_segment(user_id)
-        # 全部 11 维初始化为 0
+        # 全部 13 维初始化为 0
         tone = {dim: 0.0 for dim in ALL_DIMS}
         # 段特定的微调 (覆盖默认值)
         segment_tones = {

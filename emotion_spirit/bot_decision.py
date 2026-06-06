@@ -11,7 +11,7 @@
 3. should_initiate_proactive() — 是否主动发起对话 (Phase 2.0 永远 False)
 
 Phase 4 扩展:
-- gossip_tendency (从 11 维人格参数推导)
+- gossip_tendency (从 13 维人格参数推导)
 - 关系强度 + 信任 + 话题敏感度 联合决策
 - 时机选择 (冷却时间, 情境匹配)
 """
@@ -101,7 +101,7 @@ class BotDecisionMaker:
         return self._gossip_tendency
 
     def set_gossip_tendency(self, value: float) -> None:
-        """Phase 4 接入点: 设置 gossip_tendency (从 11 维人格参数推导)。"""
+        """Phase 4 接入点: 设置 gossip_tendency (从 13 维人格参数推导)。"""
         self._gossip_tendency = max(0.0, min(1.0, value))
 
     # ═══ 内部 ═══

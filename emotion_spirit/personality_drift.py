@@ -55,7 +55,7 @@ class PersonalityDrift:
         self._drift_history: list[dict[str, Any]] = []
 
     def update(self, signals: SemanticSignals) -> None:
-        """每次 Surface 更新时调用。更新 11 维趋势。"""
+        """每次 Surface 更新时调用。更新 13 维趋势。"""
         self._last_signals = signals
 
         for dim in _DEEP_DIMS:

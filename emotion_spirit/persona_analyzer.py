@@ -7,7 +7,7 @@
 流程:
   1. 读取 AstrBot 人格的 system_prompt
   2. 发给 LLM，要求返回 5 轴标签 JSON
-  3. 用 label_mapper.labels_to_personality() 将标签转为 11 维
+  3. 用 label_mapper.labels_to_personality() 将标签转为 13 维
   4. 返回结果，可存入 data/persona_report.json
 
 使用方式:
@@ -98,7 +98,7 @@ LLMCallable = Callable[[str, str], Awaitable[str]]
 
 
 class PersonaAnalyzer:
-    """使用 LLM 从人格文本提取 5 轴标签并推导 11 维参数。"""
+    """使用 LLM 从人格文本提取 5 轴标签并推导 13 维参数。"""
 
     def __init__(self, llm: LLMCallable) -> None:
         self._llm = llm

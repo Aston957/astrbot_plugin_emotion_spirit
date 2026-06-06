@@ -173,7 +173,7 @@ class EmotionSpiritPlugin(Star):
             topic_privacy=self._topic_privacy,
             gossip_tendency=0.0,  # Phase 2.0: 保守, Phase 4 接通
         )
-        # Phase 2.5: 关系人格微调 (per-user 11 维 delta)
+        # Phase 2.5: 关系人格微调 (per-user 13 维 delta)
         from .emotion_spirit.relationship_personality import RelationshipPersonality
         self._relationship_personality = RelationshipPersonality()
         self._narrative = NarrativeIdentity(
@@ -390,7 +390,7 @@ class EmotionSpiritPlugin(Star):
             self._migrate_old_spirit_data()
 
     def _reset_superego_modules(self) -> None:
-        """重置超我层模块到初始状态（保留 11 维 baseline 推算的模块实例，但清空运行时状态）。
+        """重置超我层模块到初始状态（保留 13 维 baseline 推算的模块实例，但清空运行时状态）。
 
         清除：
         - ConscienceTracker 压力历史
@@ -402,7 +402,7 @@ class EmotionSpiritPlugin(Star):
         - persona_report.json
 
         保留：
-        - 11 维 current_personality 漂移值（Kagan 行为策略）
+        - 13 维 current_personality 漂移值（Kagan 行为策略）
         - MemoryPool, IntimacyTracker, MeaningReservoir, DiaryWriter, PersonalityDrift
         """
         from .emotion_spirit.superego import ValueAlignment, IdealSelf, ValueResistance
@@ -429,7 +429,7 @@ class EmotionSpiritPlugin(Star):
 
         # 立即写盘
         self._store.save()
-        logger.info("emotion_spirit: 超我层已重置（11 维 baseline 已用新 labels 重推）")
+        logger.info("emotion_spirit: 超我层已重置（13 维 baseline 已用新 labels 重推）")
 
     def _migrate_old_spirit_data(self) -> None:
         """从老 spirit_data.json 推导 persona 状态。
@@ -597,7 +597,7 @@ class EmotionSpiritPlugin(Star):
 
 
     def _get_persona_params(self, persona_id: str) -> dict[str, dict[str, float]]:
-        """获取指定人格的 11 维参数。"""
+        """获取指定人格的 13 维参数。"""
         from .emotion_spirit.label_mapper import labels_to_personality, _BASELINE
 
         # 1. 检查 auto_report 缓存
@@ -1096,7 +1096,7 @@ class EmotionSpiritPlugin(Star):
 
         # 执行重置
         self._labels = new_labels
-        self._update_baseline()  # 重新推 11 维 baseline
+        self._update_baseline()  # 重新推 13 维 baseline
         self._reset_superego_modules()
 
         # 写 persona_report.json（如果有 LLM 分析结果）
@@ -1136,7 +1136,7 @@ class EmotionSpiritPlugin(Star):
             f"新标签: {new_labels}\n"
             f"核心维度: {core}\n"
             f"边缘维度: {peripheral}\n\n"
-            f"💡 使用 /spirit_detail 查看完整 11 维参数"
+            f"💡 使用 /spirit_detail 查看完整 13 维参数"
         )
         yield event.plain_result(result)
 
@@ -1308,12 +1308,12 @@ class EmotionSpiritPlugin(Star):
                 src = "LLM 分析" if self._auto_report.source == "llm" else "规则推断"
                 lines.append(f"\n  📊 来源: {src} (置信度: {self._auto_report.confidence:.0%})")
 
-        lines.append("\n💡 使用 /spirit_detail 查看完整 11 维参数")
+        lines.append("\n💡 使用 /spirit_detail 查看完整 13 维参数")
         yield event.plain_result("\n".join(lines))
 
     @filter.command("spirit_detail")
     async def spirit_detail(self, event: AstrMessageEvent, persona_name: str = "") -> None:
-        """查看人格的完整 11 维参数。用法: /spirit_detail [人格名]"""
+        """查看人格的完整 13 维参数。用法: /spirit_detail [人格名]"""
         from .emotion_spirit.label_mapper import labels_to_personality
 
         # 确定要查看的人格
@@ -1585,7 +1585,7 @@ class EmotionSpiritPlugin(Star):
             lines.append(f"边缘维度 ({', '.join(peripheral)})")
 
         lines.append("")
-        lines.append("💡 使用 /spirit_detail 查看完整 11 维参数")
+        lines.append("💡 使用 /spirit_detail 查看完整 13 维参数")
 
         yield event.plain_result("\n".join(lines))
 

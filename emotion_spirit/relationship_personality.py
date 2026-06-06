@@ -1,8 +1,8 @@
-"""RelationshipPersonality — per-user 11 维人格微调 (Phase 2.5 Step 1)。
+"""RelationshipPersonality — per-user 13 维人格微调 (Phase 2.5 Step 1)。
 
 理论依据: Bowlby 内部工作模型 per-relationship
 - 同一个 bot 对不同 user 展示不同"面"
-- 11 维 base personality 不变, per-user delta 累加
+- 13 维 base personality 不变, per-user delta 累加
 - 每次读时合成 effective_personality (base + delta_for_user)
 - delta 范围 [-0.3, 0.3]: 微调不应剧烈改变人格
 
@@ -10,11 +10,11 @@
 - _deltas: dict[user_id, dict[dim_name, accumulated_value]]
 - apply_to_layers(layers, user_id) 返回新 dict (不修改 layers)
 
-11 维人格参数 (与 label_mapper 对齐):
+13 维人格参数 (与 label_mapper 对齐):
 - warmth, autonomy, intimacy_pull, expression_drive, conscience_pressure
 - relational_autonomy, exploration_openness
 - shadow_suppression, narrative_coherence
-- value_resistance, drift_pull
+- value_resistance, drift_pull, gossip_tendency
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ ALL_DIMS: tuple[str, ...] = tuple(sorted(ALL_PERSONALITY_DIMS))
 
 
 class RelationshipPersonality:
-    """per-user 11 维人格微调。
+    """per-user 13 维人格微调。
 
     每次与 user 互动, bot 可以"调整"对这位 user 的微调面 (set_delta)。
     读取时, apply_to_layers(layers, user_id) 返回合成后的 effective_personality。
@@ -61,7 +61,7 @@ class RelationshipPersonality:
 
         Args:
             user_id: 目标 user
-            dim: 11 维参数名
+            dim: 13 维参数名
             value: 本次累加值 (正负, 累加后 clamp 到 [-0.3, 0.3])
         """
         self._deltas.setdefault(user_id, {})
@@ -124,7 +124,7 @@ class RelationshipPersonality:
 
         Args:
             user_id: 目标 user
-            tone: 11 维色调 dict, 如 {"warmth": 0.1, "expression_drive": 0.05, ...}
+            tone: 13 维色调 dict, 如 {"warmth": 0.1, "expression_drive": 0.05, ...}
         """
         for dim, value in tone.items():
             self.set_delta(user_id, dim, value)

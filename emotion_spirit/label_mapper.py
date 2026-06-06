@@ -267,7 +267,7 @@ def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 
 def labels_to_personality(labels: dict[str, str]) -> dict[str, dict[str, float]]:
-    """将标签组合映射为 SylannEngine 11 维参数。"""
+    """将标签组合映射为 SylannEngine 13 维参数。"""
     # 从基线开始
     result: dict[str, dict[str, float]] = {
         "deep": dict(_BASELINE["deep"]),
