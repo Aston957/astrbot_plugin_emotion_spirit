@@ -1,4 +1,6 @@
-"""人格漂移检测 — 追踪 Sylanne personality 11 维的长期趋势。
+"""人格漂移检测 — 追踪 Sylanne personality 12 维的长期趋势。
+
+v1.7: 12 维 (autonomy_guard 拆分为 relational_autonomy + exploration_openness)
 
 每 3 天运行 LabelDriftDetector:
   1. 比较 7 天 EMA vs 30 天 EMA
@@ -25,12 +27,14 @@ _DEEP_DIMS = [
 
 _SURFACE_DIMS = [
     "warmth_bias", "directness", "curiosity",
-    "patience", "intimacy_pull", "autonomy_guard",
+    "patience", "intimacy_pull",
+    # v1.7: autonomy_guard 拆分为 2 维
+    "relational_autonomy", "exploration_openness",
 ]
 
 
 class PersonalityDrift:
-    """11 维人格漂移检测器。"""
+    """12 维人格漂移检测器 (v1.7: 11→12)。"""
 
     def __init__(
         self,

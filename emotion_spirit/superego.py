@@ -39,8 +39,11 @@ _TENSION_INCLINATION: dict[str, str] = {
     "directness": "doubt",
     "boundary_permeability": "doubt",
     # shame 组: 自我/自主维度
-    "autonomy_guard": "shame",
+    # v1.7: autonomy_guard 拆分
+    "relational_autonomy": "shame",   # 边界被侵 → shame
     "patience": "shame",
+    # v1.7: 新维度 exploration_openness 归 doubt 组 (认知/感知)
+    "exploration_openness": "doubt",  # 探索受阻 → doubt (不是 shame)
 }
 
 

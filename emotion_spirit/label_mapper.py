@@ -1,7 +1,12 @@
-"""标签映射器 — 人类可读标签 ↔ SylannEngine 11 维参数。
+"""标签映射器 — 人类可读标签 ↔ SylannEngine 12 维参数。
 
-每个标签维度对 11 维参数有增量贡献:
+每个标签维度对 12 维参数有增量贡献:
   最终值 = 基线 + Σ(各标签增量)
+
+v1.7 (Phase 1.7): autonomy_guard 拆分为 relational_autonomy + exploration_openness
+  - relational_autonomy (关系边界强度) — 受 attachment + conflict + T/F 主导
+  - exploration_openness (探索新输入) — 受 N/S + time_focus 主导
+  - 原 11 维 autonomy_guard 已删除 (Phase 1.7 design review 决策)
 
 支持的标签维度:
   - mbti: MBTI 十六型人格
@@ -32,7 +37,9 @@ _BASELINE: dict[str, dict[str, float]] = {
         "curiosity": 0.60,
         "patience": 0.70,
         "intimacy_pull": 0.15,
-        "autonomy_guard": 0.90,
+        # v1.7: autonomy_guard 拆分
+        "relational_autonomy": 0.60,  # 略高, 反映"bot 普遍偏独立"
+        "exploration_openness": 0.50,  # 中性
     },
 }
 
@@ -41,17 +48,17 @@ _BASELINE: dict[str, dict[str, float]] = {
 
 _MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
     # I vs E
-    "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10},
-    "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10},
-    # N vs S
-    "N": {"curiosity": +0.15, "perception_acuity": +0.05, "boundary_permeability": +0.10},
-    "S": {"curiosity": -0.10, "perception_acuity": -0.05, "inner_coherence": +0.05},
-    # F vs T
-    "F": {"warmth_bias": +0.20, "relational_gravity": +0.15, "intimacy_pull": +0.15},
-    "T": {"warmth_bias": -0.10, "directness": +0.10, "inner_coherence": +0.05},
-    # P vs J
-    "P": {"boundary_permeability": +0.15, "patience": -0.10, "autonomy_guard": -0.15},
-    "J": {"inner_coherence": +0.05, "patience": +0.05, "autonomy_guard": +0.10},
+    "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05},
+    "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05},
+    # N vs S (N/S 是 exploration_openness 的主导信号)
+    "N": {"curiosity": +0.15, "perception_acuity": +0.05, "boundary_permeability": +0.10, "exploration_openness": +0.20},
+    "S": {"curiosity": -0.10, "perception_acuity": -0.05, "inner_coherence": +0.05, "exploration_openness": -0.15},
+    # F vs T (F/T 跟 relational_autonomy 相关)
+    "F": {"warmth_bias": +0.20, "relational_gravity": +0.15, "intimacy_pull": +0.15, "relational_autonomy": -0.05},
+    "T": {"warmth_bias": -0.10, "directness": +0.10, "inner_coherence": +0.05, "relational_autonomy": +0.10},
+    # P vs J (v1.7: autonomy_guard 拆, P/J 影响 relational_autonomy 弱)
+    "P": {"boundary_permeability": +0.15, "patience": -0.10, "relational_autonomy": -0.05},
+    "J": {"inner_coherence": +0.05, "patience": +0.05, "relational_autonomy": +0.05},
 }
 
 
@@ -62,27 +69,31 @@ _ATTACHMENT_DELTAS: dict[str, dict[str, float]] = {
         "boundary_permeability": +0.10,
         "inner_coherence": +0.10,
         "intimacy_pull": +0.05,
-        "autonomy_guard": +0.05,
+        "relational_autonomy": +0.05,  # v1.7: 替换 autonomy_guard
+        "exploration_openness": +0.10,
     },
     "焦虑型": {
         "boundary_permeability": +0.25,
         "inner_coherence": -0.20,
         "intimacy_pull": +0.30,
-        "autonomy_guard": -0.25,
+        "relational_autonomy": -0.15,  # v1.7: 替换 autonomy_guard (-0.25 → -0.15)
+        "exploration_openness": -0.05,
         "expression_drive": +0.15,
     },
     "回避型": {
         "boundary_permeability": -0.20,
         "inner_coherence": +0.10,
         "intimacy_pull": -0.20,
-        "autonomy_guard": +0.25,
+        "relational_autonomy": +0.20,  # v1.7: 替换 autonomy_guard (+0.25 → +0.20)
+        "exploration_openness": -0.15,
         "expression_drive": -0.15,
     },
     "混乱型": {
         "boundary_permeability": +0.10,
         "inner_coherence": -0.30,
         "intimacy_pull": +0.10,
-        "autonomy_guard": -0.10,
+        "relational_autonomy": -0.10,  # v1.7: 替换 autonomy_guard
+        "exploration_openness": +0.05,
         "expression_drive": +0.05,
     },
 }
@@ -95,12 +106,16 @@ _EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "expression_drive": +0.20,
         "warmth_bias": +0.15,
         "perception_acuity": +0.05,
+        "relational_autonomy": -0.05,  # v1.7: 表达 = 暴露 = 让步
+        "exploration_openness": +0.10,  # v1.7: 表达 = 探索情绪
     },
     "压抑型": {
         "expression_drive": -0.15,
         "warmth_bias": -0.10,
         "directness": +0.10,
         "perception_acuity": +0.10,
+        "relational_autonomy": +0.10,  # v1.7: 压抑 = 内部边界
+        "exploration_openness": -0.10,  # v1.7: 压抑 = 保守
     },
     "混合型": {
         "expression_drive": +0.05,
@@ -114,28 +129,32 @@ _EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
 _CONFLICT_STYLE_DELTAS: dict[str, dict[str, float]] = {
     "攻击型": {
         "directness": +0.15,
-        "autonomy_guard": +0.10,
+        "relational_autonomy": +0.10,  # v1.7: 替换 autonomy_guard
         "patience": -0.15,
         "warmth_bias": -0.10,
+        "exploration_openness": +0.10,  # v1.7: 攻击 = 主动尝试
     },
     "回避型": {
         "directness": -0.20,
-        "autonomy_guard": +0.05,
+        "relational_autonomy": +0.05,  # v1.7: 替换 autonomy_guard
         "patience": +0.15,
         "expression_drive": -0.10,
+        "exploration_openness": -0.05,  # v1.7
     },
     "顺应型": {
         "directness": -0.10,
-        "autonomy_guard": -0.15,
+        "relational_autonomy": -0.05,  # v1.7: 替换 autonomy_guard (-0.15 → -0.05)
         "patience": +0.10,
         "warmth_bias": +0.15,
         "intimacy_pull": +0.10,
+        "exploration_openness": -0.10,  # v1.7
     },
     "合作型": {
         "directness": +0.05,
         "patience": +0.10,
         "warmth_bias": +0.10,
         "inner_coherence": +0.05,
+        "exploration_openness": +0.10,  # v1.7: 合作 = 探索解
     },
 }
 
@@ -147,6 +166,8 @@ _TIME_FOCUS_DELTAS: dict[str, dict[str, float]] = {
         "perception_acuity": +0.15,
         "inner_coherence": -0.10,
         "relational_gravity": +0.10,
+        "relational_autonomy": +0.10,  # v1.7: 传统 = 强边界
+        "exploration_openness": -0.10,  # v1.7: 传统 = 保守
     },
     "活在当下": {
         "perception_acuity": +0.05,
@@ -156,6 +177,8 @@ _TIME_FOCUS_DELTAS: dict[str, dict[str, float]] = {
         "curiosity": +0.10,
         "boundary_permeability": +0.05,
         "inner_coherence": -0.05,
+        "relational_autonomy": -0.05,  # v1.7: 灵活
+        "exploration_openness": +0.15,  # v1.7: 前瞻 = 探索
     },
 }
 
@@ -223,9 +246,10 @@ def labels_to_personality(labels: dict[str, str]) -> dict[str, dict[str, float]]
 
 
 def personality_to_labels(personality: dict[str, dict[str, float]]) -> dict[str, str]:
-    """从 11 维参数推断最可能的标签组合。
+    """从 12 维参数推断最可能的标签组合。
 
     使用反向查表: 对每个标签维度，找增量组合最接近当前参数的值。
+    v1.7: 12 维 (relational_autonomy + exploration_openness 替代 autonomy_guard)
     """
     labels: dict[str, str] = {}
 

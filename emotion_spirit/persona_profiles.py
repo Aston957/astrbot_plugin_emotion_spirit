@@ -1,8 +1,10 @@
-"""人格映射 — 标签 → Sylanne 11 维 + 价值观映射。
+"""人格映射 — 标签 → Sylanne 12 维 + 价值观映射。
+
+v1.7: 12 维 (autonomy_guard 拆分为 relational_autonomy + exploration_openness)
 
 所有人格参数通过 label_mapper 从标签推导，不再使用硬编码预设。
 初始化时从 AstrBot 人格报告自动解析标签，或由用户手动配置。
-价值观从 11 维人格维度动态推导，不按 persona 硬编码。
+价值观从 12 维人格维度动态推导，不按 persona 硬编码。
 """
 
 from __future__ import annotations
@@ -25,8 +27,10 @@ _VARIANT_KEY: dict[str, tuple[str, float]] = {
     "perception_acuity": ("curiosity", 0.6),
     "directness": ("expression_drive", 0.5),
     "patience": ("warmth_bias", 0.5),
-    "autonomy_guard": ("intimacy_pull", 0.3),
-    "boundary_permeability": ("autonomy_guard", 0.6),
+    # v1.7: autonomy_guard 拆分为 2 维
+    "relational_autonomy": ("intimacy_pull", 0.3),
+    "exploration_openness": ("curiosity", 0.5),
+    "boundary_permeability": ("relational_autonomy", 0.6),  # v1.7: 改用 relational_autonomy
 }
 
 NARRATIVE_TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
@@ -138,16 +142,30 @@ NARRATIVE_TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
             "advice": "有些事值得等待，但不值得无限期地等",
         },
     },
-    "autonomy_guard": {
+    # v1.7: autonomy_guard 拆分 → relational_autonomy + exploration_openness
+    "relational_autonomy": {
         "high": {
-            "violation": "你最近好像太在意别人的看法了",
-            "alignment": "你一直在坚持自己的立场",
-            "advice": "回到你自己的节奏里，不需要迎合谁",
+            "violation": "你最近好像把别人推得太远了",
+            "alignment": "你一直在守护自己的边界",
+            "advice": "有时候让别人靠近一点也没关系",
         },
         "low": {
-            "violation": "你最近好像失去了自我",
-            "alignment": "你最近在适当依赖别人",
-            "advice": "依靠别人不代表软弱",
+            "violation": "你最近好像太容易让步了",
+            "alignment": "你最近在学习为自己说话",
+            "advice": "试着温和但坚定地表达你的界限",
+        },
+    },
+    # v1.7: 新维度 exploration_openness
+    "exploration_openness": {
+        "high": {
+            "violation": "你最近好像对新事物失去了兴趣",
+            "alignment": "你一直在尝试新的可能",
+            "advice": "去做一件你从没做过的事",
+        },
+        "low": {
+            "violation": "你最近好像被新事物压得喘不过气",
+            "alignment": "你最近在专注于已有的一切",
+            "advice": "不一定要探索新的，把眼前的做好也很重要",
         },
     },
     "boundary_permeability": {
@@ -212,17 +230,17 @@ _ACTION_ALIGN: dict[str, list[str]] = {
     "reach_out": ["relational_gravity", "intimacy_pull"],
     "explore": ["curiosity", "perception_acuity"],
     "repair": ["warmth_bias", "relational_gravity"],
-    "hold": ["autonomy_guard", "inner_coherence"],
-    "withdraw": ["autonomy_guard"],
+    "hold": ["relational_autonomy", "inner_coherence"],  # v1.7: 替换 autonomy_guard
+    "withdraw": ["relational_autonomy"],  # v1.7: 替换 autonomy_guard
     "observe": ["perception_acuity", "patience"],
     "recover": ["inner_coherence", "patience"],
 }
 
 _ACTION_MISALIGN: dict[str, list[str]] = {
-    "express": ["autonomy_guard"],
+    "express": ["relational_autonomy"],  # v1.7: 替换 autonomy_guard
     "hold": ["expression_drive"],  # v2: 减少混合动作 (Weiner; 行为语义匹配)
     "withdraw": ["relational_gravity", "intimacy_pull"],
-    "reach_out": ["autonomy_guard"],
+    "reach_out": ["relational_autonomy"],  # v1.7: 替换 autonomy_guard
     "explore": ["patience", "inner_coherence"],
     "observe": [],  # v2: 中性观察动作，无冲突维度
     "recover": ["curiosity", "directness"],
@@ -230,7 +248,7 @@ _ACTION_MISALIGN: dict[str, list[str]] = {
     # 纯冲突动作 (用于 tension 分类测试，无 aligned 值)
     "deny": ["warmth_bias", "relational_gravity"],       # → guilt
     "suppress": ["inner_coherence", "curiosity"],         # → doubt
-    "avoid": ["patience", "autonomy_guard"],              # → shame
+    "avoid": ["patience", "relational_autonomy"],         # v1.7: 替换 autonomy_guard → shame
 }
 
 # 维度 → 中文显示名（用于自然语言输出）
@@ -245,12 +263,14 @@ DIMENSION_DISPLAY: dict[str, str] = {
     "curiosity": "好奇探索",
     "patience": "耐心等待",
     "intimacy_pull": "亲密渴望",
-    "autonomy_guard": "自主守护",
+    # v1.7: autonomy_guard 拆分为 2 维
+    "relational_autonomy": "关系边界",
+    "exploration_openness": "探索开放",
 }
 
 
 def get_personality_params(labels: dict[str, str] | str) -> dict[str, dict[str, float]]:
-    """从标签推导 Sylanne 11 维 personality 参数。
+    """从标签推导 Sylanne 12 维 personality 参数 (v1.7: 11→12)。
 
     支持两种输入:
     - dict: 直接使用标签字典
