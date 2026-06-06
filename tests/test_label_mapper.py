@@ -108,24 +108,38 @@ def test_5_persona_gossip_tendency_baseline_within_hexaco_range():
     - Erdoğan, Bauer, & Walter (2014): gossip_tendency 实证构念
     - Ashton & Lee (2007) HEXACO: H (Honesty-Humility) 反向 + E 正向 + A 反向
     - 5 persona 推断见 spec §三 P0-2a
-    """
-    from emotion_spirit.label_mapper import _BASELINE
 
-    expected = {
-        "ISTJ-S": 0.15,   # I + S + T + J → 区间 [0.10, 0.20]
-        "INFP-A": 0.30,   # I + F + P + A → 区间 [0.20, 0.40]
-        "ISFJ-D": 0.40,   # I + S + F + D → 区间 [0.30, 0.50]
-        "ENTP-AV": 0.65,  # E + N + T + AV → 区间 [0.55, 0.70]
-        "ESTP-A": 0.70,   # E + S + T + P → 区间 [0.65, 0.80]
+    v1.7.2 (review fix): gossip_tendency 是 I/E 维度主导 (HEXACO E)
+    公式: final = _BASELINE (0.40) + I/E delta
+      - I-personas (ISTJ/INFP/ISFJ): 0.40 + (-0.25) = 0.15
+      - E-personas (ENTP/ESTP): 0.40 + 0.30 = 0.70
+    """
+    from emotion_spirit.label_mapper import _BASELINE, PERSONA_BASELINES
+
+    # (1) default baseline 是中位 0.40 (中性 default)
+    assert _BASELINE["surface"].get("gossip_tendency") == 0.40, (
+        f"default gossip_tendency 应是 0.40, 实际 {_BASELINE['surface'].get('gossip_tendency')}"
+    )
+
+    # (2) 5 persona gossip_tendency 值在 HEXACO 预测区间内
+    # 区间: I-personas 0.10-0.20, E-personas 0.65-0.75
+    hexaco_intervals = {
+        "ISTJ-S":  (0.10, 0.20),  # I + S + T + J → 低 E
+        "INFP-A":  (0.10, 0.20),  # I + F + P + A → 低 E
+        "ISFJ-D":  (0.10, 0.20),  # I + S + F + D → 低 E
+        "ENTP-AV": (0.65, 0.75),  # E + N + T + AV → 高 E
+        "ESTP-A":  (0.65, 0.75),  # E + S + T + P → 高 E
     }
-    for persona, expected_val in expected.items():
-        # 5 persona baseline 不在 _BASELINE (那是 default ISTJ), 需另存
-        # 这里用 _BASELINE.surface.gossip_tendency 作为全局 default 验证
-        actual = _BASELINE["surface"].get("gossip_tendency")
-        # 整体 default 0.40 (跟 ISFJ-D 相同, 中位)
-        assert actual == 0.40, f"default gossip_tendency 应是 0.40, 实际 {actual}"
-    # spread 验证
-    spread = max(expected.values()) - min(expected.values())
+    for persona, (lo, hi) in hexaco_intervals.items():
+        assert persona in PERSONA_BASELINES, f"{persona} 缺 PERSONA_BASELINES"
+        actual = PERSONA_BASELINES[persona]["gossip_tendency"]
+        assert lo <= actual <= hi, (
+            f"{persona} gossip_tendency {actual} 不在 HEXACO 区间 [{lo}, {hi}]"
+        )
+
+    # (3) spread 验证: max - min >= 0.50 (I-vs-E 强烈对比)
+    vals = [PERSONA_BASELINES[p]["gossip_tendency"] for p in hexaco_intervals]
+    spread = max(vals) - min(vals)
     assert spread >= 0.50, f"5 persona gossip_tendency spread 应 >= 0.50, 实际 {spread}"
 
 

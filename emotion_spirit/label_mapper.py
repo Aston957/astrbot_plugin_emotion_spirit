@@ -76,7 +76,7 @@ ALL_PERSONALITY_DIMS: frozenset[str] = PERSONALITY_DIMS_DEEP | PERSONALITY_DIMS_
 PERSONA_BASELINES: dict[str, dict[str, float]] = {
     "INFP-A": {
         "warmth_bias": 0.45, "intimacy_pull": 0.30, "relational_autonomy": 0.20,
-        "exploration_openness": 0.75, "gossip_tendency": 0.30,
+        "exploration_openness": 0.75, "gossip_tendency": 0.15,
     },
     "ISTJ-S": {
         "warmth_bias": 0.30, "intimacy_pull": 0.15, "relational_autonomy": 0.90,
@@ -84,11 +84,11 @@ PERSONA_BASELINES: dict[str, dict[str, float]] = {
     },
     "ENTP-AV": {
         "warmth_bias": 0.40, "intimacy_pull": 0.45, "relational_autonomy": 0.85,
-        "exploration_openness": 0.95, "gossip_tendency": 0.65,
+        "exploration_openness": 0.95, "gossip_tendency": 0.70,
     },
     "ISFJ-D": {
         "warmth_bias": 0.50, "intimacy_pull": 0.40, "relational_autonomy": 0.55,
-        "exploration_openness": 0.15, "gossip_tendency": 0.40,
+        "exploration_openness": 0.15, "gossip_tendency": 0.15,
     },
     "ESTP-A": {
         "warmth_bias": 0.35, "intimacy_pull": 0.50, "relational_autonomy": 0.45,
@@ -101,8 +101,9 @@ PERSONA_BASELINES: dict[str, dict[str, float]] = {
 
 _MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
     # I vs E
-    "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05},
-    "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05},
+    # v1.7.2: gossip_tendency 增加 I/E delta (HEXACO 2007: E 维度强烈预测 gossip 倾向)
+    "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05, "gossip_tendency": -0.25},
+    "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05, "gossip_tendency": +0.30},
     # N vs S (N/S 是 exploration_openness 的主导信号)
     "N": {"curiosity": +0.15, "perception_acuity": +0.05, "boundary_permeability": +0.10, "exploration_openness": +0.20},
     "S": {"curiosity": -0.10, "perception_acuity": -0.05, "inner_coherence": +0.05, "exploration_openness": -0.15},
