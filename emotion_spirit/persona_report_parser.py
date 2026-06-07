@@ -106,6 +106,10 @@ class ParsedPersona:
 
 # ═══ 主解析器 ═══
 
+from .registry import register
+
+
+@register(name="persona_report_parser", provides=["PersonaReportParser"], depends_on=[])
 class PersonaReportParser:
     """从 AstrBot persona system_prompt 自动解析人格参数。"""
 

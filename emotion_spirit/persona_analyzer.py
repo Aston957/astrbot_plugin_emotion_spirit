@@ -97,6 +97,10 @@ class PersonaAnalysisResult:
 LLMCallable = Callable[[str, str], Awaitable[str]]
 
 
+from .registry import register
+
+
+@register(name="persona_analyzer", provides=["PersonaAnalyzer"], depends_on=[])
 class PersonaAnalyzer:
     """使用 LLM 从人格文本提取 5 轴标签并推导 13 维参数。"""
 

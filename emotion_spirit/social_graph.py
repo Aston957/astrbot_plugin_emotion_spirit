@@ -56,6 +56,10 @@ class SocialEdge:
         return cls(**data)
 
 
+from .registry import register
+
+
+@register(name="social_graph", provides=["SocialGraph"], depends_on=[])
 class SocialGraph:
     """用户间关系图 — 有向, 双层 (psychological + interactive)。"""
 

@@ -37,6 +37,10 @@ _DELTA_MAX = 0.3
 ALL_DIMS: tuple[str, ...] = tuple(sorted(ALL_PERSONALITY_DIMS))
 
 
+from .registry import register
+
+
+@register(name="relationship_personality", provides=["RelationshipPersonality"], depends_on=[])
 class RelationshipPersonality:
     """per-user 13 维人格微调。
 

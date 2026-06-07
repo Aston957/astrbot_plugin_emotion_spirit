@@ -16,6 +16,10 @@ if TYPE_CHECKING:
     from .buffer_signals import BufferSignals
 
 
+from .registry import register
+
+
+@register(name="prompt_injector", provides=["PromptInjector"], depends_on=["intimacy", "superego", "memory_pool", "diary_writer", "buffer_signals", "relationship_personality", "shadow_detector"])
 class PromptInjector:
     """Prompt 上下文组装器。"""
 

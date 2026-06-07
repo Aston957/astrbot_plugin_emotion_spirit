@@ -48,6 +48,10 @@ class Pattern:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
+from .registry import register
+
+
+@register(name="pattern_extractor", provides=["PatternExtractor"], depends_on=["memory_pool"])
 class PatternExtractor:
     """从温池提取行为模式。"""
 

@@ -20,6 +20,10 @@ if TYPE_CHECKING:
     from .superego import ConscienceTracker, ValueAlignment, IdealSelf
 
 
+from .registry import register
+
+
+@register(name="predictive_sentinel", provides=["PredictiveSentinel"], depends_on=["buffer_signals", "meaning_reservoir", "pattern_extractor", "shadow_detector"])
 class PredictiveSentinel:
     """信号预警系统。
 

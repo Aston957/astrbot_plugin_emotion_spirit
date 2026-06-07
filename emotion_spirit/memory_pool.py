@@ -130,6 +130,10 @@ class MemoryEntry:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
+from .registry import register
+
+
+@register(name="memory_pool", provides=["MemoryPool"], depends_on=[])
 class MemoryPool:
     """四层记忆池管理器 (Phase 2.0: per-user 隔离)。"""
 

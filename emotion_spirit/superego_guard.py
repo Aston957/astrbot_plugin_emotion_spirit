@@ -31,6 +31,10 @@ class InterventionResult:
     log_reason: str
 
 
+from .registry import register
+
+
+@register(name="superego_guard", provides=["SuperegoGuard"], depends_on=["superego"])
 class SuperegoGuard:
     """超我防护层 — 软干预决策 + 修复建议。
 

@@ -223,3 +223,12 @@ def _compute_distance(
 def get_label_options() -> dict[str, list[str]]:
     """获取所有标签可选值 (供 _conf_schema.json 使用)。"""
     return {k: list(v) for k, v in LABEL_OPTIONS.items()}
+
+
+from .registry import register
+
+
+@register(name="label_mapper", provides=[], depends_on=[])
+class _ModuleMarker:
+    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
+    pass

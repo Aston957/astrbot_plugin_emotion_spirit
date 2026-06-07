@@ -64,6 +64,10 @@ def _format_emotion_block(signals: "SemanticSignals") -> str:
     )
 
 
+from .registry import register
+
+
+@register(name="diary_writer", provides=["DiaryWriter"], depends_on=[])
 class DiaryWriter:
     """定时日记生成器。"""
 

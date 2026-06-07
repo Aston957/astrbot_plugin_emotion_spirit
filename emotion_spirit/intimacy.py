@@ -39,6 +39,10 @@ class IntimacyProfile:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
+from .registry import register
+
+
+@register(name="intimacy", provides=["IntimacyTracker"], depends_on=[])
 class IntimacyTracker:
     """管理所有用户的亲密度。"""
 

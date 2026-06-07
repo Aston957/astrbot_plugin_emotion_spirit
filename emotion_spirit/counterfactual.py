@@ -21,6 +21,10 @@ _PERSPECTIVES = {
 }
 
 
+from .registry import register
+
+
+@register(name="counterfactual", provides=["Counterfactual"], depends_on=["memory_pool"])
 class Counterfactual:
     """反事实模拟器。"""
 

@@ -272,3 +272,12 @@ def render_description(distribution: dict[str, float], intensity: float) -> str:
     # 5. 多色混合 / 兜底
     p1_zh = emotion_zh.get(top1_name, top1_name)
     return f"你现在的情绪{intensity_w}，混合了多种色彩（{p1_zh}略占优势）"
+
+
+from .registry import register
+
+
+@register(name="emotion_classifier", provides=[], depends_on=[])
+class _ModuleMarker:
+    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
+    pass

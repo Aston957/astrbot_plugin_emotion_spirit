@@ -140,6 +140,10 @@ class SemanticSignals:
     emotion_burst: bool = False                   # v1.2+: 情绪突变事件（|Δvalence| 或 |Δarousal| > VELOCITY_BURST_THRESHOLD）
 
 
+from .registry import register
+
+
+@register(name="surface_consumer", provides=["SurfaceConsumer"], depends_on=[])
 class SurfaceConsumer:
     """解析 Sylanne Surface → SemanticSignals，含 EMA 平滑和派生计算。
 

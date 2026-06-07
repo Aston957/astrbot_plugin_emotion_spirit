@@ -18,11 +18,14 @@ from typing import Any
 
 from astrbot.api import logger
 
+from .registry import register
+
 
 _STORE_FILE = "spirit_data.json"
 _CURRENT_SCHEMA_VERSION = 3
 
 
+@register(name="store", provides=["SpiritStore"], depends_on=[])
 class SpiritStore:
     """JSON 持久化存储。
 

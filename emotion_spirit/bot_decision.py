@@ -25,6 +25,10 @@ if TYPE_CHECKING:
     from .topic_privacy import TopicPrivacy
 
 
+from .registry import register
+
+
+@register(name="bot_decision", provides=["BotDecisionMaker"], depends_on=["social_graph", "topic_privacy"])
 class BotDecisionMaker:
     """bot 自主决策 (Phase 2.0 stub)。
 

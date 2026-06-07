@@ -17,10 +17,13 @@ from typing import Any, TYPE_CHECKING
 
 from .memory_pool import GLOBAL_USER_ID
 
+from .registry import register
+
 if TYPE_CHECKING:
     from .memory_pool import MemoryPool, BufferEntry
 
 
+@register(name="buffer_signals", provides=["BufferSignals"], depends_on=["memory_pool"])
 class BufferSignals:
     """缓冲池信号计算器 (Phase 2.0: per-user 读路径)。"""
 

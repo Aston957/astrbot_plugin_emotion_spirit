@@ -25,6 +25,10 @@ _ARC_PROMPTS = {
 }
 
 
+from .registry import register
+
+
+@register(name="narrative_identity", provides=["NarrativeIdentity"], depends_on=["diary_writer", "personality_drift"])
 class NarrativeIdentity:
     """月度叙事弧生成器。"""
 

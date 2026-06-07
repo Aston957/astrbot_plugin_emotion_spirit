@@ -166,3 +166,12 @@ def get_labels_from_config(config: dict[str, Any]) -> dict[str, str]:
         "conflict_style": config.get("conflict_style", ""),
         "time_focus": config.get("time_focus", ""),
     }
+
+
+from .registry import register
+
+
+@register(name="persona_profiles", provides=[], depends_on=[])
+class _ModuleMarker:
+    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
+    pass

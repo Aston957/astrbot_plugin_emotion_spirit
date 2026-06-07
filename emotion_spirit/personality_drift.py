@@ -33,6 +33,10 @@ _SURFACE_DIMS = [
 ]
 
 
+from .registry import register
+
+
+@register(name="personality_drift", provides=["PersonalityDrift"], depends_on=[])
 class PersonalityDrift:
     """12 维人格漂移检测器 (v1.7: 11→12)。"""
 

@@ -44,6 +44,10 @@ class ResistanceResult:
     context_note: str
 
 
+from .registry import register
+
+
+@register(name="superego", provides=["ValueResistance", "ValueAlignment", "ConscienceTracker"], depends_on=[])
 class ValueResistance:
     """价值抵抗计算器 — 人格价值观对行为的光谱响应。
 

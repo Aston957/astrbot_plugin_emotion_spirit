@@ -31,6 +31,10 @@ class PrivacyLevel(str, Enum):
 _DEFAULT_PRIVACY = PrivacyLevel.PRIVATE
 
 
+from .registry import register
+
+
+@register(name="topic_privacy", provides=["TopicPrivacy"], depends_on=["social_graph"])
 class TopicPrivacy:
     """话题隐私边界管理。"""
 

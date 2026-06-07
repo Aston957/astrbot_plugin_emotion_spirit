@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 from .emotion_classifier import build_emotion_payload  # v1.1.2: 共享层
 
 
+from .registry import register
+
+
+@register(name="life_simulator", provides=["LifeSimulator"], depends_on=["memory_pool"])
 class LifeSimulator:
     """双模式 Life Sim。"""
 
