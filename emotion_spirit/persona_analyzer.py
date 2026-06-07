@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
@@ -136,10 +135,8 @@ class LLMAnalyzer:
 
         drives = {}
         if labels:
-            from .label_mapper import labels_to_personality
+            # drives 走 persona_report_parser 解析 system_prompt (3 维: curiosity/expression/connection)
             try:
-                personality = labels_to_personality(labels)
-                # personality 里有 13 维参数, 推 drives 走 persona_report_parser
                 parsed_full = parse_persona_report(system_prompt)
                 drives = parsed_full.drives
             except Exception:
