@@ -71,8 +71,8 @@ def test_e2e_apply_to_layers_creates_effective():
 
     # base (deep + surface 格式)
     base = {
-        "deep": {"warmth_bias": 0.5, "intimacy_pull": 0.4, "autonomy": 0.7},
-        "surface": {"warmth_bias": 0.6, "intimacy_pull": 0.5, "autonomy": 0.7},
+        "deep": {"warmth_bias": 0.5, "intimacy_pull": 0.4, "relational_autonomy": 0.7},
+        "surface": {"warmth_bias": 0.6, "intimacy_pull": 0.5, "relational_autonomy": 0.7},
     }
     effective = rp.apply_to_layers(base, "alice")
 
@@ -80,8 +80,8 @@ def test_e2e_apply_to_layers_creates_effective():
     assert effective["deep"]["warmth_bias"] == 0.65
     # deep.intimacy_pull: 0.4 + 0.1 = 0.5
     assert effective["deep"]["intimacy_pull"] == 0.5
-    # autonomy 不在 delta 中 → 不变
-    assert effective["deep"]["autonomy"] == 0.7
+    # relational_autonomy 不在 delta 中 → 不变
+    assert effective["deep"]["relational_autonomy"] == 0.7
     # surface 同样
     assert effective["surface"]["warmth_bias"] == 0.75
 

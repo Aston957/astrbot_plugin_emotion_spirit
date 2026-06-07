@@ -124,7 +124,7 @@ class RelationshipPersonality:
 
         Args:
             user_id: 目标 user
-            tone: 13 维色调 dict, 如 {"warmth": 0.1, "expression_drive": 0.05, ...}
+            tone: 13 维色调 dict, 如 {"warmth_bias": 0.1, "expression_drive": 0.05, ...}
         """
         for dim, value in tone.items():
             self.set_delta(user_id, dim, value)
