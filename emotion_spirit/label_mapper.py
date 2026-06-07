@@ -98,8 +98,10 @@ PERSONA_BASELINES: dict[str, dict[str, float]] = {
 
 
 # ═══ MBTI 增量 (每个字母维度的贡献) ═══
-
-_MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
+# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.MBTI_LETTER_DELTAS
+# 此处保留 _DEPRECATED 副本 + 别名以便 B3 之前旧代码仍能 import。
+# 包含 v1.7.2 的 I/E gossip_tendency delta (HEXACO 2007)。
+_MBTI_LETTER_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
     # I vs E
     # v1.7.2: gossip_tendency 增加 I/E delta (HEXACO 2007: E 维度强烈预测 gossip 倾向)
     "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05, "gossip_tendency": -0.25},
@@ -114,11 +116,13 @@ _MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
     "P": {"boundary_permeability": +0.15, "patience": -0.10, "relational_autonomy": -0.05},
     "J": {"inner_coherence": +0.05, "patience": +0.05, "relational_autonomy": +0.05},
 }
+# @deprecated: 别名, 保留旧 import 路径工作; B3 将删除。
+_MBTI_LETTER_DELTAS = _MBTI_LETTER_DELTAS_DEPRECATED
 
 
 # ═══ 依恋类型增量 ═══
-
-_ATTACHMENT_DELTAS: dict[str, dict[str, float]] = {
+# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.ATTACHMENT_DELTAS
+_ATTACHMENT_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
     "安全型": {
         "boundary_permeability": +0.10,
         "inner_coherence": +0.10,
@@ -151,11 +155,13 @@ _ATTACHMENT_DELTAS: dict[str, dict[str, float]] = {
         "expression_drive": +0.05,
     },
 }
+# @deprecated: 别名, B3 删除。
+_ATTACHMENT_DELTAS = _ATTACHMENT_DELTAS_DEPRECATED
 
 
 # ═══ 情绪策略增量 ═══
-
-_EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
+# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.EMOTION_STYLE_DELTAS
+_EMOTION_STYLE_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
     "表达型": {
         "expression_drive": +0.20,
         "warmth_bias": +0.15,
@@ -176,11 +182,13 @@ _EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "warmth_bias": +0.05,
     },
 }
+# @deprecated: 别名, B3 删除。
+_EMOTION_STYLE_DELTAS = _EMOTION_STYLE_DELTAS_DEPRECATED
 
 
 # ═══ 冲突风格增量 ═══
-
-_CONFLICT_STYLE_DELTAS: dict[str, dict[str, float]] = {
+# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.CONFLICT_STYLE_DELTAS
+_CONFLICT_STYLE_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
     "攻击型": {
         "directness": +0.15,
         "relational_autonomy": +0.10,  # v1.7: 替换 autonomy_guard
@@ -211,11 +219,13 @@ _CONFLICT_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "exploration_openness": +0.10,  # v1.7: 合作 = 探索解
     },
 }
+# @deprecated: 别名, B3 删除。
+_CONFLICT_STYLE_DELTAS = _CONFLICT_STYLE_DELTAS_DEPRECATED
 
 
 # ═══ 时间取向增量 ═══
-
-_TIME_FOCUS_DELTAS: dict[str, dict[str, float]] = {
+# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.TIME_FOCUS_DELTAS
+_TIME_FOCUS_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
     "活在过去": {
         "perception_acuity": +0.15,
         "inner_coherence": -0.10,
@@ -235,10 +245,12 @@ _TIME_FOCUS_DELTAS: dict[str, dict[str, float]] = {
         "exploration_openness": +0.15,  # v1.7: 前瞻 = 探索
     },
 }
+# @deprecated: 别名, B3 删除。
+_TIME_FOCUS_DELTAS = _TIME_FOCUS_DELTAS_DEPRECATED
 
 
 # ═══ 汇总 ═══
-
+# @deprecated: Phase B Step 1 (P3-2) — 内部聚合, B3 改为使用 KnowledgeBase 路径
 _ALL_LABEL_DELTAS: dict[str, dict[str, dict[str, float]]] = {
     "mbti": {},  # MBTI 需要特殊处理 (逐字母)
     "attachment": _ATTACHMENT_DELTAS,
