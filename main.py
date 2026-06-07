@@ -992,6 +992,8 @@ class EmotionSpiritPlugin(Star):
         # Phase 2.5: 设置亲密度段 (PromptInjector 内部用)
         segment = self._intimacy.get_segment(user_id)
         self._injector.set_intimacy_segment(user_id, segment)
+        # v1.7.2: 提取 gossip_tendency 注入 [边界] 块 (P0-2b 真消费点)
+        gossip_tendency = current_personality.get("surface", {}).get("gossip_tendency", 0.4)
         context = self._injector.build_context(
             user_id=user_id,
             persona=self._current_persona,
@@ -999,6 +1001,7 @@ class EmotionSpiritPlugin(Star):
             safety_level=self._safety_level,
             safety_note=self._safety_note,
             repair_advice=self._repair_advice,
+            gossip_tendency=gossip_tendency,
         )
         if context:
             logger.debug(

@@ -57,6 +57,7 @@ class PromptInjector:
         safety_level: str = "normal",
         safety_note: str | None = None,
         repair_advice: str | None = None,
+        gossip_tendency: float = 0.0,
     ) -> str:
         """构建注入到 system_prompt 的上下文。
 
@@ -64,6 +65,7 @@ class PromptInjector:
             safety_level: SuperegoGuard 输出的干预级别 ("normal"|"warning"|"critical")
             safety_note: 人格化安全提示文本 (critical 时由 SuperegoGuard 生成)
             repair_advice: 修复建议文本 (critical 时由 SuperegoGuard 生成)
+            gossip_tendency: v1.7.2 新增 13 维之一, 用于渲染 [边界] 块 (bot 社交姿态)
         """
         from .config import SAFETY_CONFIG
 
@@ -146,7 +148,29 @@ class PromptInjector:
             top = shadows[0]
             parts.append(f"[阴影] 你一直在回避关于 {top['tag']} 的事")
 
+        # ═══ [边界] gossip_tendency 真消费点 (v1.7.2, P0-2b) ═══
+        boundary_text = self._render_boundary(gossip_tendency)
+        if boundary_text:
+            parts.append(boundary_text)
+
         return "\n".join(parts) if parts else ""
+
+    def _render_boundary(self, gossip_tendency: float) -> str:
+        """v1.7.2: 把 gossip_tendency 翻译为 bot 社交姿态的 prompt 块 (5 档)。
+
+        基于 Erdoğan 2014 (gossip 实证构念) + HEXACO 2007 (H 反向 + E 正向 + A 反向)。
+        bot 对"主动提及其他人"的倾向直接影响多人对话的边界感。
+        """
+        if gossip_tendency < 0.2:
+            return "[边界] bot 不会主动提其他人, 等用户先开口"
+        elif gossip_tendency < 0.4:
+            return "[边界] bot 偶尔会提, 但需要明确关系基础"
+        elif gossip_tendency < 0.6:
+            return "[边界] bot 视情况而定, 关系好会提"
+        elif gossip_tendency < 0.8:
+            return "[边界] bot 习惯提及其他人的事, 像朋友八卦"
+        else:
+            return "[边界] bot 主动分享听到的事, 活跃社交"
 
     def to_dict(self) -> dict[str, Any]:
         return {}
