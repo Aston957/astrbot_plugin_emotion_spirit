@@ -223,3 +223,55 @@ def test_build_superego_sub_dep_via_dot():
     instances = build(config)
     assert instances["consumer"].alignment is instances["superego"]["alignment"]
     assert instances["consumer"].conscience is instances["superego"]["conscience"]
+
+
+def test_config_key_mismatch_raises_for_single_instance():
+    """config_key 不在 __init__ 形参时 hard error (B6.x.x I2: 改静默 fallback 为 raise)。
+
+    之前: `kwargs[param_name] = params[key]` 静默塞, 后续 multi-instance filter 会丢
+    不会报错, 但单 instance 会 TypeError 在最远点, 难定位。
+    现在: 提前 RuntimeError + 明确 spec name + config_key, fail-fast。
+    """
+    from emotion_spirit.registry import ModuleRegistry, register, build
+
+    @register(
+        name="_test_cfg_mismatch",
+        provides=["_CfgMismatch"],
+        depends_on=[],
+        config_keys={"nonexistent_param"},
+    )
+    class _CfgMismatch:
+        def __init__(self, real_param: str = "default") -> None:
+            self.real_param = real_param
+
+    config = {
+        "modules": {"_test_cfg_mismatch": {"enabled": True}},
+        "params": {"nonexistent_param": "value"},
+    }
+    with pytest.raises(RuntimeError, match="config_key"):
+        build(config)
+
+
+def test_config_key_mismatch_raises_for_multi_instance():
+    """multi-instance: config_key 不在任一 sub __init__ 形参时也 raise。"""
+    from emotion_spirit.registry import ModuleRegistry, register, build
+
+    @register(
+        name="_test_cfg_mismatch_multi",
+        provides=["_A", "_B"],
+        depends_on=[],
+        provides_classes={
+            "_A": type("_A", (), {"__init__": lambda self, persona="": None}),
+            "_B": type("_B", (), {"__init__": lambda self: None}),
+        },
+        config_keys={"nonexistent_param"},
+    )
+    class _Bundle:
+        def __init__(self) -> None: pass
+
+    config = {
+        "modules": {"_test_cfg_mismatch_multi": {"enabled": True}},
+        "params": {"nonexistent_param": "value"},
+    }
+    with pytest.raises(RuntimeError, match="config_key"):
+        build(config)

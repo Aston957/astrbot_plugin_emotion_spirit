@@ -134,3 +134,90 @@ def test_dry_run_then_real_build_consistent():
     # build() 默认 enabled=True for registry modules not in config,
     # 所以 utility 4 (provides=[]) 也被装配. 28 = 24 instantiable + 4 utility.
     assert len(real) == 28, f"expected 28 instances (24 + 4 utility), got {len(real)}"
+
+
+# ════════════════════════════════════════════════════════════════════
+# Phase B6.x.x M8: 4 边界测试覆盖 gap
+# ════════════════════════════════════════════════════════════════════
+
+
+def test_default_data_dir_when_none():
+    """data_dir=None → default_config fallback 到 'data' (B6.x.x M8 边界)。"""
+    import tempfile
+    # 用临时目录避免污染工作区
+    with tempfile.TemporaryDirectory() as tmp:
+        config = default_config(data_dir=None, persona_id="", labels={})
+        # 验证 params.data_dir 落 'data' (default)
+        assert config["params"]["data_dir"] == "data"
+        # 验证 store.__init__ 接受 'data' (B6.x 真装配)
+        config["params"]["data_dir"] = tmp  # 改 tmpdir 避免污染
+        config["modules"]["counterfactual"]["enabled"] = False
+        config["modules"]["life_simulator"]["enabled"] = False
+        config["modules"]["prompt_injector"]["enabled"] = False
+        config["modules"]["narrative_identity"]["enabled"] = False
+        config["modules"]["predictive_sentinel"]["enabled"] = False
+        config["modules"]["diary_writer"]["enabled"] = False
+        config["modules"]["shadow_detector"]["enabled"] = False
+        config["modules"]["buffer_signals"]["enabled"] = False
+        config["modules"]["pattern_extractor"]["enabled"] = False
+        config["modules"]["persona_analyzer"]["enabled"] = False
+        config["modules"]["bot_decision"]["enabled"] = False
+        config["modules"]["social_graph"]["enabled"] = False
+        config["modules"]["topic_privacy"]["enabled"] = False
+        config["modules"]["knowledge"]["enabled"] = False
+        config["modules"]["persona_report_parser"]["enabled"] = False
+        config["modules"]["superego"]["enabled"] = False
+        config["modules"]["superego_guard"]["enabled"] = False
+        config["modules"]["meaning_reservoir"]["enabled"] = False
+        config["modules"]["personality_drift"]["enabled"] = False
+        config["modules"]["relationship_personality"]["enabled"] = False
+        instances = build(config)
+        # store._dir.name 反映传入的 data_dir
+        assert instances["store"]._dir.name == os.path.basename(tmp)
+
+
+def test_superego_with_empty_persona_id():
+    """persona_id='' → superego 4 sub 全部正常建 (B6.x.x M8 边界)。"""
+    config = default_config(data_dir="/tmp/test_empty_pid", persona_id="", labels={})
+    instances = build(config)
+    se = instances["superego"]
+    assert se["alignment"]._persona == ""
+    assert se["ideal"]._persona == ""
+
+
+def test_bot_decision_gossip_tendency_05():
+    """gossip_tendency=0.5 → bot_decision._gossip_tendency == 0.5 (B6.x.x M8 边界)。"""
+    config = default_config(data_dir="/tmp/test_gossip_05", persona_id="", labels={}, gossip_tendency=0.5)
+    instances = build(config)
+    assert instances["bot_decision"]._gossip_tendency == 0.5
+
+
+def test_cycle_detection_raises_runtime_error():
+    """循环依赖 raise RuntimeError (B6.x.x M8 边界: 测试 build() 的 fail-fast)。
+
+    用 2 个临时模块 A 跟 B 互依, 验证 _pending loop 检测到 no progress 时抛错。
+    需手动 save/restore registry 避免污染 28 真实模块 (本文件无 autouse fixture)。
+    """
+    from emotion_spirit.registry import register
+    import pytest
+    saved = dict(ModuleRegistry.get_all())
+    try:
+        @register(name="_test_cycle_a", provides=["_A"], depends_on=["_test_cycle_b"])
+        class _A:
+            def __init__(self, _test_cycle_b) -> None:
+                pass
+
+        @register(name="_test_cycle_b", provides=["_B"], depends_on=["_test_cycle_a"])
+        class _B:
+            def __init__(self, _test_cycle_a) -> None:
+                pass
+
+        config = default_config(data_dir="/tmp/test_cycle", persona_id="", labels={})
+        config["modules"]["_test_cycle_a"] = {"enabled": True}
+        config["modules"]["_test_cycle_b"] = {"enabled": True}
+        with pytest.raises(RuntimeError, match="循环依赖"):
+            build(config)
+    finally:
+        ModuleRegistry._registry.clear()
+        for name, spec in saved.items():
+            ModuleRegistry._registry[name] = spec

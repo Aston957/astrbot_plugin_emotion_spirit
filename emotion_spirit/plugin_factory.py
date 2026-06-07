@@ -6,19 +6,17 @@
 from __future__ import annotations
 from typing import Any
 
-from .registry import build as _registry_build
+from .registry import ModuleRegistry, build as _registry_build
 
 
-# 24 个有 provides 的模块 (utility 4 不实例化: emotion_classifier/label_mapper/persona_profiles/trend_utils)
-_INSTANTIABLE_MODULES = [
-    "store", "surface_consumer", "memory_pool", "buffer_signals", "intimacy",
-    "superego", "superego_guard", "meaning_reservoir", "pattern_extractor",
-    "shadow_detector", "life_simulator", "diary_writer", "prompt_injector",
-    "personality_drift", "predictive_sentinel", "narrative_identity",
-    "counterfactual", "persona_analyzer", "relationship_personality",
-    "social_graph", "topic_privacy", "bot_decision", "knowledge",
-    "persona_report_parser",
-]
+def _instantiable_modules() -> list[str]:
+    """从 registry derive 所有 instantiable module 名字 (filter utility 4: provides=[])。
+
+    Returns:
+        ModuleSpec.provides 非空的所有 module name, 顺序跟 registry insertion 一致。
+        加新 @register 模块无需改 factory — 自动出现。
+    """
+    return [n for n, s in ModuleRegistry.get_all().items() if s.provides]
 
 
 def default_config(
@@ -29,7 +27,7 @@ def default_config(
     llm: Any = None,
     gossip_tendency: float = 0.0,
 ) -> dict[str, Any]:
-    """默认配置: 24 模块 enabled, utility 4 跳过。
+    """默认配置: 所有 instantiable 模块 enabled, utility (provides=[]) 跳过。
 
     Args:
         data_dir: SpiritStore 数据目录
@@ -41,7 +39,7 @@ def default_config(
     Returns:
         形如 {"modules": {name: {"enabled": bool}}, "params": {...}}
     """
-    modules = {name: {"enabled": True} for name in _INSTANTIABLE_MODULES}
+    modules = {name: {"enabled": True} for name in _instantiable_modules()}
     return {
         "modules": modules,
         "params": {

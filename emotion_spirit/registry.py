@@ -10,6 +10,7 @@ B6.x 增强:
   multi-instance 拆 sub (e.g. superego 4 sub 返回 dict)
 """
 from __future__ import annotations
+import inspect
 from dataclasses import dataclass, field
 from typing import Type, Callable, Any
 
@@ -168,7 +169,6 @@ def build(config: dict, *, dry_run: bool = False) -> dict[str, object]:
     Raises:
         RuntimeError: 循环依赖 / 缺失依赖 / 形参不匹配
     """
-    import inspect
     modules_cfg = config.get("modules", {})
     params = config.get("params", {})
     pending = [
@@ -210,7 +210,6 @@ def _build_one(
     3. 遍历 spec.config_keys, 从 params 注入
     4. multi-instance: 4 sub 一起创 (返回 dict[cls_name, instance])
     """
-    import inspect
     sig = inspect.signature(spec.module_class.__init__)
     param_names = set(sig.parameters) - {"self", "args", "kwargs"}
     kwargs: dict[str, object] = {}
@@ -227,14 +226,30 @@ def _build_one(
             )
 
     # 2. config_keys 注入 (param_wire 同样适用: config_key → __init__ 形参名)
+    # B6.x.x I2: 形参不匹配时 hard error (RuntimeError), 不再静默塞 kwargs
+    # 避免下游 TypeError 在最远点 fail, 难以定位 spec name + config_key。
     for key in spec.config_keys:
         if key in params:
             param_name = spec.param_wire.get(key, key)
-            if param_name in param_names:
-                kwargs[param_name] = params[key]
-            elif param_name not in kwargs:  # 没匹配形参, 但也不强求
-                # e.g. multi-instance + config_keys 全 sub 共用, 走 sub 过滤
-                kwargs[param_name] = params[key]
+            if spec.provides_classes:
+                # multi-instance: 至少 1 个 sub 的 __init__ 形参含 param_name 才放行
+                sub_param_sets = [
+                    set(inspect.signature(cls.__init__).parameters) - {"self", "args", "kwargs"}
+                    for cls in spec.provides_classes.values()
+                ]
+                if not any(param_name in sps for sps in sub_param_sets):
+                    raise RuntimeError(
+                        f"{spec.name}.config_key {key!r} (形参 {param_name!r}) "
+                        f"不在任一 sub-class __init__ 形参"
+                    )
+            else:
+                # 单 instance: __init__ 形参必须含 param_name
+                if param_name not in param_names:
+                    raise RuntimeError(
+                        f"{spec.name}.config_key {key!r} (形参 {param_name!r}) "
+                        f"不在 {spec.module_class.__name__}.__init__ 形参"
+                    )
+            kwargs[param_name] = params[key]
 
     # 3. multi-instance: 4 sub 一起创 (filter kwargs per sub-class __init__ signature)
     if spec.provides_classes:

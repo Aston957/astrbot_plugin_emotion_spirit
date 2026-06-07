@@ -72,6 +72,45 @@ def test_plugin_factory_default_config_lists_all_24():
     assert "trend_utils" not in enabled
 
 
+def test_instantiable_modules_derives_from_registry():
+    """default_config() 跟 registry 同步: 24 个 provides>0, 加新模块自动出现 (B6.x.x I1)。"""
+    from emotion_spirit.registry import ModuleRegistry, register
+    from emotion_spirit.plugin_factory import default_config
+
+    # 1. 长度 == 24 (utility 4 不算)
+    expected_count = sum(1 for s in ModuleRegistry.get_all().values() if s.provides)
+    cfg = default_config(data_dir="data")
+    enabled = [n for n, m in cfg["modules"].items() if m.get("enabled", True)]
+    assert len(enabled) == 24
+    assert len(enabled) == expected_count
+
+    # 2. 每个都在 registry 里有 spec 且 provides 非空
+    for name in enabled:
+        spec = ModuleRegistry.get_all().get(name)
+        assert spec is not None, f"{name} 不在 registry"
+        assert spec.provides, f"{name} provides 应非空"
+
+    # 3. 临时 register 一个新模块, 验证自动出现
+    saved = dict(ModuleRegistry.get_all())
+    try:
+        @register(name="_test_instantiable_xxx", provides=["_TestClass"], depends_on=[])
+        class _TestInstantiableClass:
+            def __init__(self) -> None:
+                pass
+
+        cfg2 = default_config(data_dir="data")
+        enabled2 = [n for n, m in cfg2["modules"].items() if m.get("enabled", True)]
+        assert "_test_instantiable_xxx" in enabled2, (
+            f"新模块应自动出现在 default_config, got {enabled2}"
+        )
+        assert len(enabled2) == 25  # 24 + 1 临时
+    finally:
+        # 恢复 registry, 清掉临时 class
+        ModuleRegistry._registry.clear()
+        for name, spec in saved.items():
+            ModuleRegistry._registry[name] = spec
+
+
 def test_plugin_factory_passes_data_dir_to_store():
     """data_dir 参数传给 SpiritStore。"""
     from emotion_spirit.plugin_factory import build, default_config
