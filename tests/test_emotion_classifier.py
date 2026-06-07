@@ -3,10 +3,8 @@
 import time
 
 import pytest
+from emotion_spirit.knowledge import KnowledgeBase
 from emotion_spirit.emotion_classifier import (
-    CATEGORICAL_REGIONS,
-    COMPOUND_REGIONS,
-    EMOTION_ZH,
     build_emotion_payload,
     classify_distribution,
     classify_primary_secondary,
@@ -14,6 +12,11 @@ from emotion_spirit.emotion_classifier import (
     compute_velocity,    # v1.2
     render_description,
 )
+
+# Phase B: 数据走 KnowledgeBase (单一数据源)
+CATEGORICAL_REGIONS = KnowledgeBase.CATEGORICAL_REGIONS
+COMPOUND_REGIONS = KnowledgeBase.COMPOUND_REGIONS
+EMOTION_ZH = KnowledgeBase.EMOTION_ZH
 
 
 def test_categorical_regions_has_7_emotions():

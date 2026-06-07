@@ -119,79 +119,22 @@ def test_knowledge_base_get_narrative_template_returns_string():
     assert len(template) > 0
 
 
-@pytest.mark.xfail(reason="KB 与 label_mapper 数据漂移, B3 (Task B3) 决策后回归", strict=False)
-def test_knowledge_base_5_persona_baseline_shared_dims_match_label_mapper():
-    """B1 已知数据漂移, 5 shared surface dim (warmth_bias/intimacy_pull/relational_autonomy/exploration_openness/gossip_tendency)
-    应该在 KB.PERSONA_BASELINES 和 label_mapper.PERSONA_BASELINES 之间一致。
-
-    当前 (B1) 3 persona (INFP-A/ISFJ-D/ENTP-AV) gossip_tendency 漂移:
-    - INFP-A: KB 0.30 vs 旧 0.15
-    - ISFJ-D: KB 0.40 vs 旧 0.15
-    - ENTP-AV: KB 0.65 vs 旧 0.70
-    - ISTJ-S/ESTP-A 一致
-
-    B3 (Task B3) 删旧字段时会强制统一, 届时本测试应从 xfail → pass。
-    """
-    from emotion_spirit.knowledge import KnowledgeBase
-    from emotion_spirit.label_mapper import PERSONA_BASELINES as OLD
-
-    shared_dims = ["warmth_bias", "intimacy_pull", "relational_autonomy", "exploration_openness", "gossip_tendency"]
-    for persona in ["INFP-A", "ISTJ-S", "ENTP-AV", "ISFJ-D", "ESTP-A"]:
-        for dim in shared_dims:
-            kb_val = KnowledgeBase.PERSONA_BASELINES[persona][dim]
-            old_val = OLD[persona][dim]
-            assert kb_val == old_val, (
-                f"{persona}.{dim} 漂移: KB={kb_val}, label_mapper={old_val}"
-            )
+def test_old_label_mapper_fields_removed():
+    """Step 3: 旧 _MBTI_LETTER_DELTAS 等字段必须从 label_mapper 删除。"""
+    import emotion_spirit.label_mapper as lm
+    for old_field in ["_MBTI_LETTER_DELTAS", "_ATTACHMENT_DELTAS", "_EMOTION_STYLE_DELTAS", "_CONFLICT_STYLE_DELTAS", "_TIME_FOCUS_DELTAS"]:
+        for suffix in ["", "_DEPRECATED"]:
+            full = old_field + suffix
+            assert not hasattr(lm, full), f"label_mapper.{full} 应已删"
 
 
-@pytest.mark.xfail(reason="B3 切 KB 后 dim 数变 (12→11, 删 perception_acuity), 文本重写", strict=False)
-def test_knowledge_base_narrative_templates_match_persona_profiles_deprecated():
-    """B2 NARRATIVE_TEMPLATES 数据漂移: 11 dim (无 perception_acuity) + 11 dim 文本重写。
-    B3 删 persona_profiles.py 旧字段后应从 xfail → pass。"""
-    from emotion_spirit.knowledge import KnowledgeBase
-    from emotion_spirit.persona_profiles import NARRATIVE_TEMPLATES as OLD
-
-    # 共享 11 dim 应在 KB 和 OLD 中都存在
-    shared_dims = set(KnowledgeBase.NARRATIVE_TEMPLATES.keys()) & set(OLD.keys())
-    assert len(shared_dims) == 11  # perception_acuity 不在 KB
-
-    # 共享 dim 的 high/low × violation/alignment/advice 文本应一致
-    for dim in shared_dims:
-        for level in ["high", "low"]:
-            for scene in ["violation", "alignment", "advice"]:
-                kb_text = KnowledgeBase.NARRATIVE_TEMPLATES[dim][level][scene]
-                old_text = OLD[dim][level][scene]
-                assert kb_text == old_text, f"{dim}.{level}.{scene} 文本漂移"
-
-
-@pytest.mark.xfail(reason="B2 TENSION_INCLINATION 重新分类 (Tangney 2002): boundary_permeability/directness doubt→shame", strict=False)
-def test_knowledge_base_tension_inclination_match_superego_deprecated():
-    """B2 TENSION_INCLINATION 数据漂移: KB 加了 value_resistance/gossip_tendency/patience=righteous,
-    且 boundary_permeability/directness 从 doubt 改 shame (Tangney 2002 理论重新分类)。
-    B3 删 superego.py 旧字段后应从 xfail → pass。"""
-    from emotion_spirit.knowledge import KnowledgeBase
-    from emotion_spirit.superego import _TENSION_INCLINATION as OLD
-
-    # 共享 dim (KB 14 - 旧 1 不在 KB / KB 1 不在旧) 应有相同分类
-    shared_dims = set(KnowledgeBase.TENSION_INCLINATION.keys()) & set(OLD.keys())
-    for dim in shared_dims:
-        kb_val = KnowledgeBase.TENSION_INCLINATION[dim]
-        old_val = OLD[dim]
-        assert kb_val == old_val, f"{dim} 重新分类: KB={kb_val}, 旧={old_val}"
-
-
-@pytest.mark.xfail(reason="B2 VARIANT_KEY 命名规范 (KB 公开去下划线)", strict=False)
-def test_knowledge_base_variant_key_match_persona_profiles_deprecated():
-    """B2 VARIANT_KEY 数据漂移: KB 12 dim, 旧 _VARIANT_KEY 12 dim, 命名规范化 (去下划线)。
-    内容应一致, B3 删 persona_profiles.py 旧字段后应从 xfail → pass。"""
-    from emotion_spirit.knowledge import KnowledgeBase
-    from emotion_spirit.persona_profiles import _VARIANT_KEY as OLD
-
-    assert set(KnowledgeBase.VARIANT_KEY.keys()) == set(OLD.keys())
-    for dim, (other_dim, weight) in KnowledgeBase.VARIANT_KEY.items():
-        old_other, old_weight = OLD[dim]
-        assert other_dim == old_other and weight == old_weight
+def test_old_emotion_classifier_fields_removed():
+    """Step 3: CATEGORICAL_REGIONS 等必须从 emotion_classifier 删除。"""
+    import emotion_spirit.emotion_classifier as ec
+    for old_field in ["CATEGORICAL_REGIONS", "COMPOUND_REGIONS", "EMOTION_ZH"]:
+        for suffix in ["", "_DEPRECATED"]:
+            full = old_field + suffix
+            assert not hasattr(ec, full), f"emotion_classifier.{full} 应已删"
 
 
 if __name__ == "__main__":

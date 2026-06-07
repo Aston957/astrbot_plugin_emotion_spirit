@@ -16,58 +16,6 @@ import math
 import time
 from typing import Any
 
-# v1.7.2: @deprecated, 数据已迁移到 KnowledgeBase (Phase B Step 2, P3-2)
-# 推荐: from emotion_spirit.knowledge import KnowledgeBase
-# Step 3 (B3) 才会删这些旧字段, B2 期间 alias 保留以便旧 import 仍工作
-# 7 类基本情绪的 PAD 区域（与 SylannEngine pad_interop.py 同步）
-CATEGORICAL_REGIONS_DEPRECATED: dict[str, dict[str, tuple[float, float]]] = {
-    "joy":     {"valence": (0.3, 1.0),   "arousal": (0.3, 0.7), "dominance": (0.4, 1.0)},
-    "anger":   {"valence": (-1.0, -0.2), "arousal": (0.6, 1.0), "dominance": (0.6, 1.0)},
-    "sadness": {"valence": (-1.0, -0.2), "arousal": (0.0, 0.4), "dominance": (0.0, 0.4)},
-    "fear":    {"valence": (-1.0, -0.2), "arousal": (0.5, 1.0), "dominance": (0.0, 0.4)},
-    "surprise":{"valence": (-1.0, 1.0),  "arousal": (0.7, 1.0), "dominance": (0.0, 1.0)},
-    "disgust": {"valence": (-1.0, -0.4), "arousal": (0.3, 0.6), "dominance": (0.4, 1.0)},
-    "neutral": {"valence": (-0.2, 0.2),  "arousal": (0.3, 0.5), "dominance": (0.0, 1.0)},
-}
-CATEGORICAL_REGIONS = CATEGORICAL_REGIONS_DEPRECATED  # @deprecated alias
-
-# 4 类复合情绪区域（基于 spec §3.3 + RAF-DB）
-COMPOUND_REGIONS_DEPRECATED: dict[str, dict[str, Any]] = {
-    "sad_excitement": {
-        "valence": (-0.8, -0.2), "arousal": (0.6, 1.0), "dominance": (0.0, 0.4),
-        "primary": "sadness", "secondary": "excitement",
-    },
-    "angry_despair": {
-        "valence": (-1.0, -0.4), "arousal": (0.7, 1.0), "dominance": (0.5, 1.0),
-        "primary": "anger", "secondary": "despair",
-    },
-    "joyful_anxiety": {
-        "valence": (0.2, 0.8), "arousal": (0.6, 1.0), "dominance": (0.3, 0.7),
-        "primary": "joy", "secondary": "anxiety",
-    },
-    "sad_calm": {
-        "valence": (-0.6, -0.1), "arousal": (0.0, 0.4), "dominance": (0.0, 0.4),
-        "primary": "sadness", "secondary": "calm",
-    },
-}
-COMPOUND_REGIONS = COMPOUND_REGIONS_DEPRECATED  # @deprecated alias
-
-# 中文标签映射（仅用于 render_description 辅助层）
-EMOTION_ZH_DEPRECATED: dict[str, str] = {
-    "joy": "喜悦",
-    "anger": "愤怒",
-    "sadness": "悲伤",
-    "fear": "恐惧",
-    "surprise": "惊讶",
-    "disgust": "厌恶",
-    "neutral": "平静",
-    "excitement": "激动",
-    "despair": "绝望",
-    "anxiety": "紧张",
-    "calm": "宁静",
-}
-EMOTION_ZH = EMOTION_ZH_DEPRECATED  # @deprecated alias
-
 
 # === 占位实现（后续 Task 替换） ===
 
@@ -173,12 +121,13 @@ def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
 
     Returns: {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
     """
+    from .knowledge import KnowledgeBase
     valence, arousal, dominance = pad
     pad_values = {"valence": valence, "arousal": arousal, "dominance": dominance}
 
-    # Step 1: 计算每个 region 的匹配分数
+    # Step 1: 计算每个 region 的匹配分数 (Phase B: 走 KnowledgeBase.CATEGORICAL_REGIONS)
     scores: dict[str, float] = {}
-    for label, bounds in CATEGORICAL_REGIONS.items():
+    for label, bounds in KnowledgeBase.CATEGORICAL_REGIONS.items():
         score = 0.0
         for dim_name, (lo, hi) in bounds.items():
             val = pad_values[dim_name]
@@ -215,8 +164,9 @@ def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
 
 def _in_compound_region(pad: tuple[float, float, float]) -> dict[str, Any] | None:
     """检查 PAD 是否落在某个复合区域。返回 compound dict 或 None。"""
+    from .knowledge import KnowledgeBase
     valence, arousal, dominance = pad
-    for compound in COMPOUND_REGIONS.values():
+    for compound in KnowledgeBase.COMPOUND_REGIONS.values():
         v_ok = compound["valence"][0] <= valence <= compound["valence"][1]
         a_ok = compound["arousal"][0] <= arousal <= compound["arousal"][1]
         d_ok = compound["dominance"][0] <= dominance <= compound["dominance"][1]
@@ -289,6 +239,8 @@ def render_description(distribution: dict[str, float], intensity: float) -> str:
     5 种分布形态 × 4 种强度词 = 20 种组合。
     ⚠️ LLM 消费者不应使用此函数（直接读 distribution 更精确）。
     """
+    from .knowledge import KnowledgeBase
+    emotion_zh = KnowledgeBase.EMOTION_ZH
     # 1. 平静基调
     if distribution.get("neutral", 0) > 0.4:
         return f"你现在的情绪{_intensity_word(intensity)}，偏向平静"
@@ -302,21 +254,21 @@ def render_description(distribution: dict[str, float], intensity: float) -> str:
 
     # 2. 单极主导
     if top1_val > 0.5 and ratio > 2.5:
-        return f"你现在的情绪{intensity_w}，以{EMOTION_ZH.get(top1_name, top1_name)}为主"
+        return f"你现在的情绪{intensity_w}，以{emotion_zh.get(top1_name, top1_name)}为主"
 
     # 3. 主+副混合
     if top1_val > 0.35 and top2_val > 0.20 and ratio < 2.5:
-        p1_zh = EMOTION_ZH.get(top1_name, top1_name)
-        p2_zh = EMOTION_ZH.get(top2_name, top2_name)
+        p1_zh = emotion_zh.get(top1_name, top1_name)
+        p2_zh = emotion_zh.get(top2_name, top2_name)
         return f"你现在的情绪{intensity_w}，以{p1_zh}为主，带有{p2_zh}色彩"
 
     # 4. 双极交织
     if (0.30 <= top1_val <= 0.45 and 0.25 <= top2_val <= 0.45
             and abs(top1_val - top2_val) < 0.10):
-        p1_zh = EMOTION_ZH.get(top1_name, top1_name)
-        p2_zh = EMOTION_ZH.get(top2_name, top2_name)
+        p1_zh = emotion_zh.get(top1_name, top1_name)
+        p2_zh = emotion_zh.get(top2_name, top2_name)
         return f"你现在的情绪{intensity_w}在{p1_zh}与{p2_zh}之间交织"
 
     # 5. 多色混合 / 兜底
-    p1_zh = EMOTION_ZH.get(top1_name, top1_name)
+    p1_zh = emotion_zh.get(top1_name, top1_name)
     return f"你现在的情绪{intensity_w}，混合了多种色彩（{p1_zh}略占优势）"

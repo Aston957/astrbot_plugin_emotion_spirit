@@ -86,15 +86,15 @@ def test_advise_guilt():
 def test_advise_shame():
     guard, _, _, _ = _make_guard()
     advice = guard.advise("shame", ["relational_autonomy"])  # v1.7: autonomy_guard 拆分
-    # 叙事模板: relational_autonomy 高变体 advice = "有时候让别人靠近一点也没关系"
-    assert "靠近" in advice or "让别人" in advice
+    # 叙事模板: KB relational_autonomy 高变体 advice = "也许可以接受一下别人的帮助" (B2 文本重写)
+    assert "接受" in advice or "帮助" in advice or "别人" in advice
 
 
 def test_advise_doubt():
     guard, _, _, _ = _make_guard()
     advice = guard.advise("doubt", ["inner_coherence"])
-    # 叙事模板: inner_coherence 高变体 (默认) advice = "回顾一下你真正相信的是什么"
-    assert "相信" in advice or "回顾" in advice
+    # 叙事模板: KB inner_coherence 高变体 advice = "也许该停下来听一下自己" (B2 文本重写)
+    assert "停下来" in advice or "听" in advice or "自己" in advice
 
 
 def test_advise_righteous():

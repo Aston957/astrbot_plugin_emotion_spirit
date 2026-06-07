@@ -1,8 +1,11 @@
 """SemanticSignals 扩展 + consume() 集成测试。"""
 
 import pytest
-from emotion_spirit.emotion_classifier import CATEGORICAL_REGIONS
+from emotion_spirit.knowledge import KnowledgeBase
 from emotion_spirit.surface_consumer import SemanticSignals
+
+# Phase B: 数据走 KnowledgeBase (单一数据源)
+CATEGORICAL_REGIONS = KnowledgeBase.CATEGORICAL_REGIONS
 
 
 def test_semantic_signals_has_new_pad_fields():

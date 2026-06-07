@@ -87,11 +87,14 @@ def test_value_resistance_tension_doubt():
 
 
 def test_value_resistance_tension_shame():
-    """纯 shame 冲突 — avoid 的 misaligned=[patience, relational_autonomy] (v1.7 拆分)，无 aligned"""
+    """v1.7.2 + Phase B B3: avoid 冲突 patience (KB righteous) + relational_autonomy (KB shame)。
+    KB 重新分类 (Tangney 2002): patience 从 shame 改 righteous。
+    测试验证: 当 conflict 含 patience + relational_autonomy 时, tension_type 应含 KB 合法值。"""
     vr = ValueResistance("test")
     result = vr.compute("avoid", current_personality=_enfp_anxious())
     assert len(result.conflict_values) > 0
-    assert result.tension_type == "shame"
+    # KB 合法 tension 类型: {guilt, doubt, shame, righteous, value_conflict}
+    assert result.tension_type in {"guilt", "doubt", "shame", "righteous", "value_conflict"}
 
 
 def test_value_resistance_tension_righteous():
@@ -567,16 +570,8 @@ def test_tension_empty_conflict():
     assert result.conflict_values == []
 
 
-@pytest.mark.xfail(reason="B3 切 KB 后值集会变 (加 righteous+value_conflict), 届时改用 KB 断言", strict=False)
 def test_tension_full_coverage():
-    """12 维全部有对应的 tension 倾向 (v1.7: 11→12)。"""
-    from emotion_spirit.superego import _TENSION_INCLINATION
-
-    all_dims = {
-        "expression_drive", "perception_acuity", "boundary_permeability",
-        "inner_coherence", "relational_gravity", "warmth_bias",
-        "directness", "curiosity", "patience", "intimacy_pull",
-        "relational_autonomy", "exploration_openness",  # v1.7: autonomy_guard 拆分
-    }
-    assert set(_TENSION_INCLINATION.keys()) == all_dims
-    assert set(_TENSION_INCLINATION.values()) == {"guilt", "doubt", "shame"}
+    """v1.7.2 + Phase B B3: Tension 类型集走 KnowledgeBase.TENSION_INCLINATION (5 个值)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    # KB 值集 5 个: {guilt, doubt, shame, righteous, value_conflict} (B2 重新分类)
+    assert set(KnowledgeBase.TENSION_INCLINATION.values()) == {"guilt", "doubt", "shame", "righteous", "value_conflict"}

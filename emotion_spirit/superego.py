@@ -21,32 +21,13 @@ from .persona_profiles import get_personality_params, get_value_behaviors, DIMEN
 from .config import SUPEREGO_CONFIG
 
 
-# v1.7.2: @deprecated, 数据已迁移到 KnowledgeBase (Phase B Step 2, P3-2)
-# ═══ 维度 → 张力倾向映射 ═══
+# ═══ 维度 → 张力倾向映射 (Phase B: 走 KnowledgeBase.TENSION_INCLINATION) ═══
 # 基于 Tangney (2002) shame/guilt 区分理论:
-#   guilt  → 关系/行为维度 → 违背行为标准 → 修复导向
-#   doubt  → 认知/感知维度 → 认知一致性破坏 → 怀疑导向
-#   shame  → 自我/自主维度 → 自我价值质疑 → 退缩导向
-_TENSION_INCLINATION_DEPRECATED: dict[str, str] = {
-    # guilt 组: 关系/行为维度
-    "relational_gravity": "guilt",
-    "intimacy_pull": "guilt",
-    "warmth_bias": "guilt",
-    "expression_drive": "guilt",
-    # doubt 组: 认知/感知维度
-    "inner_coherence": "doubt",
-    "curiosity": "doubt",
-    "perception_acuity": "doubt",
-    "directness": "doubt",
-    "boundary_permeability": "doubt",
-    # shame 组: 自我/自主维度
-    # v1.7: autonomy_guard 拆分
-    "relational_autonomy": "shame",   # 边界被侵 → shame
-    "patience": "shame",
-    # v1.7: 新维度 exploration_openness 归 doubt 组 (认知/感知)
-    "exploration_openness": "doubt",  # 探索受阻 → doubt (不是 shame)
-}
-_TENSION_INCLINATION = _TENSION_INCLINATION_DEPRECATED  # @deprecated alias
+#   guilt        → 关系/行为维度 → 违背行为标准 → 修复导向
+#   doubt        → 认知/感知维度 → 认知一致性破坏 → 怀疑导向
+#   shame        → 自我/自主维度 → 自我价值质疑 → 退缩导向
+#   righteous    → 价值对齐 → 内部冲突但自我确信
+#   value_conflict → 元张力 (价值本身冲突)
 
 
 # ═══ 价值抵抗 ═══
@@ -220,13 +201,15 @@ class ValueResistance:
         # 获取权重 (已在 compute() 中由 _build_value_system 构建)
         weights = self._values
 
-        # 按权重累加每种 tension 的得分
-        tension_scores: dict[str, float] = {"guilt": 0.0, "doubt": 0.0, "shame": 0.0}
+        # 按权重累加每种 tension 的得分 (Phase B: 走 KnowledgeBase.TENSION_INCLINATION)
+        from .knowledge import KnowledgeBase
+        tension_inclination = KnowledgeBase.TENSION_INCLINATION
+        tension_scores: dict[str, float] = {}
         for dim in conflict_values:
-            inclination = _TENSION_INCLINATION.get(dim)
+            inclination = tension_inclination.get(dim)
             if inclination:
                 w = weights.get(dim, 0.5)
-                tension_scores[inclination] += w
+                tension_scores[inclination] = tension_scores.get(inclination, 0.0) + w
 
         # 返回得分最高的 tension type
         if not any(tension_scores.values()):

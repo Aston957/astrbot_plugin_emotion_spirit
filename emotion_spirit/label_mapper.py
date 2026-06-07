@@ -98,166 +98,21 @@ PERSONA_BASELINES: dict[str, dict[str, float]] = {
 
 
 # ═══ MBTI 增量 (每个字母维度的贡献) ═══
-# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.MBTI_LETTER_DELTAS
-# 此处保留 _DEPRECATED 副本 + 别名以便 B3 之前旧代码仍能 import。
-# 包含 v1.7.2 的 I/E gossip_tendency delta (HEXACO 2007)。
-_MBTI_LETTER_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
-    # I vs E
-    # v1.7.2: gossip_tendency 增加 I/E delta (HEXACO 2007: E 维度强烈预测 gossip 倾向)
-    "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05, "gossip_tendency": -0.25},
-    "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05, "gossip_tendency": +0.30},
-    # N vs S (N/S 是 exploration_openness 的主导信号)
-    "N": {"curiosity": +0.15, "perception_acuity": +0.05, "boundary_permeability": +0.10, "exploration_openness": +0.20},
-    "S": {"curiosity": -0.10, "perception_acuity": -0.05, "inner_coherence": +0.05, "exploration_openness": -0.15},
-    # F vs T (F/T 跟 relational_autonomy 相关)
-    "F": {"warmth_bias": +0.20, "relational_gravity": +0.15, "intimacy_pull": +0.15, "relational_autonomy": -0.05},
-    "T": {"warmth_bias": -0.10, "directness": +0.10, "inner_coherence": +0.05, "relational_autonomy": +0.10},
-    # P vs J (v1.7: autonomy_guard 拆, P/J 影响 relational_autonomy 弱)
-    "P": {"boundary_permeability": +0.15, "patience": -0.10, "relational_autonomy": -0.05},
-    "J": {"inner_coherence": +0.05, "patience": +0.05, "relational_autonomy": +0.05},
-}
-# @deprecated: 别名, 保留旧 import 路径工作; B3 将删除。
-_MBTI_LETTER_DELTAS = _MBTI_LETTER_DELTAS_DEPRECATED
-
-
-# ═══ 依恋类型增量 ═══
-# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.ATTACHMENT_DELTAS
-_ATTACHMENT_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
-    "安全型": {
-        "boundary_permeability": +0.10,
-        "inner_coherence": +0.10,
-        "intimacy_pull": +0.05,
-        "relational_autonomy": +0.05,  # v1.7: 替换 autonomy_guard
-        "exploration_openness": +0.10,
-    },
-    "焦虑型": {
-        "boundary_permeability": +0.25,
-        "inner_coherence": -0.20,
-        "intimacy_pull": +0.30,
-        "relational_autonomy": -0.15,  # v1.7: 替换 autonomy_guard (-0.25 → -0.15)
-        "exploration_openness": -0.05,
-        "expression_drive": +0.15,
-    },
-    "回避型": {
-        "boundary_permeability": -0.20,
-        "inner_coherence": +0.10,
-        "intimacy_pull": -0.20,
-        "relational_autonomy": +0.20,  # v1.7: 替换 autonomy_guard (+0.25 → +0.20)
-        "exploration_openness": -0.15,
-        "expression_drive": -0.15,
-    },
-    "混乱型": {
-        "boundary_permeability": +0.10,
-        "inner_coherence": -0.30,
-        "intimacy_pull": +0.10,
-        "relational_autonomy": -0.10,  # v1.7: 替换 autonomy_guard
-        "exploration_openness": +0.05,
-        "expression_drive": +0.05,
-    },
-}
-# @deprecated: 别名, B3 删除。
-_ATTACHMENT_DELTAS = _ATTACHMENT_DELTAS_DEPRECATED
-
-
-# ═══ 情绪策略增量 ═══
-# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.EMOTION_STYLE_DELTAS
-_EMOTION_STYLE_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
-    "表达型": {
-        "expression_drive": +0.20,
-        "warmth_bias": +0.15,
-        "perception_acuity": +0.05,
-        "relational_autonomy": -0.05,  # v1.7: 表达 = 暴露 = 让步
-        "exploration_openness": +0.10,  # v1.7: 表达 = 探索情绪
-    },
-    "压抑型": {
-        "expression_drive": -0.15,
-        "warmth_bias": -0.10,
-        "directness": +0.10,
-        "perception_acuity": +0.10,
-        "relational_autonomy": +0.10,  # v1.7: 压抑 = 内部边界
-        "exploration_openness": -0.10,  # v1.7: 压抑 = 保守
-    },
-    "混合型": {
-        "expression_drive": +0.05,
-        "warmth_bias": +0.05,
-    },
-}
-# @deprecated: 别名, B3 删除。
-_EMOTION_STYLE_DELTAS = _EMOTION_STYLE_DELTAS_DEPRECATED
-
-
-# ═══ 冲突风格增量 ═══
-# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.CONFLICT_STYLE_DELTAS
-_CONFLICT_STYLE_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
-    "攻击型": {
-        "directness": +0.15,
-        "relational_autonomy": +0.10,  # v1.7: 替换 autonomy_guard
-        "patience": -0.15,
-        "warmth_bias": -0.10,
-        "exploration_openness": +0.10,  # v1.7: 攻击 = 主动尝试
-    },
-    "回避型": {
-        "directness": -0.20,
-        "relational_autonomy": +0.05,  # v1.7: 替换 autonomy_guard
-        "patience": +0.15,
-        "expression_drive": -0.10,
-        "exploration_openness": -0.05,  # v1.7
-    },
-    "顺应型": {
-        "directness": -0.10,
-        "relational_autonomy": -0.05,  # v1.7: 替换 autonomy_guard (-0.15 → -0.05)
-        "patience": +0.10,
-        "warmth_bias": +0.15,
-        "intimacy_pull": +0.10,
-        "exploration_openness": -0.10,  # v1.7
-    },
-    "合作型": {
-        "directness": +0.05,
-        "patience": +0.10,
-        "warmth_bias": +0.10,
-        "inner_coherence": +0.05,
-        "exploration_openness": +0.10,  # v1.7: 合作 = 探索解
-    },
-}
-# @deprecated: 别名, B3 删除。
-_CONFLICT_STYLE_DELTAS = _CONFLICT_STYLE_DELTAS_DEPRECATED
-
-
-# ═══ 时间取向增量 ═══
-# @deprecated: Phase B Step 1 (P3-2) — 数据已迁移到 KnowledgeBase.TIME_FOCUS_DELTAS
-_TIME_FOCUS_DELTAS_DEPRECATED: dict[str, dict[str, float]] = {
-    "活在过去": {
-        "perception_acuity": +0.15,
-        "inner_coherence": -0.10,
-        "relational_gravity": +0.10,
-        "relational_autonomy": +0.10,  # v1.7: 传统 = 强边界
-        "exploration_openness": -0.10,  # v1.7: 传统 = 保守
-    },
-    "活在当下": {
-        "perception_acuity": +0.05,
-        "patience": +0.05,
-    },
-    "活在未来": {
-        "curiosity": +0.10,
-        "boundary_permeability": +0.05,
-        "inner_coherence": -0.05,
-        "relational_autonomy": -0.05,  # v1.7: 灵活
-        "exploration_openness": +0.15,  # v1.7: 前瞻 = 探索
-    },
-}
-# @deprecated: 别名, B3 删除。
-_TIME_FOCUS_DELTAS = _TIME_FOCUS_DELTAS_DEPRECATED
+# v1.7.2 Phase B: 数据已迁移到 KnowledgeBase.MBTI_LETTER_DELTAS (单一数据源)
 
 
 # ═══ 汇总 ═══
-# @deprecated: Phase B Step 1 (P3-2) — 内部聚合, B3 改为使用 KnowledgeBase 路径
-_ALL_LABEL_DELTAS: dict[str, dict[str, dict[str, float]]] = {
-    "mbti": {},  # MBTI 需要特殊处理 (逐字母)
-    "attachment": _ATTACHMENT_DELTAS,
-    "emotion_style": _EMOTION_STYLE_DELTAS,
-    "conflict_style": _CONFLICT_STYLE_DELTAS,
-    "time_focus": _TIME_FOCUS_DELTAS,
-}
+# Phase B Step 3 (P3-2): 5 轴 delta 走 KnowledgeBase 路径
+def _get_all_label_deltas() -> dict[str, dict[str, dict[str, float]]]:
+    """从 KnowledgeBase 拉取 5 轴 delta (mbti 单独处理)。"""
+    from .knowledge import KnowledgeBase
+    return {
+        "mbti": {},  # MBTI 需要特殊处理 (逐字母)
+        "attachment": KnowledgeBase.ATTACHMENT_DELTAS,
+        "emotion_style": KnowledgeBase.EMOTION_STYLE_DELTAS,
+        "conflict_style": KnowledgeBase.CONFLICT_STYLE_DELTAS,
+        "time_focus": KnowledgeBase.TIME_FOCUS_DELTAS,
+    }
 
 # 可选值列表 (供 _conf_schema.json 使用)
 LABEL_OPTIONS: dict[str, list[str]] = {
@@ -268,7 +123,7 @@ LABEL_OPTIONS: dict[str, list[str]] = {
         "ISTP", "ISFP", "ESTP", "ESFP",
     ],
     "attachment": ["安全型", "焦虑型", "回避型", "混乱型"],
-    "emotion_style": ["表达型", "压抑型", "混合型"],
+    "emotion_style": ["表达型", "压抑型", "波动型", "稳定型"],
     "conflict_style": ["攻击型", "回避型", "顺应型", "合作型"],
     "time_focus": ["活在过去", "活在当下", "活在未来"],
 }
@@ -280,25 +135,28 @@ def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 def labels_to_personality(labels: dict[str, str]) -> dict[str, dict[str, float]]:
     """将标签组合映射为 SylannEngine 13 维参数。"""
+    from .knowledge import KnowledgeBase
+
     # 从基线开始
     result: dict[str, dict[str, float]] = {
         "deep": dict(_BASELINE["deep"]),
         "surface": dict(_BASELINE["surface"]),
     }
 
-    # MBTI: 逐字母解析
+    # MBTI: 逐字母解析 (Phase B: 走 KnowledgeBase.MBTI_LETTER_DELTAS)
     mbti = labels.get("mbti", "ISTJ")
     if len(mbti) == 4:
         for letter in mbti.upper():
-            if letter in _MBTI_LETTER_DELTAS:
-                for dim, delta in _MBTI_LETTER_DELTAS[letter].items():
+            if letter in KnowledgeBase.MBTI_LETTER_DELTAS:
+                for dim, delta in KnowledgeBase.MBTI_LETTER_DELTAS[letter].items():
                     layer = "deep" if dim in result["deep"] else "surface"
                     result[layer][dim] = result[layer].get(dim, 0.5) + delta
 
-    # 其他标签: 直接查表
+    # 其他标签: 直接查表 (Phase B: 走 KnowledgeBase 路径)
+    all_deltas = _get_all_label_deltas()
     for label_key in ["attachment", "emotion_style", "conflict_style", "time_focus"]:
         label_value = labels.get(label_key, "")
-        deltas = _ALL_LABEL_DELTAS.get(label_key, {}).get(label_value, {})
+        deltas = all_deltas.get(label_key, {}).get(label_value, {})
         for dim, delta in deltas.items():
             layer = "deep" if dim in result["deep"] else "surface"
             result[layer][dim] = result[layer].get(dim, 0.5) + delta
@@ -335,9 +193,9 @@ def personality_to_labels(personality: dict[str, dict[str, float]]) -> dict[str,
     if len(mbti_letters) >= 3:
         labels["mbti"] = "".join(mbti_letters[:4]) if len(mbti_letters) >= 4 else "ISTJ"
 
-    # 其他标签: 使用默认值
+    # 其他标签: 使用默认值 (Phase B: 4 emotion_style 类型, 默认"表达型")
     labels["attachment"] = "安全型"
-    labels["emotion_style"] = "混合型"
+    labels["emotion_style"] = "表达型"
     labels["conflict_style"] = "合作型"
     labels["time_focus"] = "活在当下"
 

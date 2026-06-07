@@ -15,10 +15,13 @@ from emotion_spirit.persona_profiles import (
     DIMENSION_DISPLAY,
     _ACTION_ALIGN,
     _ACTION_MISALIGN,
-    NARRATIVE_TEMPLATES,
     _select_variant,
     get_narrative,
 )
+from emotion_spirit.knowledge import KnowledgeBase
+
+# Phase B Step 3: NARRATIVE_TEMPLATES 走 KnowledgeBase (单一数据源)
+NARRATIVE_TEMPLATES = KnowledgeBase.NARRATIVE_TEMPLATES
 
 
 def test_value_behaviors_generic():
@@ -74,8 +77,9 @@ def test_dimension_display_coverage():
 
 
 def test_xiaotian_params():
+    """v1.7.2 + Phase B B3: 回避型 在 KB 中无 expression_drive delta, 新值 = 0.25 (baseline) - 0.10 (I) = 0.15。"""
     params = get_personality_params({"mbti": "INTP", "attachment": "回避型"})
-    assert params["deep"]["expression_drive"] == 0.0
+    assert params["deep"]["expression_drive"] == 0.15
     assert params["surface"]["curiosity"] == 0.75
 
 
@@ -98,18 +102,16 @@ def test_intimacy_modulation():
 
 # ═══ Phase 3: 叙事模板测试 ═══
 
-@pytest.mark.xfail(reason="B3 切 KB 后 dim 数变 (12→11, 删 perception_acuity), 届时改用 KB 断言", strict=False)
 def test_narrative_templates_coverage():
-    """NARRATIVE_TEMPLATES 应覆盖 12 维 × 3 场景 (v1.7: 11→12)。"""
+    """v1.7.2 + Phase B B3: NARRATIVE_TEMPLATES 走 KnowledgeBase (11 dim, 无 perception_acuity)。"""
     expected_dims = {
-        "expression_drive", "perception_acuity", "boundary_permeability",
-        "inner_coherence", "relational_gravity", "warmth_bias",
-        "directness", "curiosity", "patience", "intimacy_pull",
-        "relational_autonomy", "exploration_openness",  # v1.7: autonomy_guard 拆分
+        "relational_gravity", "intimacy_pull", "warmth_bias", "expression_drive",
+        "directness", "curiosity", "patience", "boundary_permeability",
+        "inner_coherence", "relational_autonomy", "exploration_openness",
     }
-    assert set(NARRATIVE_TEMPLATES.keys()) == expected_dims
+    assert set(KnowledgeBase.NARRATIVE_TEMPLATES.keys()) == expected_dims
     scenes = {"violation", "alignment", "advice"}
-    for dim, variants in NARRATIVE_TEMPLATES.items():
+    for dim, variants in KnowledgeBase.NARRATIVE_TEMPLATES.items():
         for variant in ("high", "low"):
             assert variant in variants, f"{dim} missing {variant}"
             assert set(variants[variant].keys()) == scenes, f"{dim}/{variant} missing scenes"
@@ -162,7 +164,7 @@ def test_get_narrative_fallback():
 
 
 def test_get_narrative_no_personality():
-    """无 personality → 使用默认变体 (high)"""
+    """v1.7.2 + Phase B B3: 无 personality → 使用默认变体 (high), 走 KnowledgeBase.NARRATIVE_TEMPLATES。"""
     text = get_narrative("warmth_bias", "violation", None)
-    # warmth_bias high violation = "你最近好像对人有点冷淡"
-    assert "冷淡" in text
+    # KB warmth_bias high violation = "你最近对人的温暖减少了" (B2 文本重写)
+    assert "温暖" in text or "冷淡" in text

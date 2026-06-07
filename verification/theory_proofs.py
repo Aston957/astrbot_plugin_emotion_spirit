@@ -271,21 +271,22 @@ def verify_d10_ema_convergence() -> dict:
 
 def verify_d11_tension_mapping() -> dict:
     """D-11: tension 分类映射。"""
-    from emotion_spirit.superego import _TENSION_INCLINATION
+    from emotion_spirit.knowledge import KnowledgeBase
 
+    tension_map = KnowledgeBase.TENSION_INCLINATION
     checks = {
-        "autonomy_guard_is_shame": _TENSION_INCLINATION.get("relational_autonomy") == "shame",  # v1.7: 替换 autonomy_guard
-        "relational_gravity_is_guilt": _TENSION_INCLINATION.get("relational_gravity") == "guilt",
-        "inner_coherence_is_doubt": _TENSION_INCLINATION.get("inner_coherence") == "doubt",
-        "all_dims_covered": len(_TENSION_INCLINATION) >= 8,
+        "autonomy_guard_is_shame": tension_map.get("relational_autonomy") == "shame",  # v1.7: 替换 autonomy_guard
+        "relational_gravity_is_guilt": tension_map.get("relational_gravity") == "guilt",
+        "inner_coherence_is_doubt": tension_map.get("inner_coherence") == "doubt",
+        "all_dims_covered": len(tension_map) >= 8,
         "only_valid_types": all(
-            v in ("guilt", "doubt", "shame") for v in _TENSION_INCLINATION.values()
+            v in ("guilt", "doubt", "shame", "righteous", "value_conflict") for v in tension_map.values()
         ),
     }
     return {
         "id": "D-11",
         "name": "tension 分类映射",
-        "tension_map": _TENSION_INCLINATION,
+        "tension_map": tension_map,
         "checks": checks,
         "passed": all(checks.values()),
     }

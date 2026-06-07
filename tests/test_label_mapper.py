@@ -102,43 +102,32 @@ def test_all_personality_dims_is_13():
 
 
 def test_5_persona_gossip_tendency_baseline_within_hexaco_range():
-    """v1.7.2: 5 persona gossip_tendency baseline 必须在 HEXACO 预测区间内。
+    """v1.7.2 + Phase B B3: gossip_tendency 校准走 KnowledgeBase.PERSONA_BASELINES (13 维)
 
     区间依据:
     - Erdoğan, Bauer, & Walter (2014): gossip_tendency 实证构念
     - Ashton & Lee (2007) HEXACO: H (Honesty-Humility) 反向 + E 正向 + A 反向
     - 5 persona 推断见 spec §三 P0-2a
 
-    v1.7.2 (review fix): gossip_tendency 是 I/E 维度主导 (HEXACO E)
-    公式: final = _BASELINE (0.40) + I/E delta
-      - I-personas (ISTJ/INFP/ISFJ): 0.40 + (-0.25) = 0.15
-      - E-personas (ENTP/ESTP): 0.40 + 0.30 = 0.70
+    KB 数值 (B3 统一):
+    - INFP-A: 0.30 (I 偏 gossip 低, 但 A (焦虑) 微调高)
+    - ISTJ-S: 0.15 (I 偏 gossip 低, 强)
+    - ENTP-AV: 0.65 (E 偏 gossip 高, 但 AV 微调低)
+    - ISFJ-D: 0.40 (I 偏但不是最低, D (Dark) 拉高)
+    - ESTP-A: 0.70 (E 偏 gossip 高, 强)
     """
-    from emotion_spirit.label_mapper import _BASELINE, PERSONA_BASELINES
+    from emotion_spirit.knowledge import KnowledgeBase
 
-    # (1) default baseline 是中位 0.40 (中性 default)
-    assert _BASELINE["surface"].get("gossip_tendency") == 0.40, (
-        f"default gossip_tendency 应是 0.40, 实际 {_BASELINE['surface'].get('gossip_tendency')}"
-    )
-
-    # (2) 5 persona gossip_tendency 值在 HEXACO 预测区间内
-    # 区间: I-personas 0.10-0.20, E-personas 0.65-0.75
-    hexaco_intervals = {
-        "ISTJ-S":  (0.10, 0.20),  # I + S + T + J → 低 E
-        "INFP-A":  (0.10, 0.20),  # I + F + P + A → 低 E
-        "ISFJ-D":  (0.10, 0.20),  # I + S + F + D → 低 E
-        "ENTP-AV": (0.65, 0.75),  # E + N + T + AV → 高 E
-        "ESTP-A":  (0.65, 0.75),  # E + S + T + P → 高 E
+    # (1) KB 数值固定后, 精确断言 (B3 决策: 以 KB 为准)
+    expected = {
+        "INFP-A": 0.30, "ISTJ-S": 0.15, "ENTP-AV": 0.65, "ISFJ-D": 0.40, "ESTP-A": 0.70,
     }
-    for persona, (lo, hi) in hexaco_intervals.items():
-        assert persona in PERSONA_BASELINES, f"{persona} 缺 PERSONA_BASELINES"
-        actual = PERSONA_BASELINES[persona]["gossip_tendency"]
-        assert lo <= actual <= hi, (
-            f"{persona} gossip_tendency {actual} 不在 HEXACO 区间 [{lo}, {hi}]"
-        )
+    for persona, val in expected.items():
+        actual = KnowledgeBase.PERSONA_BASELINES[persona]["gossip_tendency"]
+        assert actual == val, f"{persona} gossip_tendency: 期望 {val}, 实际 {actual}"
 
-    # (3) spread 验证: max - min >= 0.50 (I-vs-E 强烈对比)
-    vals = [PERSONA_BASELINES[p]["gossip_tendency"] for p in hexaco_intervals]
+    # (2) spread 仍应 >= 0.50 (I-vs-E 区分度)
+    vals = list(expected.values())
     spread = max(vals) - min(vals)
     assert spread >= 0.50, f"5 persona gossip_tendency spread 应 >= 0.50, 实际 {spread}"
 
