@@ -16,8 +16,11 @@ import math
 import time
 from typing import Any
 
+# v1.7.2: @deprecated, 数据已迁移到 KnowledgeBase (Phase B Step 2, P3-2)
+# 推荐: from emotion_spirit.knowledge import KnowledgeBase
+# Step 3 (B3) 才会删这些旧字段, B2 期间 alias 保留以便旧 import 仍工作
 # 7 类基本情绪的 PAD 区域（与 SylannEngine pad_interop.py 同步）
-CATEGORICAL_REGIONS: dict[str, dict[str, tuple[float, float]]] = {
+CATEGORICAL_REGIONS_DEPRECATED: dict[str, dict[str, tuple[float, float]]] = {
     "joy":     {"valence": (0.3, 1.0),   "arousal": (0.3, 0.7), "dominance": (0.4, 1.0)},
     "anger":   {"valence": (-1.0, -0.2), "arousal": (0.6, 1.0), "dominance": (0.6, 1.0)},
     "sadness": {"valence": (-1.0, -0.2), "arousal": (0.0, 0.4), "dominance": (0.0, 0.4)},
@@ -26,9 +29,10 @@ CATEGORICAL_REGIONS: dict[str, dict[str, tuple[float, float]]] = {
     "disgust": {"valence": (-1.0, -0.4), "arousal": (0.3, 0.6), "dominance": (0.4, 1.0)},
     "neutral": {"valence": (-0.2, 0.2),  "arousal": (0.3, 0.5), "dominance": (0.0, 1.0)},
 }
+CATEGORICAL_REGIONS = CATEGORICAL_REGIONS_DEPRECATED  # @deprecated alias
 
 # 4 类复合情绪区域（基于 spec §3.3 + RAF-DB）
-COMPOUND_REGIONS: dict[str, dict[str, Any]] = {
+COMPOUND_REGIONS_DEPRECATED: dict[str, dict[str, Any]] = {
     "sad_excitement": {
         "valence": (-0.8, -0.2), "arousal": (0.6, 1.0), "dominance": (0.0, 0.4),
         "primary": "sadness", "secondary": "excitement",
@@ -46,9 +50,10 @@ COMPOUND_REGIONS: dict[str, dict[str, Any]] = {
         "primary": "sadness", "secondary": "calm",
     },
 }
+COMPOUND_REGIONS = COMPOUND_REGIONS_DEPRECATED  # @deprecated alias
 
 # 中文标签映射（仅用于 render_description 辅助层）
-EMOTION_ZH: dict[str, str] = {
+EMOTION_ZH_DEPRECATED: dict[str, str] = {
     "joy": "喜悦",
     "anger": "愤怒",
     "sadness": "悲伤",
@@ -61,6 +66,7 @@ EMOTION_ZH: dict[str, str] = {
     "anxiety": "紧张",
     "calm": "宁静",
 }
+EMOTION_ZH = EMOTION_ZH_DEPRECATED  # @deprecated alias
 
 
 # === 占位实现（后续 Task 替换） ===

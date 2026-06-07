@@ -166,3 +166,120 @@ class KnowledgeBase:
         if name not in cls.THRESHOLDS:
             raise KeyError(f"未知阈值: {name}")
         return cls.THRESHOLDS[name]
+
+    # ═══ 5. 情绪区域 (emotion_classifier 迁移) ═══
+    CATEGORICAL_REGIONS: dict[str, dict[str, tuple[float, float]]] = {
+        "joy": {"valence": (0.3, 1.0), "arousal": (0.3, 0.7), "dominance": (0.4, 1.0)},
+        "anger": {"valence": (-1.0, -0.2), "arousal": (0.6, 1.0), "dominance": (0.6, 1.0)},
+        "sadness": {"valence": (-1.0, -0.2), "arousal": (0.0, 0.4), "dominance": (0.0, 0.4)},
+        "fear": {"valence": (-1.0, -0.2), "arousal": (0.5, 1.0), "dominance": (0.0, 0.4)},
+        "surprise": {"valence": (-1.0, 1.0), "arousal": (0.7, 1.0), "dominance": (0.0, 1.0)},
+        "disgust": {"valence": (-1.0, -0.4), "arousal": (0.3, 0.6), "dominance": (0.4, 1.0)},
+        "neutral": {"valence": (-0.2, 0.2), "arousal": (0.3, 0.5), "dominance": (0.0, 1.0)},
+    }
+    COMPOUND_REGIONS: dict[str, dict[str, Any]] = {
+        "sad_excitement": {"valence": (-0.8, -0.2), "arousal": (0.6, 1.0), "dominance": (0.0, 0.4), "primary": "sadness", "secondary": "excitement"},
+        "angry_despair": {"valence": (-1.0, -0.4), "arousal": (0.7, 1.0), "dominance": (0.5, 1.0), "primary": "anger", "secondary": "despair"},
+        "joyful_anxiety": {"valence": (0.2, 0.8), "arousal": (0.6, 1.0), "dominance": (0.3, 0.7), "primary": "joy", "secondary": "anxiety"},
+        "sad_calm": {"valence": (-0.6, -0.1), "arousal": (0.0, 0.4), "dominance": (0.0, 0.4), "primary": "sadness", "secondary": "calm"},
+    }
+    EMOTION_ZH: dict[str, str] = {
+        "joy": "喜悦", "anger": "愤怒", "sadness": "悲伤", "fear": "恐惧",
+        "surprise": "惊讶", "disgust": "厌恶", "neutral": "平静",
+        "excitement": "激动", "despair": "绝望", "anxiety": "紧张", "calm": "宁静",
+    }
+
+    # ═══ 6. 叙事模板 (persona_profiles 迁移, 66 条) ═══
+    NARRATIVE_TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
+        "relational_gravity": {
+            "high": {"violation": "你最近好像忽略了那些你在乎的人", "alignment": "你一直在用心对待身边的人", "advice": "试着主动联系一个你想念的人"},
+            "low": {"violation": "你和人之间的距离好像变远了", "alignment": "你最近在试着靠近别人", "advice": "也许该给自己一个和人连接的机会"},
+        },
+        "intimacy_pull": {
+            "high": {"violation": "你好像在回避亲密感", "alignment": "你最近在敞开心扉", "advice": "试着对一个人说出你真实的想法"},
+            "low": {"violation": "你最近有点太封闭了", "alignment": "你最近保持着合适的距离", "advice": "不需要勉强自己, 但可以试着打开一点点"},
+        },
+        "warmth_bias": {
+            "high": {"violation": "你最近对人的温暖减少了", "alignment": "你最近在用温暖待人", "advice": "试着对身边的人表达你的关心"},
+            "low": {"violation": "你最近有点太冷淡了", "alignment": "你最近保持着冷静", "advice": "也许可以给身边的人一点温度"},
+        },
+        "expression_drive": {
+            "high": {"violation": "你最近说的话太多了", "alignment": "你最近表达很清晰", "advice": "有时候听比说更重要"},
+            "low": {"violation": "你最近有点压抑了", "alignment": "你最近保持着安静", "advice": "也许该对一个人说出你的想法"},
+        },
+        "directness": {
+            "high": {"violation": "你最近说话太直接了", "alignment": "你最近表达很直接", "advice": "有时候委婉一点更有效"},
+            "low": {"violation": "你最近太绕弯子了", "alignment": "你最近说话委婉", "advice": "也许该直接说出来了"},
+        },
+        "curiosity": {
+            "high": {"violation": "你最近太爱追问了", "alignment": "你最近对新事物很感兴趣", "advice": "也许该停下来欣赏眼前的事物"},
+            "low": {"violation": "你最近对新事物没兴趣", "alignment": "你最近专注在手头的事", "advice": "也许可以试一下新的东西"},
+        },
+        "patience": {
+            "high": {"violation": "你最近太能忍了", "alignment": "你最近很有耐心", "advice": "有些事该说'不'了"},
+            "low": {"violation": "你最近太急躁了", "alignment": "你最近节奏很快", "advice": "慢一点, 让事情自然发生"},
+        },
+        "boundary_permeability": {
+            "high": {"violation": "你的边界被侵犯了", "alignment": "你最近能维护自己的边界", "advice": "有些事可以拒绝"},
+            "low": {"violation": "你最近太封闭了", "alignment": "你最近边界清晰", "advice": "也许可以开放一点, 让人进来"},
+        },
+        "inner_coherence": {
+            "high": {"violation": "你最近有点分裂", "alignment": "你最近内在很一致", "advice": "也许该停下来听一下自己"},
+            "low": {"violation": "你最近内在不一致", "alignment": "你最近很稳定", "advice": "也许该重新审视自己的方向"},
+        },
+        "relational_autonomy": {
+            "high": {"violation": "你最近太独立了", "alignment": "你最近有清晰的边界", "advice": "也许可以接受一下别人的帮助"},
+            "low": {"violation": "你最近太依赖了", "alignment": "你最近在适度依赖", "advice": "也许该学会说'不'了"},
+        },
+        "exploration_openness": {
+            "high": {"violation": "你最近太爱尝试了", "alignment": "你最近对新输入很开放", "advice": "也许该停下来反思"},
+            "low": {"violation": "你最近太保守了", "alignment": "你最近很稳定", "advice": "也许可以试一下新的方向"},
+        },
+    }
+
+    # ═══ 7. 变体选择规则 ═══
+    VARIANT_KEY: dict[str, tuple[str, float]] = {
+        "relational_gravity": ("warmth_bias", 0.5),
+        "intimacy_pull": ("warmth_bias", 0.5),
+        "warmth_bias": ("intimacy_pull", 0.3),
+        "expression_drive": ("directness", 0.7),
+        "inner_coherence": ("directness", 0.7),
+        "curiosity": ("perception_acuity", 0.7),
+        "perception_acuity": ("curiosity", 0.6),
+        "directness": ("expression_drive", 0.5),
+        "patience": ("warmth_bias", 0.5),
+        "relational_autonomy": ("intimacy_pull", 0.3),
+        "exploration_openness": ("curiosity", 0.5),
+        "boundary_permeability": ("relational_autonomy", 0.6),
+    }
+
+    # ═══ 8. Tension 倾向 (superego 迁移, dim → guilt/doubt/shame) ═══
+    # v1.7.2 Phase B Step 2: 共享 dim 重新分类 (Tangney 2002 shame-guilt theory)
+    # - boundary_permeability: 旧 doubt → 新 shame (自我/自主 维度)
+    # - directness: 旧 doubt → 新 shame (自我/自主 维度)
+    # - patience: 旧 shame → 新 righteous (新增 "righteous" 类别)
+    # - 加 value_resistance → value_conflict (Phase 1.5 superego 扩展)
+    # - 加 gossip_tendency → righteous (HEXACO H 反向 + E 正向)
+    # 数据漂移见 tests/test_knowledge_base.py parity xfail tests
+    TENSION_INCLINATION: dict[str, str] = {
+        "warmth_bias": "guilt", "intimacy_pull": "guilt",
+        "relational_gravity": "guilt", "expression_drive": "guilt",
+        "relational_autonomy": "shame", "boundary_permeability": "shame",
+        "directness": "shame",
+        "curiosity": "doubt", "perception_acuity": "doubt",
+        "inner_coherence": "doubt", "exploration_openness": "doubt",
+        "patience": "righteous", "value_resistance": "value_conflict",
+        "gossip_tendency": "righteous",
+    }
+
+    # ═══ get_narrative_template API (Step 2 新增) ═══
+    @classmethod
+    def get_narrative_template(cls, dim: str, level: str, scene: str) -> str:
+        """查叙事模板。"""
+        if dim not in cls.NARRATIVE_TEMPLATES:
+            raise KeyError(f"未知 dim: {dim}")
+        if level not in cls.NARRATIVE_TEMPLATES[dim]:
+            raise KeyError(f"未知 level: {level}")
+        if scene not in cls.NARRATIVE_TEMPLATES[dim][level]:
+            raise KeyError(f"未知 scene: {scene}")
+        return cls.NARRATIVE_TEMPLATES[dim][level][scene]

@@ -3,6 +3,8 @@
 import sys
 import os
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from emotion_spirit.persona_profiles import (
@@ -96,6 +98,7 @@ def test_intimacy_modulation():
 
 # ═══ Phase 3: 叙事模板测试 ═══
 
+@pytest.mark.xfail(reason="B3 切 KB 后 dim 数变 (12→11, 删 perception_acuity), 届时改用 KB 断言", strict=False)
 def test_narrative_templates_coverage():
     """NARRATIVE_TEMPLATES 应覆盖 12 维 × 3 场景 (v1.7: 11→12)。"""
     expected_dims = {

@@ -16,8 +16,11 @@ from typing import Any
 # 基于 Raggatt (2006) + Mairesse (2007): 不同人格参数 → 不同叙事表达。
 # 每个维度 × 2 变体 (high/low) × 3 场景 (violation/alignment/advice) = 66 条模板。
 
+# v1.7.2: @deprecated, 数据已迁移到 KnowledgeBase (Phase B Step 2, P3-2)
+# 推荐: from emotion_spirit.knowledge import KnowledgeBase
+# B3 才删, B2 alias 保留
 # 维度 → (选择变体的关键参数, 阈值)
-_VARIANT_KEY: dict[str, tuple[str, float]] = {
+_VARIANT_KEY_DEPRECATED: dict[str, tuple[str, float]] = {
     "relational_gravity": ("warmth_bias", 0.5),
     "intimacy_pull": ("warmth_bias", 0.5),
     "warmth_bias": ("intimacy_pull", 0.3),
@@ -32,8 +35,9 @@ _VARIANT_KEY: dict[str, tuple[str, float]] = {
     "exploration_openness": ("curiosity", 0.5),
     "boundary_permeability": ("relational_autonomy", 0.6),  # v1.7: 改用 relational_autonomy
 }
+_VARIANT_KEY = _VARIANT_KEY_DEPRECATED  # @deprecated alias
 
-NARRATIVE_TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
+NARRATIVE_TEMPLATES_DEPRECATED: dict[str, dict[str, dict[str, str]]] = {
     "relational_gravity": {
         "high": {
             "violation": "你最近好像忽略了那些你在乎的人",
@@ -181,6 +185,7 @@ NARRATIVE_TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
+NARRATIVE_TEMPLATES = NARRATIVE_TEMPLATES_DEPRECATED  # @deprecated alias
 
 
 def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -> str:

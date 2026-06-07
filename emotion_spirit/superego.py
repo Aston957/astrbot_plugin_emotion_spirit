@@ -21,12 +21,13 @@ from .persona_profiles import get_personality_params, get_value_behaviors, DIMEN
 from .config import SUPEREGO_CONFIG
 
 
+# v1.7.2: @deprecated, 数据已迁移到 KnowledgeBase (Phase B Step 2, P3-2)
 # ═══ 维度 → 张力倾向映射 ═══
 # 基于 Tangney (2002) shame/guilt 区分理论:
 #   guilt  → 关系/行为维度 → 违背行为标准 → 修复导向
 #   doubt  → 认知/感知维度 → 认知一致性破坏 → 怀疑导向
 #   shame  → 自我/自主维度 → 自我价值质疑 → 退缩导向
-_TENSION_INCLINATION: dict[str, str] = {
+_TENSION_INCLINATION_DEPRECATED: dict[str, str] = {
     # guilt 组: 关系/行为维度
     "relational_gravity": "guilt",
     "intimacy_pull": "guilt",
@@ -45,6 +46,7 @@ _TENSION_INCLINATION: dict[str, str] = {
     # v1.7: 新维度 exploration_openness 归 doubt 组 (认知/感知)
     "exploration_openness": "doubt",  # 探索受阻 → doubt (不是 shame)
 }
+_TENSION_INCLINATION = _TENSION_INCLINATION_DEPRECATED  # @deprecated alias
 
 
 # ═══ 价值抵抗 ═══

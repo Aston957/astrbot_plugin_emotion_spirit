@@ -75,6 +75,50 @@ def test_knowledge_base_get_threshold_raises_on_unknown():
         KnowledgeBase.get_threshold("nonexistent_threshold_xyz")
 
 
+def test_knowledge_base_exposes_categorical_regions():
+    """Step 2: KnowledgeBase.CATEGORICAL_REGIONS 含 7 基本情绪。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert len(KnowledgeBase.CATEGORICAL_REGIONS) >= 7
+    for emotion in ["joy", "anger", "sadness", "fear", "surprise", "disgust", "neutral"]:
+        assert emotion in KnowledgeBase.CATEGORICAL_REGIONS
+
+
+def test_knowledge_base_exposes_compound_regions():
+    """Step 2: KnowledgeBase.COMPOUND_REGIONS 含 4 复合情绪。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert len(KnowledgeBase.COMPOUND_REGIONS) == 4
+    for compound in ["sad_excitement", "angry_despair", "joyful_anxiety", "sad_calm"]:
+        assert compound in KnowledgeBase.COMPOUND_REGIONS
+
+
+def test_knowledge_base_exposes_emotion_zh():
+    """Step 2: KnowledgeBase.EMOTION_ZH 含 11 个中文情绪名。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert len(KnowledgeBase.EMOTION_ZH) == 11
+    assert KnowledgeBase.EMOTION_ZH["joy"] == "喜悦"
+
+
+def test_knowledge_base_exposes_narrative_templates():
+    """Step 2: KnowledgeBase.NARRATIVE_TEMPLATES 含 11 dim × 2 level × 3 scene = 66 条。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    total = 0
+    for dim, levels in KnowledgeBase.NARRATIVE_TEMPLATES.items():
+        assert "high" in levels and "low" in levels
+        for level, scenes in levels.items():
+            assert "violation" in scenes and "alignment" in scenes and "advice" in scenes
+            for _scene_name, _template in scenes.items():
+                total += 1
+    assert total == 66
+
+
+def test_knowledge_base_get_narrative_template_returns_string():
+    """Step 2: get_narrative_template(dim, level, scene) 返回字符串。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    template = KnowledgeBase.get_narrative_template("warmth_bias", "high", "violation")
+    assert isinstance(template, str)
+    assert len(template) > 0
+
+
 @pytest.mark.xfail(reason="KB 与 label_mapper 数据漂移, B3 (Task B3) 决策后回归", strict=False)
 def test_knowledge_base_5_persona_baseline_shared_dims_match_label_mapper():
     """B1 已知数据漂移, 5 shared surface dim (warmth_bias/intimacy_pull/relational_autonomy/exploration_openness/gossip_tendency)
@@ -99,6 +143,55 @@ def test_knowledge_base_5_persona_baseline_shared_dims_match_label_mapper():
             assert kb_val == old_val, (
                 f"{persona}.{dim} 漂移: KB={kb_val}, label_mapper={old_val}"
             )
+
+
+@pytest.mark.xfail(reason="B3 切 KB 后 dim 数变 (12→11, 删 perception_acuity), 文本重写", strict=False)
+def test_knowledge_base_narrative_templates_match_persona_profiles_deprecated():
+    """B2 NARRATIVE_TEMPLATES 数据漂移: 11 dim (无 perception_acuity) + 11 dim 文本重写。
+    B3 删 persona_profiles.py 旧字段后应从 xfail → pass。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.persona_profiles import NARRATIVE_TEMPLATES as OLD
+
+    # 共享 11 dim 应在 KB 和 OLD 中都存在
+    shared_dims = set(KnowledgeBase.NARRATIVE_TEMPLATES.keys()) & set(OLD.keys())
+    assert len(shared_dims) == 11  # perception_acuity 不在 KB
+
+    # 共享 dim 的 high/low × violation/alignment/advice 文本应一致
+    for dim in shared_dims:
+        for level in ["high", "low"]:
+            for scene in ["violation", "alignment", "advice"]:
+                kb_text = KnowledgeBase.NARRATIVE_TEMPLATES[dim][level][scene]
+                old_text = OLD[dim][level][scene]
+                assert kb_text == old_text, f"{dim}.{level}.{scene} 文本漂移"
+
+
+@pytest.mark.xfail(reason="B2 TENSION_INCLINATION 重新分类 (Tangney 2002): boundary_permeability/directness doubt→shame", strict=False)
+def test_knowledge_base_tension_inclination_match_superego_deprecated():
+    """B2 TENSION_INCLINATION 数据漂移: KB 加了 value_resistance/gossip_tendency/patience=righteous,
+    且 boundary_permeability/directness 从 doubt 改 shame (Tangney 2002 理论重新分类)。
+    B3 删 superego.py 旧字段后应从 xfail → pass。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.superego import _TENSION_INCLINATION as OLD
+
+    # 共享 dim (KB 14 - 旧 1 不在 KB / KB 1 不在旧) 应有相同分类
+    shared_dims = set(KnowledgeBase.TENSION_INCLINATION.keys()) & set(OLD.keys())
+    for dim in shared_dims:
+        kb_val = KnowledgeBase.TENSION_INCLINATION[dim]
+        old_val = OLD[dim]
+        assert kb_val == old_val, f"{dim} 重新分类: KB={kb_val}, 旧={old_val}"
+
+
+@pytest.mark.xfail(reason="B2 VARIANT_KEY 命名规范 (KB 公开去下划线)", strict=False)
+def test_knowledge_base_variant_key_match_persona_profiles_deprecated():
+    """B2 VARIANT_KEY 数据漂移: KB 12 dim, 旧 _VARIANT_KEY 12 dim, 命名规范化 (去下划线)。
+    内容应一致, B3 删 persona_profiles.py 旧字段后应从 xfail → pass。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.persona_profiles import _VARIANT_KEY as OLD
+
+    assert set(KnowledgeBase.VARIANT_KEY.keys()) == set(OLD.keys())
+    for dim, (other_dim, weight) in KnowledgeBase.VARIANT_KEY.items():
+        old_other, old_weight = OLD[dim]
+        assert other_dim == old_other and weight == old_weight
 
 
 if __name__ == "__main__":
