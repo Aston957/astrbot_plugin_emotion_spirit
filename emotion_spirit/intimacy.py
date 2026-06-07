@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .persona_profiles import get_intimacy_weights, get_intimacy_modulation
+from .layer import per_user_only
 
 
 @dataclass
@@ -54,6 +55,7 @@ class IntimacyTracker:
             self._profiles[user_id] = IntimacyProfile()
         return self._profiles[user_id]
 
+    @per_user_only
     def update(
         self,
         user_id: str,
@@ -98,6 +100,7 @@ class IntimacyTracker:
         # 更新生命周期
         profile.lifecycle = self._compute_lifecycle(profile)
 
+    @per_user_only
     def get_intimacy(self, user_id: str, persona: str = "") -> float:
         """计算加权亲密度分数 [0, 1]。"""
         profile = self.get_profile(user_id)
@@ -112,6 +115,7 @@ class IntimacyTracker:
         )
         return max(0.0, min(1.0, score))
 
+    @per_user_only
     def get_weight(
         self,
         user_id: str,
@@ -134,6 +138,7 @@ class IntimacyTracker:
             return intimacy
         return 1.0
 
+    @per_user_only
     def get_lifecycle(self, user_id: str) -> str:
         return self.get_profile(user_id).lifecycle
 
@@ -147,6 +152,7 @@ class IntimacyTracker:
         (0.0,  "stranger"),      # 陌生人
     )
 
+    @per_user_only
     def get_segment(self, user_id: str) -> str:
         """Phase 2.5: 获取 user 的亲密度段。
 
@@ -159,6 +165,7 @@ class IntimacyTracker:
                 return name
         return "stranger"
 
+    @per_user_only
     def get_relationship_tone(self, user_id: str) -> dict[str, float]:
         """Phase 2.5: 获取 user 的关系色调 (13 维微调建议)。
 

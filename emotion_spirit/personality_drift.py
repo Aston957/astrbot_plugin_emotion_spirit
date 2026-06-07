@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from .trend_utils import TrendDetector
+from .layer import global_only
 
 if TYPE_CHECKING:
     from .surface_consumer import SurfaceConsumer, SemanticSignals
@@ -58,6 +59,7 @@ class PersonalityDrift:
         self._integration_trend = TrendDetector(alpha_fast=0.1, alpha_slow=0.01)
         self._drift_history: list[dict[str, Any]] = []
 
+    @global_only
     def update(self, signals: SemanticSignals) -> None:
         """每次 Surface 更新时调用。更新 13 维趋势。"""
         self._last_signals = signals

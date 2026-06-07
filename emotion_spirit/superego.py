@@ -19,6 +19,7 @@ from typing import Any
 
 from .persona_profiles import get_personality_params, get_value_behaviors, DIMENSION_DISPLAY, get_narrative
 from .config import SUPEREGO_CONFIG
+from .layer import global_only
 
 
 # ═══ 维度 → 张力倾向映射 (Phase B: 走 KnowledgeBase.TENSION_INCLINATION) ═══
@@ -633,6 +634,7 @@ class ConscienceTracker:
         cutoff = time.time() - hours * 3600
         return [e for e in self.alignment_events if e.timestamp > cutoff]
 
+    @global_only
     def get_pressure_breakdown(self) -> dict:
         """良心压力分解 (供 prompt_injector)。"""
         recent_guilt = self.get_recent(24)
