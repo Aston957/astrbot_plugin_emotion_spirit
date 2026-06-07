@@ -43,20 +43,23 @@ def test_resolve_user_id_returns_session_id():
 
 
 def test_main_per_user_calls_use_per_user_api():
-    """静态验证: main.py 中 _consume_surface 调用 per-user API。"""
+    """静态验证: surface_handler.py 中 consume() 调用 per-user API (B6.10 拆分后)。
+
+    B6 后 _consume_surface 从 main.py 拆到 emotion_spirit/surface_handler.py。
+    main.py 的 _consume_surface 委托给 SurfaceHandler.consume。
+    """
     import inspect
-    import main as main_module
-    # 这里 main.py 是 AstrBot 插件, 不容易直接实例化 — 用静态源码检查
-    src = inspect.getsource(main_module)
+    from emotion_spirit import surface_handler
+    # 这里 main.py / surface_handler.py 是 AstrBot 插件, 不容易直接实例化 — 用静态源码检查
+    src = inspect.getsource(surface_handler)
     # 关键 API 调用应出现
-    assert "add_for_user" in src, "main.py must use add_for_user"
-    assert "update_phi_for_user" in src, "main.py must use update_phi_for_user"
-    assert "confirm_check_for_user" in src, "main.py must use confirm_check_for_user"
-    assert "_resolve_user_id" in src, "main.py must have _resolve_user_id method"
-    # 旧 API 不应在 _consume_surface 出现
-    consume_src = src[src.find("def _consume_surface"):src.find("def _consume_surface") + 5000]
-    assert "self._pool.add(" not in consume_src, "_consume_surface must not use old pool.add()"
-    assert "self._pool.update_phi(" not in consume_src, "_consume_surface must not use old update_phi()"
+    assert "add_for_user" in src, "surface_handler.py must use add_for_user"
+    assert "update_phi_for_user" in src, "surface_handler.py must use update_phi_for_user"
+    assert "confirm_check_for_user" in src, "surface_handler.py must use confirm_check_for_user"
+    # 旧 API 不应在 consume() 出现
+    consume_src = src[src.find("def consume"):src.find("def consume") + 5000]
+    assert "self._p._pool.add(" not in consume_src, "consume() must not use old pool.add()"
+    assert "self._p._pool.update_phi(" not in consume_src, "consume() must not use old update_phi()"
 
 
 def test_main_per_user_pattern_extraction_isolated():

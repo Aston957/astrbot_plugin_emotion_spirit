@@ -163,6 +163,8 @@ class SurfaceConsumer:
         # _pad_trajectory[session_id] = deque[(v, a, d, t), ...] maxlen=N - 时序
         self._pad_history: dict[str, tuple[float, float, float, float]] = {}
         self._pad_trajectory: dict[str, deque] = {}
+        # v1.7.2 (B6): 缓存最近一次完整 signals, 供 public_api 读取
+        self._last_signals: dict[str, "SemanticSignals"] = {}
 
     def consume(
         self, surface: dict[str, Any], session_id: str | None = None
@@ -327,7 +329,20 @@ class SurfaceConsumer:
             # 暴露给 caller（list 副本，deque 引用会泄漏内部状态）
             signals.emotion_trajectory = list(self._pad_trajectory[session_id])
 
+        # v1.7.2 (B6): 缓存最近一次完整 signals, 供 public_api 读取
+        if session_id is not None:
+            self._last_signals[session_id] = signals
+
         return signals
+
+    def consume_for_session(self, session_id: str) -> "SemanticSignals | None":
+        """v1.7.2 (B6): 读取最近一次 signals (来自该 session 上一次 consume())。
+
+        公开 API 网关用: 不重新消费 surface, 只读缓存。
+        Returns:
+            该 session 的最近 signals; 没有则返回 None。
+        """
+        return self._last_signals.get(session_id)
 
     def _compute_body_integration(self, s: SemanticSignals) -> float:
         """7 子系统方向一致性 — 替代 Φ 的空间维度。"""
