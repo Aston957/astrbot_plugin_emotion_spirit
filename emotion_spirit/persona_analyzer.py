@@ -1,32 +1,27 @@
-"""LLM 人格分析器 — 从 AstrBot 人格文本提取 5 轴标签。
+"""emotion_spirit 人格分析器 (Phase C, P3-6 拆 3 类)。
 
-与 persona_report_parser 的区别:
-  - persona_report_parser: 规则 + 关键词推断（快速，不需要 LLM）
-  - persona_analyzer: LLM 深度分析（更准确，需要 LLM 调用）
+3 个独立类:
+- LLMAnalyzer: 调用 LLM 解析 persona report, 失败抛异常 (caller 决定 fallback)
+- RuleBasedAnalyzer: 基于 system_prompt 模式匹配, 无 LLM 依赖
+- PersonaAnalyzerWithFallback: LLM 优先, 失败 fallback 到 RuleBased
 
-流程:
-  1. 读取 AstrBot 人格的 system_prompt
-  2. 发给 LLM，要求返回 5 轴标签 JSON
-  3. 用 label_mapper.labels_to_personality() 将标签转为 13 维
-  4. 返回结果，可存入 data/persona_report.json
-
-使用方式:
-  analyzer = PersonaAnalyzer(llm_callable)
-  result = await analyzer.analyze(system_prompt)
-  # result.labels, result.personality, result.confidence
+向后兼容:
+- 旧 PersonaAnalyzer(llm) 仍是 PersonaAnalyzerWithFallback 的别名
+- save_report / load_report helper 保留
+- @register 装饰器保留 (ModuleRegistry 元数据)
 """
-
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from astrbot.api import logger
 
-from .label_mapper import LABEL_OPTIONS, labels_to_personality
+from .registry import register
 
 
 # ═══ LLM Prompt ═══
@@ -57,26 +52,24 @@ _USER_PROMPT_TEMPLATE = "以下是人格描述文本，请分析并返回 5 轴�
 
 @dataclass
 class PersonaAnalysisResult:
-    """人格分析结果。"""
+    """人格分析结果 (P3-6: 拆 3 类后的 5 字段 dataclass)。"""
     persona_id: str
     labels: dict[str, str]
-    personality: dict[str, dict[str, float]]
-    confidence: float
-    analyzed_at: str = ""
-    source: str = "llm"  # "llm" | "fallback"
+    drives: dict[str, float]
+    source: str  # "llm" | "rule_based"
+    confidence: float = 0.0
 
-    def __post_init__(self) -> None:
-        if not self.analyzed_at:
-            self.analyzed_at = datetime.now(timezone.utc).isoformat()
+    @property
+    def has_labels(self) -> bool:
+        return bool(self.labels) and any(self.labels.values())
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "persona_id": self.persona_id,
             "labels": self.labels,
-            "personality": self.personality,
-            "confidence": self.confidence,
-            "analyzed_at": self.analyzed_at,
+            "drives": self.drives,
             "source": self.source,
+            "confidence": self.confidence,
         }
 
     @classmethod
@@ -84,37 +77,43 @@ class PersonaAnalysisResult:
         return cls(
             persona_id=data.get("persona_id", ""),
             labels=data.get("labels", {}),
-            personality=data.get("personality", {}),
+            drives=data.get("drives", {}),
+            source=data.get("source", "rule_based"),
             confidence=data.get("confidence", 0.0),
-            analyzed_at=data.get("analyzed_at", ""),
-            source=data.get("source", "unknown"),
         )
 
 
-# ═══ 分析器 ═══
+# ═══ 分析器类 ═══
 
 # 类型别名: async (system_prompt, user_prompt) -> str
 LLMCallable = Callable[[str, str], Awaitable[str]]
 
 
-from .registry import register
-
-
-@register(name="persona_analyzer", provides=["PersonaAnalyzer"], depends_on=[])
-class PersonaAnalyzer:
-    """使用 LLM 从人格文本提取 5 轴标签并推导 13 维参数。"""
+class LLMAnalyzer:
+    """LLM 优先分析器。调用 llm_callable 解析, 失败抛异常 (caller 决定 fallback)。"""
 
     def __init__(self, llm: LLMCallable) -> None:
+        """初始化 LLMAnalyzer。
+
+        Args:
+            llm: 异步 callable, 接受 (system_prompt, user_prompt) 返回 str
+        """
         self._llm = llm
 
     async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
-        """分析人格文本，返回标签和参数。
+        """调用 LLM 解析 persona。LLM 失败抛异常 (caller 决定 fallback)。"""
+        from .persona_report_parser import parse_persona_report
+        from .label_mapper import LABEL_OPTIONS
 
-        如果 LLM 调用失败，回退到 persona_report_parser 的规则推断。
-        """
         if not system_prompt:
-            logger.warning("persona_analyzer: system_prompt 为空")
-            return self._fallback_result(persona_id, "")
+            logger.warning("LLMAnalyzer: system_prompt 为空")
+            return PersonaAnalysisResult(
+                persona_id=persona_id,
+                labels={},
+                drives={},
+                source="llm",
+                confidence=0.0,
+            )
 
         # 构建 prompt
         system_msg = _SYSTEM_PROMPT.format(
@@ -124,43 +123,60 @@ class PersonaAnalyzer:
             conflict_style_options=", ".join(LABEL_OPTIONS["conflict_style"]),
             time_focus_options=", ".join(LABEL_OPTIONS["time_focus"]),
         )
-        user_msg = _USER_PROMPT_TEMPLATE.format(text=system_prompt[:3000])  # 截断避免 token 过长
+        user_msg = _USER_PROMPT_TEMPLATE.format(text=system_prompt[:3000])
 
-        try:
-            # 调用 LLM
-            raw_response = await self._llm(system_msg, user_msg)
-            labels = self._parse_llm_response(raw_response)
+        # 调用 LLM (失败抛异常)
+        response = await self._llm(system_msg, user_msg)
 
-            if labels:
-                # 验证所有标签都在可选值内
-                labels = self._validate_labels(labels)
+        # 尝试从 LLM 响应提取 labels: 优先 JSON 解析, fallback 走 parse_persona_report
+        labels = self._parse_llm_response(response)
+        if not labels:
+            parsed = parse_persona_report(response)
+            labels = parsed.labels
+
+        drives = {}
+        if labels:
+            from .label_mapper import labels_to_personality
+            try:
                 personality = labels_to_personality(labels)
-                logger.info(
-                    "persona_analyzer: LLM 分析成功 — persona=%s labels=%s",
-                    persona_id, labels,
-                )
-                return PersonaAnalysisResult(
-                    persona_id=persona_id,
-                    labels=labels,
-                    personality=personality,
-                    confidence=0.85,
-                    source="llm",
-                )
-            else:
-                logger.warning("persona_analyzer: LLM 返回无法解析，回退到规则推断")
-                return self._fallback_result(persona_id, system_prompt)
+                # personality 里有 13 维参数, 推 drives 走 persona_report_parser
+                parsed_full = parse_persona_report(system_prompt)
+                drives = parsed_full.drives
+            except Exception:
+                drives = {}
 
-        except Exception:
-            logger.warning("persona_analyzer: LLM 调用失败，回退到规则推断", exc_info=True)
-            return self._fallback_result(persona_id, system_prompt)
+        if labels:
+            logger.info(
+                "LLMAnalyzer: LLM 分析成功 — persona=%s labels=%s",
+                persona_id, labels,
+            )
+            return PersonaAnalysisResult(
+                persona_id=persona_id,
+                labels=labels,
+                drives=drives,
+                source="llm",
+                confidence=0.85,
+            )
+        else:
+            # LLM 成功但 labels 为空 — 返回空 result, source 仍记 llm
+            logger.warning("LLMAnalyzer: LLM 返回无法解析 labels — persona=%s", persona_id)
+            return PersonaAnalysisResult(
+                persona_id=persona_id,
+                labels={},
+                drives={},
+                source="llm",
+                confidence=0.0,
+            )
 
     def _parse_llm_response(self, raw: str) -> dict[str, str] | None:
-        """解析 LLM 返回的 JSON。"""
+        """解析 LLM 返回的 JSON (兼容 markdown 代码块)。"""
+        if not raw:
+            return None
         # 尝试直接解析
         try:
             data = json.loads(raw.strip())
             if isinstance(data, dict) and "mbti" in data:
-                return data
+                return self._validate_labels(data)
         except json.JSONDecodeError:
             pass
 
@@ -171,14 +187,17 @@ class PersonaAnalyzer:
             try:
                 data = json.loads(json_match.group(1).strip())
                 if isinstance(data, dict) and "mbti" in data:
-                    return data
+                    return self._validate_labels(data)
             except json.JSONDecodeError:
                 pass
 
         return None
 
-    def _validate_labels(self, labels: dict[str, str]) -> dict[str, str]:
-        """验证标签值是否在可选范围内，不在范围内的用默认值替换。"""
+    @staticmethod
+    def _validate_labels(labels: dict[str, str]) -> dict[str, str]:
+        """验证标签值是否在 LABEL_OPTIONS 范围内, 不在的用默认值。"""
+        from .label_mapper import LABEL_OPTIONS
+
         defaults = {
             "mbti": "ISTJ",
             "attachment": "安全型",
@@ -193,47 +212,80 @@ class PersonaAnalyzer:
                 validated[key] = value
             else:
                 validated[key] = default
-                if value:
-                    logger.debug(
-                        "persona_analyzer: 标签 %s='%s' 不在可选范围内，使用默认 '%s'",
-                        key, value, default,
-                    )
         return validated
 
-    def _fallback_result(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
-        """回退到 persona_report_parser 的规则推断。"""
+
+class RuleBasedAnalyzer:
+    """规则分析器。无 LLM 依赖, 基于 system_prompt 模式匹配 (走 persona_report_parser)。"""
+
+    async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
+        """基于 system_prompt 模式匹配提取 labels 和 drives。"""
         from .persona_report_parser import parse_persona_report
 
-        if system_prompt:
-            parsed = parse_persona_report(system_prompt)
-            labels = parsed.labels if parsed.has_labels else self._default_labels()
-        else:
-            labels = self._default_labels()
-
-        personality = labels_to_personality(labels)
-
-        logger.info("persona_analyzer: 使用规则推断回退 — persona=%s labels=%s", persona_id, labels)
-
+        parsed = parse_persona_report(system_prompt)
+        logger.info(
+            "RuleBasedAnalyzer: 规则解析 — persona=%s labels=%s",
+            persona_id, parsed.labels,
+        )
         return PersonaAnalysisResult(
             persona_id=persona_id,
-            labels=labels,
-            personality=personality,
+            labels=parsed.labels,
+            drives=parsed.drives,
+            source="rule_based",
             confidence=0.5,
-            source="fallback",
         )
 
-    @staticmethod
-    def _default_labels() -> dict[str, str]:
-        return {
-            "mbti": "ISTJ",
-            "attachment": "安全型",
-            "emotion_style": "混合型",
-            "conflict_style": "合作型",
-            "time_focus": "活在当下",
-        }
+
+@register(name="persona_analyzer", provides=["PersonaAnalyzer"], depends_on=[])
+class PersonaAnalyzerWithFallback:
+    """LLM 优先 + 失败 fallback 到 RuleBased。
+
+    用法:
+        analyzer = PersonaAnalyzerWithFallback(llm=some_llm)
+        result = await analyzer.analyze(persona_id, system_prompt)
+    """
+
+    def __init__(
+        self,
+        llm: LLMCallable | None = None,
+        fallback: RuleBasedAnalyzer | None = None,
+    ) -> None:
+        """初始化。
+
+        Args:
+            llm: 异步 callable 或 None (None 时直接走 fallback)
+            fallback: RuleBasedAnalyzer 实例或 None (默认新建)
+        """
+        self._llm: LLMAnalyzer | None = LLMAnalyzer(llm) if llm is not None else None
+        self._fallback: RuleBasedAnalyzer = fallback or RuleBasedAnalyzer()
+
+    async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
+        """先试 LLM, 失败 (异常或无 labels) fallback 到 RuleBased。"""
+        if self._llm is not None:
+            try:
+                result = await self._llm.analyze(persona_id, system_prompt)
+                if result.has_labels:
+                    return result
+                # LLM 成功但无 labels, 也走 fallback
+                logger.warning(
+                    "PersonaAnalyzerWithFallback: LLM 无 labels, 走 RuleBased — persona=%s",
+                    persona_id,
+                )
+            except Exception:
+                logger.warning(
+                    "PersonaAnalyzerWithFallback: LLM 失败, 走 RuleBased — persona=%s",
+                    persona_id, exc_info=True,
+                )
+        return await self._fallback.analyze(persona_id, system_prompt)
 
 
-# ═══ 持久化 ═══
+# ═══ 向后兼容别名 ═══
+
+# 旧 PersonaAnalyzer(llm) 仍是 PersonaAnalyzerWithFallback 的别名
+PersonaAnalyzer = PersonaAnalyzerWithFallback
+
+
+# ═══ 持久化 helper ═══
 
 _REPORT_FILE = "persona_report.json"
 
@@ -246,9 +298,7 @@ def save_report(result: PersonaAnalysisResult, data_dir: Path) -> None:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)
             f.flush()
-            import os
             os.fsync(f.fileno())
-        import os
         os.replace(tmp, path)
         logger.info("persona_analyzer: 报告已保存到 %s", path)
     except OSError:
