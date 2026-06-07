@@ -25,7 +25,20 @@ from .emotion_classifier import build_emotion_payload  # v1.1.2: 共享层
 from .registry import register
 
 
-@register(name="life_simulator", provides=["LifeSimulator"], depends_on=["memory_pool"])
+@register(
+    name="life_simulator",
+    provides=["LifeSimulator"],
+    depends_on=[
+        "surface_consumer", "memory_pool", "intimacy",
+        "buffer_signals", "meaning_reservoir",
+    ],
+    param_wire={
+        "memory_pool": "pool",
+        "buffer_signals": "signals",
+        "surface_consumer": "consumer",
+        "meaning_reservoir": "reservoir",
+    },
+)
 class LifeSimulator:
     """双模式 Life Sim。"""
 

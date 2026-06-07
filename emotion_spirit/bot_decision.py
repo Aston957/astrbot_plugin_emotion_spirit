@@ -28,7 +28,12 @@ if TYPE_CHECKING:
 from .registry import register
 
 
-@register(name="bot_decision", provides=["BotDecisionMaker"], depends_on=["social_graph", "topic_privacy"])
+@register(
+    name="bot_decision",
+    provides=["BotDecisionMaker"],
+    depends_on=["social_graph", "topic_privacy"],
+    config_keys={"gossip_tendency"},
+)
 class BotDecisionMaker:
     """bot 自主决策 (Phase 2.0 stub)。
 

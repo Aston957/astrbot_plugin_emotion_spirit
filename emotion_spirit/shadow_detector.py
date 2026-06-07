@@ -24,7 +24,16 @@ if TYPE_CHECKING:
 from .registry import register
 
 
-@register(name="shadow_detector", provides=["ShadowDetector"], depends_on=["memory_pool", "buffer_signals", "pattern_extractor"])
+@register(
+    name="shadow_detector",
+    provides=["ShadowDetector"],
+    depends_on=["memory_pool", "buffer_signals", "pattern_extractor"],
+    param_wire={
+        "memory_pool": "pool",
+        "buffer_signals": "signals",
+        "pattern_extractor": "patterns",
+    },
+)
 class ShadowDetector:
     """阴影检测器。"""
 

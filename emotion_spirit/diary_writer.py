@@ -67,7 +67,19 @@ def _format_emotion_block(signals: "SemanticSignals") -> str:
 from .registry import register
 
 
-@register(name="diary_writer", provides=["DiaryWriter"], depends_on=[])
+@register(
+    name="diary_writer",
+    provides=["DiaryWriter"],
+    depends_on=[
+        "memory_pool", "buffer_signals", "pattern_extractor",
+        "superego.alignment", "superego.conscience",
+    ],
+    param_wire={
+        "memory_pool": "pool",
+        "buffer_signals": "signals",
+        "pattern_extractor": "patterns",
+    },
+)
 class DiaryWriter:
     """定时日记生成器。"""
 

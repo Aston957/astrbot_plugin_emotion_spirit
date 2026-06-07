@@ -23,7 +23,19 @@ if TYPE_CHECKING:
 from .registry import register
 
 
-@register(name="predictive_sentinel", provides=["PredictiveSentinel"], depends_on=["buffer_signals", "meaning_reservoir", "pattern_extractor", "shadow_detector"])
+@register(
+    name="predictive_sentinel",
+    provides=["PredictiveSentinel"],
+    depends_on=[
+        "surface_consumer", "buffer_signals", "meaning_reservoir",
+        "superego.alignment", "superego.conscience", "superego.ideal",
+    ],
+    param_wire={
+        "buffer_signals": "signals",
+        "meaning_reservoir": "reservoir",
+        "surface_consumer": "consumer",
+    },
+)
 class PredictiveSentinel:
     """信号预警系统。
 

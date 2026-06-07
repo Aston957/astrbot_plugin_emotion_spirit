@@ -169,7 +169,7 @@ class SocialGraphNS:
 # ═══ SpiritStore 主类 ═══
 
 
-@register(name="store", provides=["SpiritStore"], depends_on=[])
+@register(name="store", provides=["SpiritStore"], depends_on=[], config_keys={"data_dir"})
 class SpiritStore:
     """JSON 持久化存储 — 4 NS typed accessor + 旧通用 API (向后兼容)。
 

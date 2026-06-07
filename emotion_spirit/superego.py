@@ -48,7 +48,16 @@ class ResistanceResult:
 from .registry import register
 
 
-@register(name="superego", provides=["ValueResistance", "ValueAlignment", "ConscienceTracker"], depends_on=[])
+class _SuperegoBundle:
+    """4 sub-component 容器 (registry build() multi-instance 入口)。
+
+    实际不实例化, build() 用 provides_classes 走 multi-instance 分支。
+    marker class 见文件末尾 (4 sub-classes 定义完后才注册, 避免 monkey-patch + type: ignore)。
+    """
+
+
+# ═══ 价值抵抗 ═══
+
 class ValueResistance:
     """价值抵抗计算器 — 人格价值观对行为的光谱响应。
 
@@ -774,3 +783,23 @@ class IdealSelf:
             for layer in self._ideal:
                 self._baseline_ideal[layer] = dict(self._ideal[layer])
         self._reinforcement = data.get("reinforcement", {})
+
+
+# ═══ 注册 marker (在 4 sub-classes 都定义完后) ═══
+# marker @register 在文件末尾, 这样 4 sub-classes (ValueResistance/ValueAlignment/ConscienceTracker/IdealSelf)
+# 已经在 module scope, provides_classes 可以直接用类对象, 不用 monkey-patch + type: ignore。
+@register(
+    name="superego",
+    provides=["ValueResistance", "ValueAlignment", "ConscienceTracker", "IdealSelf"],
+    depends_on=[],
+    config_keys={"persona_id", "labels", "persona"},
+    param_wire={"persona_id": "persona"},  # config_key "persona_id" → __init__ 形参 "persona"
+    provides_classes={
+        "alignment": ValueAlignment,
+        "resistance": ValueResistance,
+        "conscience": ConscienceTracker,
+        "ideal": IdealSelf,
+    },
+)
+class _SuperegoMarker(_SuperegoBundle):
+    pass

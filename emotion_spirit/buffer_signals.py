@@ -23,7 +23,13 @@ if TYPE_CHECKING:
     from .memory_pool import MemoryPool, BufferEntry
 
 
-@register(name="buffer_signals", provides=["BufferSignals"], depends_on=["memory_pool"])
+@register(
+    name="buffer_signals",
+    provides=["BufferSignals"],
+    depends_on=["memory_pool"],
+    param_wire={"memory_pool": "pool"},
+    config_keys={"user_id"},
+)
 class BufferSignals:
     """缓冲池信号计算器 (Phase 2.0: per-user 读路径)。"""
 

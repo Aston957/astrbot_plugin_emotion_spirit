@@ -19,7 +19,20 @@ if TYPE_CHECKING:
 from .registry import register
 
 
-@register(name="prompt_injector", provides=["PromptInjector"], depends_on=["intimacy", "superego", "memory_pool", "diary_writer", "buffer_signals", "relationship_personality", "shadow_detector"])
+@register(
+    name="prompt_injector",
+    provides=["PromptInjector"],
+    depends_on=[
+        "memory_pool", "intimacy", "diary_writer", "buffer_signals",
+        "shadow_detector",
+        "superego.alignment", "superego.conscience", "superego.ideal",
+    ],
+    param_wire={
+        "memory_pool": "pool",
+        "diary_writer": "diary",
+        "shadow_detector": "shadow",
+    },
+)
 class PromptInjector:
     """Prompt 上下文组装器。"""
 

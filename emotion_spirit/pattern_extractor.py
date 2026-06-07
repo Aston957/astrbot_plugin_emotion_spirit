@@ -51,7 +51,12 @@ class Pattern:
 from .registry import register
 
 
-@register(name="pattern_extractor", provides=["PatternExtractor"], depends_on=["memory_pool"])
+@register(
+    name="pattern_extractor",
+    provides=["PatternExtractor"],
+    depends_on=["memory_pool"],
+    param_wire={"memory_pool": "pool"},
+)
 class PatternExtractor:
     """从温池提取行为模式。"""
 

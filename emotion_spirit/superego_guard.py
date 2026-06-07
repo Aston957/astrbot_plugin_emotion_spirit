@@ -34,7 +34,14 @@ class InterventionResult:
 from .registry import register
 
 
-@register(name="superego_guard", provides=["SuperegoGuard"], depends_on=["superego"])
+@register(
+    name="superego_guard",
+    provides=["SuperegoGuard"],
+    depends_on=[
+        "superego.alignment", "superego.conscience", "superego.ideal",
+    ],
+    config_keys={"persona"},
+)
 class SuperegoGuard:
     """超我防护层 — 软干预决策 + 修复建议。
 

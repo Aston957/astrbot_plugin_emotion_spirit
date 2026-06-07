@@ -28,7 +28,21 @@ _ARC_PROMPTS = {
 from .registry import register
 
 
-@register(name="narrative_identity", provides=["NarrativeIdentity"], depends_on=["diary_writer", "personality_drift"])
+@register(
+    name="narrative_identity",
+    provides=["NarrativeIdentity"],
+    depends_on=[
+        "memory_pool", "pattern_extractor", "personality_drift",
+        "buffer_signals", "diary_writer",
+    ],
+    param_wire={
+        "memory_pool": "pool",
+        "pattern_extractor": "patterns",
+        "personality_drift": "drift",
+        "buffer_signals": "signals",
+        "diary_writer": "diary",
+    },
+)
 class NarrativeIdentity:
     """月度叙事弧生成器。"""
 

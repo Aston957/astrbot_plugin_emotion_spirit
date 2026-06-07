@@ -233,7 +233,12 @@ class RuleBasedAnalyzer:
         )
 
 
-@register(name="persona_analyzer", provides=["PersonaAnalyzer"], depends_on=[])
+@register(
+    name="persona_analyzer",
+    provides=["PersonaAnalyzer"],
+    depends_on=[],
+    config_keys={"llm", "fallback"},
+)
 class PersonaAnalyzerWithFallback:
     """LLM 优先 + 失败 fallback 到 RuleBased。
 
