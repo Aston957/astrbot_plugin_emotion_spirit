@@ -215,3 +215,19 @@ def test_get_current_personality_has_all_13_dims():
                 "gossip_tendency"]:
         assert dim in initial
         assert dim in current
+    # 完整 13 维 set 断言 (无缺失, 无多余)
+    expected_13 = {
+        "expression_drive", "perception_acuity", "boundary_permeability",
+        "inner_coherence", "relational_gravity",
+        "warmth_bias", "directness", "curiosity", "patience",
+        "intimacy_pull", "relational_autonomy", "exploration_openness",
+        "gossip_tendency",
+    }
+    assert set(initial.keys()) == expected_13, (
+        f"initial keys 偏离 13 维: 缺 {expected_13 - set(initial.keys())}, "
+        f"多 {set(initial.keys()) - expected_13}"
+    )
+    assert set(current.keys()) == expected_13, (
+        f"current keys 偏离 13 维: 缺 {expected_13 - set(current.keys())}, "
+        f"多 {set(current.keys()) - expected_13}"
+    )

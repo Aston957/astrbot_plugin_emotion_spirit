@@ -59,25 +59,6 @@ def _is_gossip_content(content: str) -> bool:
     return any(kw in content for kw in _GOSSIP_KEYWORDS)
 
 
-def _labels_to_persona_id(labels: dict[str, str]) -> str | None:
-    """从 labels 反推 persona_id (用于在 KnowledgeBase 中查询 baseline)。
-
-    简单映射: mbti + attachment 决定 persona_id。
-    """
-    mbti = labels.get("mbti", "").upper()
-    attachment = labels.get("attachment", "")
-    if not mbti or len(mbti) < 4:
-        return None
-    # 简化: 5 persona 跟 mbti+attachment 一一对应
-    mbti_letter = mbti[:4]
-    # 用 KnowledgeBase 验证
-    for pid in KnowledgeBase.PERSONA_BASELINES:
-        # 只取 mbti 前缀对比
-        if pid.startswith(mbti_letter[:4]):
-            return pid
-    return None
-
-
 class DriftSimulator:
     """模拟 SylannEngine 13 维人格参数的长期漂移 (v1.7.2: 12→13)。
 

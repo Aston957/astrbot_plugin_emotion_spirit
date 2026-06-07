@@ -27,7 +27,7 @@ from emotion_spirit.intimacy import IntimacyTracker
 from emotion_spirit.label_mapper import labels_to_personality, _BASELINE
 
 from surface_generator import ScenarioProfile, SCENARIOS, generate_scenario_sequence, generate_bursty_scenario_sequence
-from drift_simulator import DriftSimulator
+from drift_simulator import DriftSimulator, simulate_persona
 
 
 @dataclass
@@ -284,6 +284,14 @@ def run_simulation(
       - 报告字段包含 gossip_tendency (13 维)
       - 中性话题不漂移, gossip 话题漂移
 
+    **模块双重身份说明 (Phase C 末文档化)**:
+      - 本模块既承载 `SimulationRunner` (蒙特卡洛主流程, v1.x 引入)
+        也承载 `run_simulation` (Phase C gossip_tendency 真消费点入口)
+      - 两者职责独立: SimulationRunner 跑 1000 turn 完整 N 模块装配仿真;
+        run_simulation 跑 5 persona × 8 scenarios 短仿真, 只触发 gossip_tendency
+      - 委托关系: run_simulation 是 `drift_simulator.simulate_persona` 的别名,
+        保证 gossip_tendency 仿真逻辑只有一份 (DRY)
+
     Args:
         persona_id: 5 persona 之一 (INFP-A, ISTJ-S, ENTP-AV, ISFJ-D, ESTP-A)
         scenario: 8 scenarios 之一
@@ -297,6 +305,5 @@ def run_simulation(
             "trajectory": list[dict[str, float]],  # 每步快照
         }
     """
-    # 委托给 drift_simulator.simulate_persona (单一实现)
-    from drift_simulator import simulate_persona
+    # 委托给 drift_simulator.simulate_persona (单一实现, top-level import)
     return simulate_persona(persona_id=persona_id, scenario=scenario, steps=steps)
