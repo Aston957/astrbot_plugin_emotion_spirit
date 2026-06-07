@@ -152,6 +152,7 @@ class EmotionSpiritPlugin(Star):
         self._injector = PromptInjector(
             self._pool, self._intimacy, self._alignment,
             self._conscience, self._ideal, self._shadow, self._diary,
+            buffer_signals=self._buffer_signals,
         )
         self._drift = PersonalityDrift(self._consumer, self._reservoir)
         self._sentinel = PredictiveSentinel(
@@ -1700,6 +1701,7 @@ class EmotionSpiritPlugin(Star):
         self._injector = PromptInjector(
             self._pool, self._intimacy, self._alignment,
             self._conscience, self._ideal, self._shadow, self._diary,
+            buffer_signals=self._buffer_signals,
         )
 
     def _save_if_dirty(self) -> None:

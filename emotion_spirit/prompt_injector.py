@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .superego import ValueAlignment, ConscienceTracker, IdealSelf
     from .shadow_detector import ShadowDetector
     from .diary_writer import DiaryWriter
+    from .buffer_signals import BufferSignals
 
 
 class PromptInjector:
@@ -27,6 +28,7 @@ class PromptInjector:
         ideal: IdealSelf,
         shadow: ShadowDetector,
         diary: DiaryWriter,
+        buffer_signals: "BufferSignals | None" = None,
     ) -> None:
         self._pool = pool
         self._intimacy = intimacy
@@ -35,6 +37,7 @@ class PromptInjector:
         self._ideal = ideal
         self._shadow = shadow
         self._diary = diary
+        self._buffer_signals = buffer_signals  # v1.7.2: P2-1 保留 aggregate_* 真消费点
         # Phase 2.5: 亲密度段 (per-user 4 段)
         self._intimacy_segment: dict[str, str] = {}
 
@@ -153,6 +156,12 @@ class PromptInjector:
         if boundary_text:
             parts.append(boundary_text)
 
+        # ═══ [全局] BufferSignals.aggregate_temperature 真消费点 (v1.7.2, P2-1 保留) ═══
+        if self._buffer_signals is not None:
+            global_text = self._render_global_state()
+            if global_text:
+                parts.append(global_text)
+
         return "\n".join(parts) if parts else ""
 
     def _render_boundary(self, gossip_tendency: float) -> str:
@@ -171,6 +180,22 @@ class PromptInjector:
             return "[边界] bot 习惯提及其他人的事, 像朋友八卦"
         else:
             return "[边界] bot 主动分享听到的事, 活跃社交"
+
+    def _render_global_state(self) -> str:
+        """v1.7.2: 把 BufferSignals.aggregate_temperature 翻译为 [全局] 块 (3 档)。
+
+        反 YAGNI 修正 (P2-1): aggregate_* 类方法保留, 通过 PromptInjector 注入
+        给 LLM 全局 bot 整体情绪压力, 跨 user buffer 总堆积量做信号。
+        """
+        if self._buffer_signals is None:
+            return ""
+        temp = self._buffer_signals.aggregate_temperature(self._pool)
+        if temp < 0.3:
+            return "[全局] bot 整体情绪压力: 轻松 (aggregate=%.2f)" % temp
+        elif temp < 0.6:
+            return "[全局] bot 整体情绪压力: 中等 (aggregate=%.2f)" % temp
+        else:
+            return "[全局] bot 整体情绪压力: 紧张 (aggregate=%.2f)" % temp
 
     def to_dict(self) -> dict[str, Any]:
         return {}
