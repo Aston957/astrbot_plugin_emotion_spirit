@@ -103,7 +103,7 @@ def test_get_emotion_state_returns_none_for_unknown_key():
     assert asyncio.run(plugin.get_emotion_state("nonexistent")) is None
 
 
-# ═══ v1.2: get_emotion_state 11 字段 + get_emotion_trajectory 高级 API ═══
+# ═══ v1.2: get_emotion_state 11 字段 (v1.7.2: trajectory 合并到 include_trajectory) ═══
 
 
 def test_get_emotion_state_includes_v12_ambiguity_velocity():
@@ -159,8 +159,11 @@ def test_get_emotion_state_keeps_backward_compat_9_fields():
     assert "emotion_velocity" in state
 
 
-def test_get_emotion_trajectory_returns_list_of_dicts():
-    """get_emotion_trajectory 返回 list[dict]，每项含 v/a/d/timestamp。"""
+# ═══ v1.7.2 Phase A: get_emotion_state(include_trajectory=False) 替代独立 API ═══
+
+
+def test_get_emotion_state_with_trajectory_includes_field():
+    """v1.7.2 Phase A: include_trajectory=True 时返回 emotion_trajectory 字段。"""
     import asyncio
     from main import EmotionSpiritPlugin
     from emotion_spirit.surface_consumer import SemanticSignals
@@ -174,21 +177,27 @@ def test_get_emotion_trajectory_returns_list_of_dicts():
     )
     plugin._latest_signals = {"traj_key": signals}
 
-    traj = asyncio.run(plugin.get_emotion_trajectory("traj_key"))
-    assert isinstance(traj, list)
-    assert len(traj) == 2
-    assert traj[0]["valence"] == 0.5
-    assert traj[0]["arousal"] == 0.6
-    assert traj[0]["dominance"] == 0.7
-    assert traj[0]["timestamp"] == 1234.0
-    assert traj[1]["timestamp"] == 1235.0
+    state = asyncio.run(plugin.get_emotion_state("traj_key", include_trajectory=True))
+    assert state is not None
+    assert "emotion_trajectory" in state
+    assert isinstance(state["emotion_trajectory"], list)
+    assert len(state["emotion_trajectory"]) == 2
+    assert state["emotion_trajectory"][0]["valence"] == 0.5
+    assert state["emotion_trajectory"][0]["timestamp"] == 1234.0
 
 
-def test_get_emotion_trajectory_unknown_key_returns_empty_list():
-    """未知 session_key → 返回 []。"""
+def test_get_emotion_state_without_trajectory_omits_field():
+    """v1.7.2 Phase A: include_trajectory 默认 False, 不返回 emotion_trajectory 字段 (向后兼容)。"""
     import asyncio
     from main import EmotionSpiritPlugin
+    from emotion_spirit.surface_consumer import SemanticSignals
+
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
-    plugin._latest_signals = {}
-    traj = asyncio.run(plugin.get_emotion_trajectory("nonexistent"))
-    assert traj == []
+    signals = SemanticSignals(
+        emotion_trajectory=[(0.5, 0.6, 0.7, 1234.0)]
+    )
+    plugin._latest_signals = {"no_traj_key": signals}
+
+    state = asyncio.run(plugin.get_emotion_state("no_traj_key"))
+    assert state is not None
+    assert "emotion_trajectory" not in state
