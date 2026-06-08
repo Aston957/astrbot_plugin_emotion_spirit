@@ -48,31 +48,24 @@ def test_drift_simulator_accepts_labels_dict():
 
 def test_drift_simulator_rejects_positional_arg():
     """DriftSimulator() 必须传 labels=, positional 字符串/dict 都报错 (B 单入口)。"""
+    import pytest
     from verification.drift_simulator import DriftSimulator
     # 旧 positional str: DriftSimulator("INFP-A") 应报 TypeError
-    try:
+    with pytest.raises(TypeError):
         DriftSimulator("INFP-A")  # type: ignore[misc]
-        assert False, "DriftSimulator(\"INFP-A\") 应报 TypeError (B 决策: 仅 keyword-only)"
-    except TypeError:
-        pass
     # 无参数: DriftSimulator() 应报 TypeError
-    try:
+    with pytest.raises(TypeError, match="labels="):
         DriftSimulator()  # type: ignore[call-arg]
-        assert False, "DriftSimulator() 应报 TypeError (B 决策: labels= required)"
-    except TypeError:
-        pass
 
 
 # ═══ 3. persona_id= 关键字参数禁用 ═══
 
 def test_drift_simulator_rejects_persona_id_keyword():
     """DriftSimulator(persona_id=...) 删, 应报 TypeError (KB.PERSONA_BASELINES 已删)。"""
+    import pytest
     from verification.drift_simulator import DriftSimulator
-    try:
+    with pytest.raises(TypeError, match="persona_id"):
         DriftSimulator(persona_id="INFP-A")  # type: ignore[call-arg]
-        assert False, "DriftSimulator(persona_id=...) 应报 TypeError (B 决策: 删 persona_id kwarg)"
-    except TypeError:
-        pass
 
 
 # ═══ 4. drift 不 clamp 到 [0,1] (B 决策, 真实主义) ═══
@@ -100,5 +93,5 @@ def test_drift_simulator_allows_greater_than_one():
     final_gt = sim.get_current_personality()["gossip_tendency"]
     # B 决策: 允许 > 1.0 (cumulative drift 不 clamp)
     # baseline ~0.58 + 100×0.01 = ~1.58 (no clamp), 1.0 (clamp)
-    # 至少确认 final > baseline, 且确实上升
-    assert final_gt > 0.5, f"gossip 应上升, 实际 {final_gt}"
+    # > 1.0 强断言: 既验证上升, 也证明 clamp 已删 (>1.0 在两个 world 都失败)
+    assert final_gt > 1.0, f"B 决策: 应 > 1.0, 实际 {final_gt}"

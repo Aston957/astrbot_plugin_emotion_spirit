@@ -25,22 +25,12 @@ _ROOT_DIR = _VERIFICATION_DIR.parent
 _TESTS_DIR = _ROOT_DIR / "tests"
 sys.path.insert(0, str(_VERIFICATION_DIR))
 sys.path.insert(0, str(_ROOT_DIR))
-# 用 importlib 显式加载 (兜底, 防 sys.path 不生效)
-import importlib.util as _ilu  # noqa: E402
-_spec = _ilu.spec_from_file_location(
-    "_gossip_fixture_labels", _TESTS_DIR / "fixture_labels.py",
+sys.path.insert(0, str(_TESTS_DIR))
+# tests/ 是 package (有 __init__.py), fixture_labels.py 是普通 module, 直接 import
+from fixture_labels import (  # noqa: E402
+    INFP_A_LABELS, ISTJ_S_LABELS, ENTP_AV_LABELS, ISFJ_D_LABELS, ESTP_A_LABELS,
+    ALL_5_FIXTURE_LABELS, ALL_5_FIXTURES,
 )
-if _spec is None or _spec.loader is None:
-    raise ImportError("cannot load tests/fixture_labels.py")
-_fixtures = _ilu.module_from_spec(_spec)
-_spec.loader.exec_module(_fixtures)
-INFP_A_LABELS = _fixtures.INFP_A_LABELS
-ISTJ_S_LABELS = _fixtures.ISTJ_S_LABELS
-ENTP_AV_LABELS = _fixtures.ENTP_AV_LABELS
-ISFJ_D_LABELS = _fixtures.ISFJ_D_LABELS
-ESTP_A_LABELS = _fixtures.ESTP_A_LABELS
-ALL_5_FIXTURE_LABELS = _fixtures.ALL_5_FIXTURE_LABELS
-ALL_5_FIXTURES = _fixtures.ALL_5_FIXTURES
 
 
 # ═══ 1. 5 persona baseline 跟 KB 一致 (HEXACO 预测区间) ═══
