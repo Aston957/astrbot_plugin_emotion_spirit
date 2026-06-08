@@ -48,27 +48,27 @@ class KnowledgeBase:
         "J": {"inner_coherence": +0.05, "patience": +0.05, "relational_autonomy": +0.05},
     }
     ATTACHMENT_DELTAS: dict[str, dict[str, float]] = {
-        "安全型": {"boundary_permeability": +0.10, "inner_coherence": +0.10, "intimacy_pull": +0.05, "relational_autonomy": +0.05, "exploration_openness": +0.10},
+        "安全型": {"boundary_permeability": +0.10, "inner_coherence": +0.10, "intimacy_pull": +0.05, "relational_autonomy": +0.05, "exploration_openness": +0.10, "curiosity": +0.05, "perception_acuity": +0.05},
         "焦虑型": {"boundary_permeability": +0.25, "inner_coherence": -0.20, "intimacy_pull": +0.30, "relational_autonomy": -0.15, "exploration_openness": -0.05, "expression_drive": +0.15, "gossip_tendency": +0.10},
         "回避型": {"boundary_permeability": -0.20, "inner_coherence": +0.10, "intimacy_pull": -0.20, "relational_autonomy": +0.20, "exploration_openness": -0.15, "gossip_tendency": -0.05},
         "混乱型": {"boundary_permeability": +0.10, "inner_coherence": -0.30, "intimacy_pull": +0.20, "relational_autonomy": -0.10, "exploration_openness": +0.05},
     }
     EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "压抑型": {"expression_drive": -0.20, "warmth_bias": -0.05, "relational_autonomy": +0.10},
-        "表达型": {"expression_drive": +0.20, "warmth_bias": +0.10, "relational_autonomy": -0.05, "gossip_tendency": +0.05},
+        "表达型": {"expression_drive": +0.20, "warmth_bias": +0.10, "relational_autonomy": -0.05, "gossip_tendency": +0.05, "curiosity": +0.03},
         "波动型": {"inner_coherence": -0.15, "relational_autonomy": -0.05},
-        "稳定型": {"inner_coherence": +0.10, "relational_autonomy": +0.05},
+        "稳定型": {"inner_coherence": +0.10, "relational_autonomy": +0.05, "perception_acuity": +0.05},
     }
     CONFLICT_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "攻击型": {"directness": +0.15, "relational_autonomy": +0.10, "relational_gravity": -0.10, "gossip_tendency": +0.05},
         "顺应型": {"warmth_bias": +0.10, "relational_autonomy": -0.05, "directness": -0.10},
-        "合作型": {"warmth_bias": +0.05, "directness": +0.05, "relational_autonomy": 0.0},
+        "合作型": {"warmth_bias": +0.05, "directness": +0.05, "relational_autonomy": 0.0, "perception_acuity": +0.03},
         "回避型": {"boundary_permeability": -0.10, "relational_autonomy": +0.05, "relational_gravity": -0.05},
     }
     TIME_FOCUS_DELTAS: dict[str, dict[str, float]] = {
         "活在过去": {"relational_gravity": +0.10, "patience": +0.10, "exploration_openness": -0.10},
         "活在当下": {"patience": +0.05, "relational_gravity": +0.05},
-        "活在未来": {"exploration_openness": +0.15, "patience": -0.05, "relational_autonomy": -0.05},
+        "活在未来": {"exploration_openness": +0.15, "patience": -0.05, "relational_autonomy": -0.05, "curiosity": +0.05},
     }
 
     # ═══ 4. 数值阈值 ═══

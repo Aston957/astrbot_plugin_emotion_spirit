@@ -273,6 +273,86 @@ def test_emotion_and_conflict_deltas_have_gossip_tendency():
     assert "gossip_tendency" in KnowledgeBase.CONFLICT_STYLE_DELTAS["攻击型"]
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Phase 3.0B Task 1: curiosity + perception_acuity 补源 (1→4 sources)
+# 6 新 delta 验证: ATTACH 安全 + TIME 未来 + EMOTION 表达/稳定 + CONFLICT 合作
+# ════════════════════════════════════════════════════════════════════════════
+
+def test_attachment_deltas_have_curiosity_and_perception():
+    """ATTACHMENT_DELTAS["安全型"] 加 curiosity +0.05 + perception_acuity +0.05 (Bowlby 内部工作模型)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    safe = KnowledgeBase.ATTACHMENT_DELTAS["安全型"]
+    assert "curiosity" in safe
+    assert "perception_acuity" in safe
+    assert safe["curiosity"] == 0.05
+    assert safe["perception_acuity"] == 0.05
+
+
+def test_time_focus_deltas_have_curiosity():
+    """TIME_FOCUS_DELTAS["活在未来"] 加 curiosity +0.05 (Zimbardo 时间观)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    future = KnowledgeBase.TIME_FOCUS_DELTAS["活在未来"]
+    assert "curiosity" in future
+    assert future["curiosity"] == 0.05
+
+
+def test_emotion_style_deltas_have_curiosity_and_perception():
+    """EMOTION_STYLE_DELTAS 加 curiosity (表达型 +0.03) + perception_acuity (稳定型 +0.05)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    expressive = KnowledgeBase.EMOTION_STYLE_DELTAS["表达型"]
+    stable = KnowledgeBase.EMOTION_STYLE_DELTAS["稳定型"]
+    assert "curiosity" in expressive
+    assert expressive["curiosity"] == 0.03
+    assert "perception_acuity" in stable
+    assert stable["perception_acuity"] == 0.05
+
+
+def test_conflict_style_deltas_have_perception_acuity():
+    """CONFLICT_STYLE_DELTAS["合作型"] 加 perception_acuity +0.03 (双重关注模式)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    cooperative = KnowledgeBase.CONFLICT_STYLE_DELTAS["合作型"]
+    assert "perception_acuity" in cooperative
+    assert cooperative["perception_acuity"] == 0.03
+
+
+def test_curiosity_baseline_infp_a_includes_new_sources():
+    """INFP-A baseline curiosity: MBTI(N) + ATTACH(安全) + EMOTION(表达) 4 sources 累加。
+
+    公式: 0.5 + 0.25×(+0.15) + 0.20×(+0.05) + 0.20×(+0.03) = 0.5535
+    验证: ≥ 0.55 (若 ATTACH/EMOTION 缺则 < 0.55)。
+    """
+    from emotion_spirit.knowledge import KnowledgeBase
+    labels = {"mbti": "INFP", "attachment": "安全型", "emotion_style": "表达型",
+              "conflict_style": "合作型", "time_focus": "活在当下"}
+    baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    expected = 0.5 + 0.25 * (+0.15) + 0.20 * (+0.05) + 0.20 * (+0.03)
+    assert abs(baseline["curiosity"] - expected) < 0.001, (
+        f"INFP-A curiosity 预期 {expected}, 实际 {baseline['curiosity']}"
+    )
+    assert baseline["curiosity"] >= 0.55, (
+        f"INFP-A curiosity {baseline['curiosity']} < 0.55, 新 ATTACH/EMOTION delta 未生效"
+    )
+
+
+def test_perception_acuity_baseline_infp_a_includes_new_sources():
+    """INFP-A baseline perception_acuity: MBTI(N) + ATTACH(安全) + CONFLICT(合作) 3 sources 累加。
+
+    公式: 0.5 + 0.25×(+0.05) + 0.20×(+0.05) + 0.20×(+0.03) = 0.5285
+    验证: ≥ 0.52 (若 ATTACH/CONFLICT 缺则 < 0.52)。
+    """
+    from emotion_spirit.knowledge import KnowledgeBase
+    labels = {"mbti": "INFP", "attachment": "安全型", "emotion_style": "表达型",
+              "conflict_style": "合作型", "time_focus": "活在当下"}
+    baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    expected = 0.5 + 0.25 * (+0.05) + 0.20 * (+0.05) + 0.20 * (+0.03)
+    assert abs(baseline["perception_acuity"] - expected) < 0.001, (
+        f"INFP-A perception_acuity 预期 {expected}, 实际 {baseline['perception_acuity']}"
+    )
+    assert baseline["perception_acuity"] >= 0.52, (
+        f"INFP-A perception_acuity {baseline['perception_acuity']} < 0.52, 新 ATTACH/CONFLICT delta 未生效"
+    )
+
+
 if __name__ == "__main__":
     test_knowledge_base_exposes_mbti_letter_deltas()
     test_knowledge_base_get_delta_for_label_dispatches_correctly()
