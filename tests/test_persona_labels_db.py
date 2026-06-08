@@ -170,13 +170,19 @@ def test_get_persona_entry_returns_full():
 
 # === Step 1.3 integration: 4 组合 stub 加载验证 ===
 
-def test_kb_json_loads_4_stub_entries():
-    """默认 KB JSON (4 stub) 加载成功, 4 个 entry 都在。"""
-    # 不 monkeypatch DB_PATH, 走默认路径 (4 stub JSON)
+def test_kb_json_loads_16_stub_entries():
+    """默认 KB JSON (16 stub, 3.0C.2a 完成) 加载成功, 16 个 entry 都在。"""
+    # 不 monkeypatch DB_PATH, 走默认路径 (16 stub JSON)
     db = get_persona_labels_db()
-    assert len(db) == 4
-    expected = {"INFP-SE-EX-CO-PR", "ISTJ-SE-EX-CO-PR", "ENTP-SE-EX-CO-PR", "ESTP-SE-EX-CO-PR"}
-    assert set(db.keys()) == expected
+    assert len(db) == 16, f"Expected 16 entries, got {len(db)}"
+    # 验证 16 MBTI 都在 (3.0C.2a Task 2 Step 2.4)
+    expected = {
+        "INFP-SE-EX-CO-PR", "ENFP-SE-EX-CO-PR", "INFJ-SE-EX-CO-PR", "ENFJ-SE-EX-CO-PR",
+        "INTJ-SE-EX-CO-PR", "ENTJ-SE-EX-CO-PR", "INTP-SE-EX-CO-PR", "ENTP-SE-EX-CO-PR",
+        "ISFP-SE-EX-CO-PR", "ESFP-SE-EX-CO-PR", "ISFJ-SE-EX-CO-PR", "ESFJ-SE-EX-CO-PR",
+        "ISTP-SE-EX-CO-PR", "ESTP-SE-EX-CO-PR", "ISTJ-SE-EX-CO-PR", "ESTJ-SE-EX-CO-PR",
+    }
+    assert set(db.keys()) == expected, f"Missing: {expected - set(db.keys())}"
 
 
 def test_n_type_curiosity_high_s_type_low():
@@ -193,7 +199,7 @@ def test_n_type_curiosity_high_s_type_low():
 
 
 def test_all_stubs_have_valid_schema():
-    """4 stub entry 全部 13 dim 完整 + ∈ [0, 1] + confidence 合法。"""
+    """16 stub entry 全部 13 dim 完整 + ∈ [0, 1] + confidence 合法。"""
     db = get_persona_labels_db()
     valid_conf = {"A", "B", "C", "D"}
     for pid, entry in db.items():
@@ -202,3 +208,37 @@ def test_all_stubs_have_valid_schema():
         for dim, val in entry["baseline"].items():
             assert 0.0 <= val <= 1.0, f"{pid}/{dim}={val} out of [0,1]"
         assert len(entry["refs"]) >= 1, f"{pid}: no refs"
+
+
+def test_16_mbti_trait_patterns():
+    """16 MBTI 都遵循 N/S × T/F × J/P × I/E 4 字母的 trait pattern。
+
+    验证:
+    - N-type (INFP/ENFP/INFJ/ENFJ/INTJ/ENTJ/INTP/ENTP) curiosity 显著高
+    - S-type (ISFP/ESFP/ISFJ/ESFJ/ISTP/ESTP/ISTJ/ESTJ) curiosity 较低
+    - E-type expression > I-type (每对 N/S 同档对比)
+    - J-type patience > P-type
+    """
+    db = get_persona_labels_db()
+    n_mbti = ["INFP", "ENFP", "INFJ", "ENFJ", "INTJ", "ENTJ", "INTP", "ENTP"]
+    s_mbti = ["ISFP", "ESFP", "ISFJ", "ESFJ", "ISTP", "ESTP", "ISTJ", "ESTJ"]
+    for n in n_mbti:
+        assert db[f"{n}-SE-EX-CO-PR"]["baseline"]["curiosity"] >= 0.75, \
+            f"{n} curiosity should be ≥0.75 (N-type)"
+    for s in s_mbti:
+        assert db[f"{s}-SE-EX-CO-PR"]["baseline"]["curiosity"] <= 0.65, \
+            f"{s} curiosity should be ≤0.65 (S-type)"
+    # 简化: 直接验证 I vs E
+    for pair in [("INFP", "ENFP"), ("INFJ", "ENFJ"), ("INTJ", "ENTJ"), ("INTP", "ENTP"),
+                  ("ISFP", "ESFP"), ("ISFJ", "ESFJ"), ("ISTP", "ESTP"), ("ISTJ", "ESTJ")]:
+        i_mbti, e_mbti = pair
+        i_expr = db[f"{i_mbti}-SE-EX-CO-PR"]["baseline"]["expression_drive"]
+        e_expr = db[f"{e_mbti}-SE-EX-CO-PR"]["baseline"]["expression_drive"]
+        assert e_expr > i_expr, f"{e_mbti} expr ({e_expr}) should > {i_mbti} expr ({i_expr})"
+    # J vs P 对照
+    for pair in [("ISTJ", "ISTP"), ("ISFJ", "ISFP"), ("ESTJ", "ESTP"), ("ESFJ", "ESFP"),
+                  ("INTJ", "INTP"), ("INFJ", "INFP"), ("ENTJ", "ENTP"), ("ENFJ", "ENFP")]:
+        j_mbti, p_mbti = pair
+        j_pat = db[f"{j_mbti}-SE-EX-CO-PR"]["baseline"]["patience"]
+        p_pat = db[f"{p_mbti}-SE-EX-CO-PR"]["baseline"]["patience"]
+        assert j_pat > p_pat, f"{j_mbti} patience ({j_pat}) should > {p_mbti} patience ({p_pat})"

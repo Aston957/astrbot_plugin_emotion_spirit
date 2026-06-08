@@ -28,9 +28,51 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from .knowledge import KnowledgeBase
+
+if TYPE_CHECKING:
+    from .body_state import BodyState
+    from .force_dynamics import ForceState
 
 logger = logging.getLogger(__name__)
+
+# === persona_id 编码常量 (Phase 3.0C.2a spec §3.2) ===
+# 5 段: <MBTI>-<attachment 2字母>-<emotion 2字母>-<conflict 2字母>-<time 2字母>
+# 全部 2 字母 (MBTI 段除外, 3-4 字母原样), 位置解析消歧 AV 冲突 (段 2 vs 段 4)
+
+MBTI_TYPES: frozenset[str] = frozenset({
+    "INFP", "ENFP", "INFJ", "ENFJ", "INTJ", "ENTJ", "INTP", "ENTP",
+    "ISFP", "ESFP", "ISFJ", "ESFJ", "ISTP", "ESTP", "ISTJ", "ESTJ",
+})
+
+ATTACH_CODES: dict[str, str] = {
+    "SE": "安全型",  # Secure
+    "AP": "焦虑型",  # Anxious-Preoccupied
+    "AV": "回避型",  # Avoidant
+    "DS": "混乱型",  # Disorganized
+}
+
+EMOTION_CODES: dict[str, str] = {
+    "EX": "表达型",  # Expressive
+    "IH": "内敛型",  # Inhibited
+    "ST": "稳定型",  # Stable
+    "VO": "易变型",  # Volatile
+}
+
+CONFLICT_CODES: dict[str, str] = {
+    "CO": "合作型",   # Cooperative
+    "CP": "竞争型",   # Competitive
+    "AV": "回避型",   # Avoidant (跟 attachment AV 同字母, 靠位置区分)
+    "CM": "妥协型",   # Compromise
+}
+
+TIME_CODES: dict[str, str] = {
+    "PR": "活在当下",  # Present
+    "PA": "关注过去",  # Past
+    "FU": "着眼未来",  # Future
+}
 
 # 13 dim baseline 必备 key 集合 (与 3.0A KnowledgeBase.ALL_PERSONALITY_DIMS 一致)
 REQUIRED_DIMS: frozenset[str] = frozenset({
@@ -217,9 +259,139 @@ def reset_cache() -> None:
     _STATS["register_count"] = 0
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Phase 3.0C.2a — 主入口 API (force_state_from_persona_id) + 解析 API
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def parse_persona_id(persona_id: str) -> dict[str, str] | None:
+    """解析 persona_id → 5-key labels dict (中文标签)。None = 解析失败。
+
+    Args:
+        persona_id: 5 段命名, e.g. "INFP-AV-EX-CO-PR"
+            - 段 1: MBTI (16 合法类型)
+            - 段 2: attachment (SE/AP/AV/DS)
+            - 段 3: emotion_style (EX/IH/ST/VO)
+            - 段 4: conflict_style (CO/CP/AV/CM)
+            - 段 5: time_focus (PR/PA/FU)
+
+    Returns:
+        dict 含 mbti/attachment/emotion_style/conflict_style/time_focus (中文)
+        或 None (任何一段非法)
+
+    Note:
+        AV 在段 2 (attachment) 和段 4 (conflict_style) 都合法, 靠位置解析消歧
+        (spec §3.2 显式标注, memory 8 spec 偏离 #7)。
+    """
+    if not persona_id or not isinstance(persona_id, str):
+        return None
+    parts = persona_id.split("-")
+    if len(parts) != 5:
+        return None
+    mbti, attach, emo, conf, time = parts
+    if mbti not in MBTI_TYPES:
+        return None
+    if attach not in ATTACH_CODES:
+        return None
+    if emo not in EMOTION_CODES:
+        return None
+    if conf not in CONFLICT_CODES:
+        return None
+    if time not in TIME_CODES:
+        return None
+    return {
+        "mbti": mbti,
+        "attachment": ATTACH_CODES[attach],
+        "emotion_style": EMOTION_CODES[emo],
+        "conflict_style": CONFLICT_CODES[conf],
+        "time_focus": TIME_CODES[time],
+    }
+
+
+def force_state_from_persona_id(
+    persona_id: str,
+    *,
+    body_state: "BodyState | None" = None,
+    conscience_pressure: float = 0.0,
+) -> "ForceState":
+    """3.0C 主入口: 走 KB → 27-sum fallback → 中性 fallback。
+
+    Args:
+        persona_id: 5 段命名 (见 parse_persona_id)
+        body_state: 3.0B BodyState, 透传到 ForceDynamics.compute()
+        conscience_pressure: 3.0B 良心压力, ∈ [0, 1]
+
+    Returns:
+        ForceState (3 权重, sum=1.0)
+
+    Raises:
+        ValueError: conscience_pressure 不在 [0, 1]
+
+    Fallback 路径 (3 个, 全部走 ForceDynamics.compute()):
+        - 路径 A (kb_hit): persona_id 存在 KB → 直接用 KB baseline (13-dim)
+        - 路径 B (kb_fallback_labels): persona_id 合法但不在 KB → 27-sum
+          (parse_persona_id → labels → KnowledgeBase.compute_baseline_from_labels)
+        - 路径 C (kb_fallback_neutral): persona_id 解析失败 → 中性 baseline (0.5 × 13)
+
+    Spec deviation (vs plan §Step 2.1):
+        Plan 假设 `ForceDynamics.compute(labels=...)` 存在, 实际 API 是
+        `ForceDynamics.compute(personality: dict[str, float])` (13-dim)。
+        Plan 引入的 `_baseline_override` 注入机制不需要——baseline 直接
+        当 personality 传。spec §4.1 描述的行为完全可达, 实现更简洁。
+    """
+    # 延迟 import 避免循环依赖 (force_dynamics imports knowledge, body_state)
+    from .force_dynamics import ForceDynamics
+
+    # 校验 conscience_pressure (跟 ForceDynamics.compute 一致)
+    if not (0.0 <= conscience_pressure <= 1.0):
+        raise ValueError(
+            f"conscience_pressure 必须在 [0, 1]: 收到 {conscience_pressure}"
+        )
+
+    fd = ForceDynamics()
+    labels = parse_persona_id(persona_id)
+    if labels is None:
+        # 路径 C: 解析失败 → 中性 baseline
+        _STATS["kb_fallback_neutral"] += 1
+        logger.error(
+            f"persona_id {persona_id!r} malformed, using neutral baseline (0.5 × 13)"
+        )
+        neutral_baseline = {dim: 0.5 for dim in REQUIRED_DIMS}
+        return fd.compute(
+            personality=neutral_baseline,
+            body_state=body_state,
+            conscience_pressure=conscience_pressure,
+        )
+
+    # persona_id 合法: 查 KB
+    baseline = get_baseline_for_persona(persona_id)
+    if baseline is None:
+        # 路径 B: 不在 KB → 27-sum fallback (KnowledgeBase 27-sum 公式)
+        _STATS["kb_fallback_labels"] += 1
+        logger.warning(
+            f"persona_id {persona_id!r} not in KB, using 27-sum fallback"
+        )
+        baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    else:
+        # 路径 A: KB 命中
+        _STATS["kb_hit"] += 1
+
+    # baseline 现在是 13-dim dict, 直接当 personality 传给 compute()
+    return fd.compute(
+        personality=baseline,
+        body_state=body_state,
+        conscience_pressure=conscience_pressure,
+    )
+
+
 __all__ = [
     "REQUIRED_DIMS",
     "DB_PATH",
+    "MBTI_TYPES",
+    "ATTACH_CODES",
+    "EMOTION_CODES",
+    "CONFLICT_CODES",
+    "TIME_CODES",
     "get_persona_labels_db",
     "get_baseline_for_persona",
     "get_persona_entry",
@@ -229,4 +401,6 @@ __all__ = [
     "list_persona_ids",
     "get_kb_stats",
     "reset_cache",
+    "parse_persona_id",
+    "force_state_from_persona_id",
 ]
