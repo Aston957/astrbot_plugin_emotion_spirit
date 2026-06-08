@@ -374,3 +374,200 @@ def test_force_dynamics_body_state_low_hormone_social():
         f"low hormone (relax) 应放大 social, "
         f"baseline={fs_baseline.social:.3f}, low_hormone={fs_low_hormone.social:.3f}"
     )
+
+
+# ═══ conscience_pressure (Phase 3.0B Task 4) ═══
+#
+# 理论依据: Tangney (2002) self-conscious emotions
+#   - 价值冲突累积 (guilt/shame) → 自我聚焦 → individual +/social -
+#   - 价值对齐 (pride/relief) → 关系放松 → social +/individual -
+#
+# 公式: pressure_factor = conscience_pressure * 0.6 ∈ [0, 0.6]
+#       intensity *= 1.0 + pressure_factor * direction[force]
+#       direction = {"natural": -0.2, "social": -0.5, "individual": +0.7}
+#
+# pressure=0: mult=1.0 全力, 不变 (向后兼容)
+# pressure=1.0: natural 0.88, social 0.70, individual 1.42
+#   → individual 显著增 (Tangney self-focus), social 显著被压 (Schaumberg guilt→withdrawal)
+
+
+def test_force_dynamics_conscience_pressure_default_zero():
+    """compute(p) == compute(p, conscience_pressure=0.0) — backward compat。
+
+    pressure=0 时 pressure_factor=0, mult=1.0 对所有力, 输出应跟无 pressure 一致。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.55,
+        "relational_gravity": 0.50, "intimacy_pull": 0.65, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.50, "curiosity": 0.55, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.60, "exploration_openness": 0.55,
+    }
+    fs_no_pressure = fd.compute(personality)
+    fs_zero_pressure = fd.compute(personality, conscience_pressure=0.0)
+    assert abs(fs_no_pressure.natural - fs_zero_pressure.natural) < 1e-9
+    assert abs(fs_no_pressure.social - fs_zero_pressure.social) < 1e-9
+    assert abs(fs_no_pressure.individual - fs_zero_pressure.individual) < 1e-9
+
+
+def test_force_dynamics_conscience_pressure_validates_range():
+    """conscience_pressure 必须在 [0, 1], 越界 ValueError。"""
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    personality = {"warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50}
+    with pytest.raises(ValueError, match="conscience_pressure"):
+        fd.compute(personality, conscience_pressure=1.5)
+    with pytest.raises(ValueError, match="conscience_pressure"):
+        fd.compute(personality, conscience_pressure=-0.1)
+
+
+def test_force_dynamics_conscience_pressure_neutral_zero_no_shift():
+    """pressure=0 → 3 力权重跟 baseline (无 pressure) 完全一致 (1e-9 内)。
+
+    关键不变量: 默认 conscience_pressure=0.0 跟不传 param 完全等价。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    # 3 力都有偏离 (避免 abs-normalize 把单力压平)
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.60, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.50, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_neutral = fd.compute(personality, conscience_pressure=0.0)
+    assert abs(fs_baseline.natural - fs_neutral.natural) < 1e-9
+    assert abs(fs_baseline.social - fs_neutral.social) < 1e-9
+    assert abs(fs_baseline.individual - fs_neutral.individual) < 1e-9
+
+
+def test_force_dynamics_conscience_pressure_high_individual_boost():
+    """pressure=1.0 → individual 占比显著增加 (Tangney self-focus)。
+
+    individual direction=+0.7, pressure=1.0 → mult=1.42, 在 abs-normalize
+    中 individual 占比应高于 pressure=0 时的占比。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.60, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.50, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_high_pressure = fd.compute(personality, conscience_pressure=1.0)
+    assert fs_high_pressure.individual > fs_baseline.individual, (
+        f"pressure=1.0 应放大 individual (Tangney self-focus), "
+        f"baseline={fs_baseline.individual:.3f}, high={fs_high_pressure.individual:.3f}"
+    )
+
+
+def test_force_dynamics_conscience_pressure_high_social_suppress():
+    """pressure=1.0 → social 占比显著被压 (Schaumberg guilt → social withdrawal)。
+
+    social direction=-0.5 (最强反向), pressure=1.0 → mult=0.70, social 占比应低于 baseline。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.60, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.50, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_high_pressure = fd.compute(personality, conscience_pressure=1.0)
+    assert fs_high_pressure.social < fs_baseline.social, (
+        f"pressure=1.0 应压制 social (guilt → social withdrawal), "
+        f"baseline={fs_baseline.social:.3f}, high={fs_high_pressure.social:.3f}"
+    )
+
+
+def test_force_dynamics_conscience_pressure_intermediate_smooth():
+    """pressure=0.5 效果在 pressure=0 和 pressure=1.0 之间 (monotonic smooth)。
+
+    mult 是 pressure 的线性函数, 所以 intermediate 效果应在两端之间。
+    个体应满足: individual(0) < individual(0.5) < individual(1.0)。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.60, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.50, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    fs_0 = fd.compute(personality, conscience_pressure=0.0)
+    fs_05 = fd.compute(personality, conscience_pressure=0.5)
+    fs_1 = fd.compute(personality, conscience_pressure=1.0)
+    # individual monotonic 增
+    assert fs_0.individual < fs_05.individual < fs_1.individual, (
+        f"individual 应随 pressure 单调增, "
+        f"0={fs_0.individual:.3f}, 0.5={fs_05.individual:.3f}, 1={fs_1.individual:.3f}"
+    )
+    # social monotonic 减
+    assert fs_0.social > fs_05.social > fs_1.social, (
+        f"social 应随 pressure 单调减, "
+        f"0={fs_0.social:.3f}, 0.5={fs_05.social:.3f}, 1={fs_1.social:.3f}"
+    )
+
+
+def test_force_dynamics_force_state_with_conscience_tracker():
+    """force_state_with_conscience(ConscienceTracker) → read pressure → 接入力学。
+
+    验证:
+    1) 全新 ConscienceTracker (pressure=0) → 跟 force_state_with_conscience(None) 一致
+    2) 触发 record_value_conflict (pressure>0) → individual 占比上升 vs pressure=0
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.superego import ConscienceTracker
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.60, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.50, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    # 1) 全新 tracker (pressure=0)
+    tracker_empty = ConscienceTracker()
+    assert tracker_empty.get_pressure() == 0.0
+    fs_empty = fd.force_state_with_conscience(personality, conscience_tracker=tracker_empty)
+    # 等价于 conscience_pressure=0.0 → 等价于 baseline
+    fs_baseline = fd.compute(personality)
+    assert abs(fs_empty.natural - fs_baseline.natural) < 1e-9
+    assert abs(fs_empty.social - fs_baseline.social) < 1e-9
+    assert abs(fs_empty.individual - fs_baseline.individual) < 1e-9
+
+    # 2) 触发 value_conflict (pressure>0)
+    tracker_loaded = ConscienceTracker()
+    # 多次 record_value_conflict 让 pressure 累计到 0.6+ (明显 shift)
+    for _ in range(3):
+        tracker_loaded.record_value_conflict(
+            resistance=0.7,
+            conflict_values=["warmth_bias", "directness"],
+            tension_type="guilt",
+            behavioral_shift=-0.3,
+            conscience_impact=0.3,
+        )
+    pressure = tracker_loaded.get_pressure()
+    assert pressure > 0.5, f"conscience pressure 应 > 0.5, 实际 {pressure}"
+    fs_loaded = fd.force_state_with_conscience(personality, conscience_tracker=tracker_loaded)
+    # individual 占比应高于 baseline
+    assert fs_loaded.individual > fs_baseline.individual, (
+        f"conscience pressure={pressure:.2f} 应放大 individual, "
+        f"baseline={fs_baseline.individual:.3f}, loaded={fs_loaded.individual:.3f}"
+    )
+    # social 占比应低于 baseline
+    assert fs_loaded.social < fs_baseline.social, (
+        f"conscience pressure={pressure:.2f} 应压制 social, "
+        f"baseline={fs_baseline.social:.3f}, loaded={fs_loaded.social:.3f}"
+    )

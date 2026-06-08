@@ -52,13 +52,45 @@ body_state 3 字段 → intensity 调制映射 (per spec §3.1):
 不变量: 缺 body_state 或 body_state=(0.5, 0.5, 0.5) → compute() 输出跟
 无 body_state 时**完全一致** (1e-9 内), 不破坏 3.0A Task 2 (算法 H + STD_FLOOR)
 的 existing tests。
+
+═══════════════════════════════════════════════════════════════════════════════
+Phase 3.0B Task 4 — conscience_pressure 接入 (ConscienceTracker.pressure) (2026-06-08)
+═══════════════════════════════════════════════════════════════════════════════
+
+ForceDynamics.compute() 扩展接受可选 conscience_pressure: float = 0.0 参数,
+调制 3 元力学 intensity 计算。设计原则: 保持 pure-function, 缺 conscience_pressure
+= 0.0 → 输出跟无 conscience_pressure 一致 → 100% 向后兼容。
+
+conscience_pressure → intensity 调制映射 (per spec §3.1 + Tangney 2002):
+
+  理论: 良心压力 → 自我意识情绪 (self-conscious emotions, Tangney 2002)
+    - guilt/shame (价值冲突) → 自我聚焦 → individual 增, social 退缩
+    - pride/relief (价值对齐) → 关系放松 → social 增, individual 减
+  公式:
+    pressure_factor = conscience_pressure * 0.6  ∈ [0, 0.6]
+    pressure_mult = 1.0 + pressure_factor * direction[force]
+    direction = {"natural": -0.2, "social": -0.5, "individual": +0.7}
+  pressure=0:    pressure_factor=0,    mult=1.0 全力 → 不变 (向后兼容)
+  pressure=0.5:  pressure_factor=0.30, natural 0.94, social 0.85, individual 1.21
+  pressure=1.0:  pressure_factor=0.60, natural 0.88, social 0.70, individual 1.42
+  → individual 显著增 (Tangney self-focus), social 显著被压
+    (Schaumberg 2000: guilt → social withdrawal)
+
+应用位置: hormone 调制之后, abs-normalize 之前 (per-force 异步调制, 改
+归一化比例)。缺 conscience_pressure=0.0 → mult=1.0 全力, 不影响输出。
+
+不变量: compute(p) == compute(p, conscience_pressure=0.0) (1e-9 内)
 """
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .registry import register
 from .knowledge import KnowledgeBase
 from .body_state import BodyState
+
+if TYPE_CHECKING:
+    from .superego import ConscienceTracker
 
 
 @dataclass
@@ -124,23 +156,42 @@ class ForceDynamics:
     }
     _HORMONE_SCALE: float = 0.5  # shift = (hormone - 0.5) × 0.5 ∈ [-0.25, +0.25]
 
+    # conscience_pressure 方向系数 (Phase 3.0B Task 4): 良心压力 (价值冲突
+    # 累积) → individual 显著增 (+0.7, Tangney self-focus), social 显著压
+    # (-0.5, Schaumberg guilt→social withdrawal), natural 轻压 (-0.2)
+    _PRESSURE_DIRECTION: dict[str, float] = {
+        "natural": -0.2, "social": -0.5, "individual": +0.7,
+    }
+    _PRESSURE_SCALE: float = 0.6  # pressure_factor = pressure × 0.6 ∈ [0, 0.6]
+
     def compute(
         self,
         personality: dict[str, float],
         body_state: BodyState | None = None,
+        conscience_pressure: float = 0.0,
     ) -> ForceState:
-        """算法 H: per-dim 极化 × 跨人方差 → ForceState (可选用 body_state 调制)。
+        """算法 H: per-dim 极化 × 跨人方差 → ForceState (可选用 body_state + conscience_pressure 调制)。
 
         Args:
             personality: 13 维 dim → float (允许 > 1.0, B 决策)
-            body_state: 可选 BodyState (Phase 3.0B), 调制 intensity 计算:
+            body_state: 可选 BodyState (Phase 3.0B Task 3), 调制 intensity 计算:
                 - arousal: 0.5+arousal ∈ [0.5, 1.5], 应用在 per-dim salience
                 - energy: 0.5+0.5×energy ∈ [0.5, 1.0], 同步作用 3-force |intensity|
                 - hormone: per-force multiplier (individual +0.8 最敏感, social -0.3)
                 缺省 (None) → 不调制, 输出跟 3.0A 算法 H + STD_FLOOR 一致
+            conscience_pressure: 可选 良心压力 [0, 1] (Phase 3.0B Task 4),
+                调制 3-force per-force multiplier (Tangney self-conscious emotions):
+                - pressure_factor = pressure × 0.6 ∈ [0, 0.6]
+                - direction = {natural: -0.2, social: -0.5, individual: +0.7}
+                - pressure=0 → mult=1.0, 全力不变
+                - pressure=1.0 → natural 0.88, social 0.70, individual 1.42
+                缺省 0.0 → 不调制, 输出跟无 conscience_pressure 一致
 
         Returns:
             ForceState (3 权重, sum=1.0)
+
+        Raises:
+            ValueError: conscience_pressure 不在 [0, 1] 时
 
         处理:
             - 缺 dim 跳过
@@ -150,11 +201,18 @@ class ForceDynamics:
             - 未知 dim → fallback std=0.20 (>= STD_FLOOR, floor 不触发)
 
         不变量:
-            compute(p) == compute(p, None) == compute(p, BodyState(0.5, 0.5, 0.5))
+            compute(p) == compute(p, None, 0.0) == compute(p, BodyState(0.5, 0.5, 0.5), 0.0)
             (arousal=0.5 中性时 salience_factor=1.0; energy=0.5 中性时
             energy_factor=0.75 同步作用于 3-force 归一化后比例不变;
-            hormone=0.5 中性时 per-force mult=1.0)
+            hormone=0.5 中性时 per-force mult=1.0; conscience_pressure=0
+            中性时 per-force mult=1.0)
         """
+        # conscience_pressure 范围校验 (Phase 3.0B Task 4)
+        if not (0.0 <= conscience_pressure <= 1.0):
+            raise ValueError(
+                f"conscience_pressure 必须在 [0, 1]: 收到 {conscience_pressure}"
+            )
+
         # 解析 body_state 调制因子 (None → 中性, 等同 (0.5, 0.5, 0.5))
         if body_state is None:
             arousal_factor = 1.0
@@ -164,6 +222,9 @@ class ForceDynamics:
             arousal_factor = 0.5 + body_state.arousal   # [0.5, 1.5]
             energy_factor = 0.5 + 0.5 * body_state.energy  # [0.5, 1.0]
             hormone_shift = (body_state.hormone - 0.5) * self._HORMONE_SCALE  # [-0.25, +0.25]
+
+        # conscience_pressure 调制因子 (Phase 3.0B Task 4)
+        pressure_factor = conscience_pressure * self._PRESSURE_SCALE  # [0, 0.6]
 
         intensities: dict[str, float] = {"natural": 0.0, "social": 0.0, "individual": 0.0}
         for force in ("natural", "social", "individual"):
@@ -189,9 +250,14 @@ class ForceDynamics:
         # 注: energy 同步作用于 3-force raw intensity, abs-normalize 后比例
         # 不变 (符合"低能量 → 全部衰减"语义)。hormone 异步 (per-force 方向
         # 系数不同), 改归一化比例。
+        # Phase 3.0B Task 4: + conscience_pressure 调制 (per-force 异步, 跟
+        # hormone 同位置, 改归一化比例)。pressure_factor=0 → mult=1.0 不变。
         for force in intensities:
             hormone_mult = 1.0 + hormone_shift * self._HORMONE_DIRECTION[force]
-            intensities[force] = intensities[force] * energy_factor * hormone_mult
+            pressure_mult = 1.0 + pressure_factor * self._PRESSURE_DIRECTION[force]
+            intensities[force] = (
+                intensities[force] * energy_factor * hormone_mult * pressure_mult
+            )
 
         # |intensity| 归一化
         abs_intensities = {f: abs(intensities[f]) for f in intensities}
@@ -206,6 +272,33 @@ class ForceDynamics:
             natural=abs_intensities["natural"] / total,
             social=abs_intensities["social"] / total,
             individual=abs_intensities["individual"] / total,
+        )
+
+    def force_state_with_conscience(
+        self,
+        personality: dict[str, float],
+        conscience_tracker: "ConscienceTracker | None" = None,
+        body_state: BodyState | None = None,
+    ) -> ForceState:
+        """便捷方法: 读 ConscienceTracker.get_pressure() → 接入力学 (Phase 3.0B Task 4)。
+
+        Args:
+            personality: 13 维 dim → float
+            conscience_tracker: 可选 ConscienceTracker 实例 (Phase 3.0B Task 4)
+                None → pressure=0, 跟不传 pressure 等价
+            body_state: 可选 BodyState (同 compute())
+
+        Returns:
+            ForceState (3 权重, sum=1.0)
+
+        设计: 避免 caller 手动调 tracker.get_pressure(), 让 ForceDynamics
+        知道"压力源是 ConscienceTracker" (而不是别的 scalar)。
+        """
+        pressure = (
+            conscience_tracker.get_pressure() if conscience_tracker is not None else 0.0
+        )
+        return self.compute(
+            personality, body_state=body_state, conscience_pressure=pressure,
         )
 
     def force_state_from_labels(self, labels: dict[str, str]) -> ForceState:
