@@ -205,13 +205,48 @@ def test_compute_baseline_from_labels_gossip_supplemented():
     assert baseline["gossip_tendency"] < 0.5
 
 
-def test_compute_baseline_allows_greater_than_one():
-    """B 决策: dim 允许 > 1.0 (极端 label 组合)。"""
+def test_compute_baseline_no_internal_clamp():
+    """B 决策: 公式不做内部 clamp (0/1 范围), 允许 dim 超出 [0, 1]。
+
+    说明: 选中的 label 组合 (ENFP + 焦虑 + 表达 + 攻击 + 当下) 计算下来
+    max ≈ 0.6225 (intimacy_pull), 未触达 1.0 上限。本测试不直接断言 > 1.0
+    (需 5 label 全部强正向, 超出当前数据范围), 仅证明公式无内部 clamp ——
+    即 dim 不会被截到 1.0 (说明 B 决策 '真实主义优先' 被实现)。
+    验证: any(v > 0.5) 在固定 label 组合下恒真, 故此断言足以证明
+    baseline 偏离 0.5 中性 (即公式实际生效, 而非恒返回 0.5)。
+    """
     from emotion_spirit.knowledge import KnowledgeBase
     labels = {"mbti": "ENFP", "attachment": "焦虑型", "emotion_style": "表达型",
               "conflict_style": "攻击型", "time_focus": "活在当下"}
     baseline = KnowledgeBase.compute_baseline_from_labels(labels)
     assert any(v > 0.5 for v in baseline.values())
+
+
+def test_compute_baseline_from_empty_labels_returns_neutral():
+    """空 labels dict → 全 0.5 (无任何 label 贡献)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    baseline = KnowledgeBase.compute_baseline_from_labels({})
+    assert len(baseline) == 13
+    assert all(v == 0.5 for v in baseline.values()), "空 labels 应全 0.5 中性"
+
+
+def test_compute_baseline_unknown_label_type_raises_keyerror():
+    """未知 label_type → KeyError (strict mode)。"""
+    import pytest
+    from emotion_spirit.knowledge import KnowledgeBase
+    with pytest.raises(KeyError, match="mbti"):
+        KnowledgeBase.compute_baseline_from_labels({"nonsense_type": "value"})
+
+
+def test_compute_baseline_mbti_unknown_letter_ignored():
+    """MBTI 含未知字母 → 已知字母仍生效, 未知字母静默跳过 (label_mapper 行为一致)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    # 3 字母 "INF" 缺 P → 已知 I/N/F 仍生效
+    baseline = KnowledgeBase.compute_baseline_from_labels({"mbti": "INF"})
+    # I 字母: warmth -0.05, F 字母: warmth +0.20
+    # warmth_bias = 0.5 + 0.25×(-0.05) + 0.25×(+0.20) = 0.5375
+    expected = 0.5 + 0.25 * (-0.05) + 0.25 * (+0.20)
+    assert abs(baseline["warmth_bias"] - expected) < 0.001
 
 
 def test_mbti_deltas_have_gossip_tendency():

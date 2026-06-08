@@ -166,7 +166,10 @@ class KnowledgeBase:
 
     @classmethod
     def get_cross_persona_std(cls, dim: str) -> float:
-        """查 13 维跨人方差 (B 纯文献, 0.10-0.30 范围)。"""
+        """查 13 维跨人方差 (B 纯文献)。
+
+        统一 API 风格 — 未知 dim 抛 KeyError, 与 get_threshold / get_delta_for_label / get_narrative_template 一致。
+        """
         if dim not in cls.DIM_CROSS_PERSONA_STD:
             raise KeyError(
                 f"未知 dim: {dim} (13 维: {list(cls.DIM_CROSS_PERSONA_STD.keys())})"
