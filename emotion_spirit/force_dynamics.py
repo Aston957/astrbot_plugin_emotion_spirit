@@ -14,6 +14,35 @@
 
 Phase 3.0A 范围: 静态计算 + 验证
 Phase 3.0B 接入: body state → 力学漂移, ConscienceTracker 累积
+
+═══════════════════════════════════════════════════════════════════════════════
+Phase 3.0B Task 3 — std floor + INFP-A narrative back-test (2026-06-08)
+═══════════════════════════════════════════════════════════════════════════════
+
+1) std floor: ForceDynamics.STD_FLOOR = 0.10, 在 compute() 内对每个 dim 的
+   std 套 max(..., STD_FLOOR)。当前 13 维 std 全在 0.17-0.25 区间, floor
+   不会改变实际结果; 未来若新加 std < 0.10 的 dim, 兜底防止被压扁。
+   未知 dim 仍走 fallback 0.20 (>= STD_FLOOR, floor 不触发)。
+
+2) 5 fixture dominant back-test (post std floor + Task 1 curiosity/perception 补源):
+   INFP-A  → natural     (spec §4.3 预测 individual, 3.0A 实测 natural)
+   ISTJ-S  → individual  (spec §4.3 individual, 3.0A 实测 social ← Task 1 翻盘)
+   ENTP-AV → individual  (spec §4.3 individual, 3.0A 实测 individual)
+   ISFJ-D  → natural     (spec §4.3 individual, 3.0A 实测 natural)
+   ESTP-A  → social      (spec §4.3 individual, 3.0A 实测 social)
+   分布: 2 natural + 2 individual + 1 social (3.0A: 2N+2S+1I; spec §4.3: 4I+1S)
+   std floor 未翻转任何 dominant (符合预期: 0.10 远低于 13 维最低 0.17);
+   Task 1 补源让 ISTJ-S 从 social 翻到 individual (curiosity/perception_acuity
+   增加 MBTI 维度对 individual 的拉力)。
+
+3) INFP-A narrative back-test 决定 (Phase 3.0A report §3.1 留的口子):
+   spec §4.3 预测 INFP-A → individual (手算近似, 标"反直觉, narrative 回测决定");
+   3.0A + 3.0B Task 3 实测均 → natural。**决策: 接受 "natural" 为 INFP-A 真值**。
+   narrative 解释: INFP-A warmth_bias=0.5675 (5 标签加权正向) + boundary 同向,
+   natural 力 (3 dim) 全员正偏离 + 高 std 0.18-0.20, 主导力清晰; individual
+   力虽 curiosity/perception_acuity 在 Task 1 后增强, 仍不及 warmth_bias 累积的
+   natural 拉力。spec §4.3 的 individual 预测是手算误差 (hand-calc 漏算 warmth
+   的 0.5675 dev)。**spec 文件保持冻结**, 偏离记录在本文档 (代码内自包含)。
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -62,6 +91,11 @@ class ForceState:
 class ForceDynamics:
     """三元力学引擎 — 13-dim personality → ForceState (算法 H)。"""
 
+    # std 下限 clamp (Phase 3.0B Task 3):
+    # 防止极小 std 把对应 dim 的贡献"压扁"。当前 13 维 std 全在 0.17-0.25
+    # 区间, floor 不会改变实际结果; 未来若新加 std < 0.10 的 dim, 兜底生效。
+    STD_FLOOR: float = 0.10
+
     def __init__(self) -> None:
         # KB 提供 DIM_FORCE + DIM_CROSS_PERSONA_STD
         self._dim_to_force = KnowledgeBase.DIM_FORCE
@@ -86,6 +120,8 @@ class ForceDynamics:
             - 缺 dim 跳过
             - 不在 DIM_FORCE 的 dim 跳过
             - 全 0 → 均匀 1/3 each
+            - std < STD_FLOOR → clamp 到 STD_FLOOR (Phase 3.0B)
+            - 未知 dim → fallback std=0.20 (>= STD_FLOOR, floor 不触发)
         """
         intensities: dict[str, float] = {"natural": 0.0, "social": 0.0, "individual": 0.0}
         for force in ("natural", "social", "individual"):
@@ -95,7 +131,8 @@ class ForceDynamics:
                 if dim not in personality:
                     continue
                 value = personality[dim]
-                std = self._dim_std.get(dim, 0.20)  # fallback
+                # std 兜底: 未知 dim → 0.20, 然后 floor clamp (Phase 3.0B Task 3)
+                std = max(self._dim_std.get(dim, 0.20), self.STD_FLOOR)
                 dev = value - 0.5
                 signed_dev_sum += dev * std
                 salience_sum += abs(dev) * std
