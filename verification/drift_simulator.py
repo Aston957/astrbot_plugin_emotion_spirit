@@ -2,18 +2,20 @@
 
 v1.7.2: 12 维 → 13 维 (+gossip_tendency)
 v1.7:   11 维 → 12 维 (autonomy_guard 拆分为 relational_autonomy + exploration_openness)
+3.0A:  B 决策 — 单一 labels= 入口, 删 [0,1] clamp (真实主义)
 
 漂移规则:
 1. 每轮小漂移: ±0.005~0.03 (由场景和 MBTI+依恋风格约束方向)
 2. EMA 回归: 每轮向基线拉回 0.1%~0.5% (深层维度回归力更强)
 3. 大事件冲击: 级联/创伤事件可产生一次性大偏移 (±0.05~0.15)
-4. Clamp 到 [0, 1]
+4. (Phase 3.0A 删) Clamp 到 [0, 1] — B 决策: 真实主义, 允许 baseline / drift > 1.0
 5. 深层维度变化率为表层的 40% (基于 Roberts & DelVecchio, 2000)
 
-Phase C (Task C3): 新增 gossip_tendency 真消费点仿真
-  - DriftSimulator(persona_id=X) 从 KnowledgeBase 读 baseline
-  - process_message(topic="gossip", content=...) 触发 gossip_tendency 漂移
-  - simulate_persona() 5 persona × 8 scenarios 仿真入口
+Phase 3.0A (Task 2) 通用化:
+  - DriftSimulator(labels={...}) 唯一入口 (keyword-only), 走 KB.compute_baseline_from_labels
+  - 删 persona_id / 旧 positional / initial_labels 入口 (KB.PERSONA_BASELINES 已删)
+  - 删 3 处 [0,1] clamp (deep step + surface step + gossip_tendency process_message)
+  - 5 persona fixture labels 见 tests/conftest.py
 """
 
 from __future__ import annotations
@@ -60,11 +62,21 @@ def _is_gossip_content(content: str) -> bool:
 
 
 class DriftSimulator:
-    """模拟 SylannEngine 13 维人格参数的长期漂移 (v1.7.2: 12→13)。
+    """模拟 SylannEngine 13 维人格参数的长期漂移 (v1.7.2: 12→13, Phase 3.0A: 通用化)。
 
-    支持两种构造方式:
-      1. DriftSimulator(persona_id="INFP-A")  ← 读 KnowledgeBase.PERSONA_BASELINES
-      2. DriftSimulator(initial_labels={...})  ← 旧 API, 用 labels_to_personality 算 baseline
+    Phase 3.0A (B 决策) 唯一构造方式:
+      DriftSimulator(labels={...})   ← 唯一入口, keyword-only
+        baseline 来自 KnowledgeBase.compute_baseline_from_labels (5 标签等权公式)
+        5 persona fixture labels 见 tests/conftest.py (INFP_A_LABELS 等)
+
+    Phase 3.0A (B 决策) 删掉的旧入口:
+      - DriftSimulator(persona_id="INFP-A")  ← 删 (KB.PERSONA_BASELINES 已删)
+      - DriftSimulator(initial_labels={...})  ← 删 (统一走 labels=)
+      - DriftSimulator("INFP-A")              ← 删 (positional 禁用)
+
+    Phase 3.0A (B 决策) 删掉的 [0,1] clamp:
+      - step() deep + surface: 不再 clamp (允许 baseline / cumulative drift > 1.0)
+      - process_message gossip_tendency: 不再 clamp (cumulative drift)
 
     Phase C 新增方法 (gossip_tendency 真消费点仿真):
       - get_initial_personality() → flat dict {dim: value} (13 维)
@@ -75,70 +87,38 @@ class DriftSimulator:
 
     def __init__(
         self,
-        arg: "str | dict[str, str] | None" = None,
         *,
-        persona_id: "str | None" = None,
-        initial_labels: "dict[str, str] | None" = None,
+        labels: "dict[str, str] | None" = None,
     ) -> None:
-        # 支持两种调用方式:
-        # 1. DriftSimulator(persona_id="INFP-A")  ← 新 API (Phase C)
-        # 2. DriftSimulator(initial_labels={...})  ← 旧 API (显式 kwargs)
-        # 3. DriftSimulator(labels_dict)  ← 旧 API (positional dict, 向后兼容)
-        # 4. DriftSimulator("INFP-A")  ← 新 API (positional str, 简短)
-        if persona_id is not None and initial_labels is not None:
-            raise TypeError("persona_id 和 initial_labels 不能同时指定")
-
-        if arg is not None and not isinstance(arg, (str, dict)):
+        # Phase 3.0A: B 决策 — 单一入口 labels= (keyword-only)
+        if labels is None:
             raise TypeError(
-                f"DriftSimulator 第一参数必须是 str 或 dict, 收到 {type(arg).__name__}"
+                "DriftSimulator 需要 labels= 参数 (dict, e.g. "
+                "{\"mbti\": \"INFP\", \"attachment\": \"安全型\", ...})"
+            )
+        if not isinstance(labels, dict):
+            raise TypeError(
+                f"DriftSimulator(labels=...) 必须是 dict, 收到 {type(labels).__name__}"
             )
 
-        if arg is None:
-            # 全用 keyword args
-            effective_persona_id = persona_id
-            effective_labels = initial_labels
-        elif isinstance(arg, str):
-            effective_persona_id = arg
-            effective_labels = initial_labels
-        else:  # dict
-            effective_persona_id = persona_id
-            effective_labels = arg
+        self._labels = dict(labels)  # 副本, 防外部修改
+        self._persona_id = None  # Phase 3.0A: 无 persona 概念
 
-        if effective_persona_id is not None and effective_labels is not None:
-            raise TypeError("persona_id 和 initial_labels 不能同时指定")
-
-        if effective_persona_id is not None:
-            # Phase C 新路径: 从 KnowledgeBase 读 baseline
-            self._persona_id = effective_persona_id
-            self._labels = None
-            baseline_flat = KnowledgeBase.get_persona_baseline(effective_persona_id)
-            # 拆成 deep / surface 两层 (跟旧 API 兼容)
-            self._baseline = {
-                "deep": {d: baseline_flat[d] for d in DEEP_DIMS if d in baseline_flat},
-                "surface": {d: baseline_flat[d] for d in SURFACE_DIMS if d in baseline_flat},
-            }
-            # 完整 flat baseline (13 维)
-            self._initial_flat = dict(baseline_flat)
-        elif effective_labels is not None:
-            # 旧 API: 保留向后兼容
-            self._persona_id = None
-            self._labels = effective_labels
-            self._baseline = labels_to_personality(effective_labels)
-            # flat 形式
-            self._initial_flat = {
-                **{k: v for k, v in self._baseline["deep"].items()},
-                **{k: v for k, v in self._baseline["surface"].items()},
-            }
-        else:
-            raise TypeError(
-                "DriftSimulator 需要 persona_id 或 initial_labels 参数之一"
-            )
+        # 通用 baseline (走 compute_baseline_from_labels, 不走已删的 PERSONA_BASELINES)
+        baseline_flat = KnowledgeBase.compute_baseline_from_labels(self._labels)
+        # 拆成 deep / surface 两层
+        self._baseline = {
+            "deep": {d: baseline_flat[d] for d in DEEP_DIMS if d in baseline_flat},
+            "surface": {d: baseline_flat[d] for d in SURFACE_DIMS if d in baseline_flat},
+        }
+        # 完整 flat baseline (13 维, Phase C)
+        self._initial_flat = dict(baseline_flat)
 
         self._current = {
             "deep": dict(self._baseline["deep"]),
             "surface": dict(self._baseline["surface"]),
         }
-        # flat 形式 (Phase C 新增)
+        # flat 形式 (Phase C)
         self._current_flat = dict(self._initial_flat)
         self._turn = 0
         self._history: list[dict[str, float]] = []
@@ -204,9 +184,9 @@ class DriftSimulator:
             if is_trauma:
                 event_delta = random.gauss(0, 0.08)
 
-            self._current["deep"][dim] = max(0.0, min(1.0,
+            self._current["deep"][dim] = (
                 current_val + regression + noise + scenario_delta + event_delta
-            ))
+            )
 
         for dim in SURFACE_DIMS:
             baseline_val = self._baseline["surface"].get(dim, 0.5)
@@ -225,9 +205,9 @@ class DriftSimulator:
             if is_trauma:
                 event_delta = random.gauss(0, 0.12)
 
-            self._current["surface"][dim] = max(0.0, min(1.0,
+            self._current["surface"][dim] = (
                 current_val + regression + noise + scenario_delta + event_delta
-            ))
+            )
 
         # 同步 flat (Phase C)
         self._sync_flat()
@@ -262,17 +242,16 @@ class DriftSimulator:
           - topic="gossip" + content 含 gossip 关键字 → gossip_tendency +GOSSIP_DRIFT_STEP
           - topic="neutral" → 无 gossip_tendency 漂移
           - 其他 topic → 无 gossip_tendency 漂移
+
+        Phase 3.0A (B 决策): 删 [0,1] clamp, 允许 cumulative gossip drift > 1.0 (真实主义)。
         """
         if topic == "gossip" and _is_gossip_content(content):
             current_gt = self._current_flat.get("gossip_tendency", 0.5)
-            self._current_flat["gossip_tendency"] = min(
-                1.0, current_gt + GOSSIP_DRIFT_STEP,
-            )
+            new_gt = current_gt + GOSSIP_DRIFT_STEP
+            self._current_flat["gossip_tendency"] = new_gt
             # 同步分层结构
             if "gossip_tendency" in self._current["surface"]:
-                self._current["surface"]["gossip_tendency"] = min(
-                    1.0, current_gt + GOSSIP_DRIFT_STEP,
-                )
+                self._current["surface"]["gossip_tendency"] = new_gt
 
     def run_drift_check(self) -> None:
         """跑 drift 检查 (记录历史快照)。"""
@@ -287,7 +266,7 @@ class DriftSimulator:
             self._current_flat[k] = v
 
 
-# ═══ Module-level 仿真函数 (Phase C 新增) ═══
+# ═══ Module-level 仿真函数 (Phase C 新增, Phase 3.0A 通用化) ═══
 
 # 8 scenarios (跟 plan spec 一致)
 _SCENARIOS: list[str] = [
@@ -311,26 +290,29 @@ _SCENARIO_TOPIC: dict[str, str] = {
 
 
 def simulate_persona(
-    persona_id: str,
+    labels: dict[str, str],
     scenario: str,
     steps: int = 20,
+    persona_id: str | None = None,  # 仅用于报告字段 (5 persona fixture 时填)
 ) -> dict[str, Any]:
-    """单人 + 单 scenario 仿真 (5 persona × 8 scenarios 入口)。
+    """单人 + 单 scenario 仿真 (Phase 3.0A: 通用化入口, 走 labels=)。
 
     Args:
-        persona_id: 5 persona 之一 (INFP-A, ISTJ-S, ENTP-AV, ISFJ-D, ESTP-A)
+        labels: 5 标签 dict (mbti/attachment/emotion_style/conflict_style/time_focus)
         scenario: 8 scenarios 之一
         steps: 仿真步数 (默认 20)
+        persona_id: 可选, 仅用于报告字段 (5 persona fixture 时填 "INFP-A" 等)
 
     Returns:
         {
-            "persona_id": str,
+            "persona_id": str | None,  # 报告字段
+            "labels": dict[str, str],  # 输入参数 (回显)
             "scenario": str,
             "personality": dict[str, float],   # 13 维 flat, 含 gossip_tendency
             "trajectory": list[dict[str, float]],  # 每步快照
         }
     """
-    sim = DriftSimulator(persona_id=persona_id)
+    sim = DriftSimulator(labels=labels)
     topic = _SCENARIO_TOPIC.get(scenario, "neutral")
     trajectory: list[dict[str, float]] = [sim.get_initial_personality()]
 
@@ -345,6 +327,7 @@ def simulate_persona(
 
     return {
         "persona_id": persona_id,
+        "labels": dict(labels),
         "scenario": scenario,
         "personality": sim.get_current_personality(),
         "trajectory": trajectory,

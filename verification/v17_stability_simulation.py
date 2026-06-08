@@ -48,7 +48,7 @@ def run_simulation(n_turns: int = 1000, seed: int = 42) -> dict:
     scenarios = list(SCENARIOS.keys())
 
     for name, labels in PERSONAS:
-        sim = DriftSimulator(labels)
+        sim = DriftSimulator(labels=labels)
         baseline = sim.baseline
         initial = sim.current
 

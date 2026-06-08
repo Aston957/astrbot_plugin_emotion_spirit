@@ -88,7 +88,7 @@ def run_one_persona_full(
     """运行一个 persona 的完整管线数据收集。"""
     import random
     random.seed(seed)
-    drift_sim = DriftSimulator(labels)
+    drift_sim = DriftSimulator(labels=labels)
     baseline = drift_sim.baseline
 
     # 真实 SurfaceConsumer
@@ -272,7 +272,7 @@ def run_one_persona_partial(
     """运行一个 persona 的 partial 管线 (旧版, 仅 drift + consume + log)。"""
     import random
     random.seed(seed)
-    drift_sim = DriftSimulator(labels)
+    drift_sim = DriftSimulator(labels=labels)
     baseline = drift_sim.baseline
     consumer = SurfaceConsumer()
     sequence = generate_bursty_scenario_sequence(n_turns, seed=seed)

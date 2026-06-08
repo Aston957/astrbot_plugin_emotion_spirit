@@ -88,7 +88,7 @@ class SimulationRunner:
             random.seed(seed)
 
         # 初始化漂移模拟器
-        self._drift_sim = DriftSimulator(labels)
+        self._drift_sim = DriftSimulator(labels=labels)
 
         # 初始化 emotion_spirit 各模块
         baseline = labels_to_personality(labels)
@@ -274,11 +274,12 @@ class SimulationRunner:
 # ═══ Phase C (Task C3) 新增: gossip_tendency 仿真入口 ═══
 
 def run_simulation(
-    persona_id: str,
+    labels: dict[str, str],
     scenario: str,
     steps: int = 10,
+    persona_id: str | None = None,  # 仅用于报告字段
 ) -> dict[str, Any]:
-    """单人 + 单 scenario 仿真 (5 persona × 8 scenarios 入口)。
+    """单人 + 单 scenario 仿真 (Phase 3.0A: 通用化入口, 走 labels=)。
 
     Phase C (Task C3): gossip_tendency 真消费点验证
       - 报告字段包含 gossip_tendency (13 维)
@@ -293,17 +294,21 @@ def run_simulation(
         保证 gossip_tendency 仿真逻辑只有一份 (DRY)
 
     Args:
-        persona_id: 5 persona 之一 (INFP-A, ISTJ-S, ENTP-AV, ISFJ-D, ESTP-A)
+        labels: 5 标签 dict (mbti/attachment/emotion_style/conflict_style/time_focus)
         scenario: 8 scenarios 之一
         steps: 仿真步数 (默认 10)
+        persona_id: 可选, 仅用于报告字段 (5 persona fixture 时填 "INFP-A" 等)
 
     Returns:
         {
-            "persona_id": str,
+            "persona_id": str | None,  # 报告字段
+            "labels": dict[str, str],  # 输入参数 (回显)
             "scenario": str,
             "personality": dict[str, float],   # 13 维 flat, 含 gossip_tendency
             "trajectory": list[dict[str, float]],  # 每步快照
         }
     """
     # 委托给 drift_simulator.simulate_persona (单一实现, top-level import)
-    return simulate_persona(persona_id=persona_id, scenario=scenario, steps=steps)
+    return simulate_persona(
+        labels=labels, scenario=scenario, steps=steps, persona_id=persona_id,
+    )
