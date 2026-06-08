@@ -2,10 +2,13 @@
 
 Step 1 范围:
   - 13 维 personality 权威集合
-  - 5 persona baseline (含 gossip_tendency)
   - 5 轴标签 delta (mbti/attachment/emotion_style/conflict_style/time_focus)
   - 数值阈值 (intimacy_segments, lifecycle, buffer, regression 等)
-  - 统一查询 API: get_persona_baseline / get_delta_for_label / get_threshold
+  - 统一查询 API: get_delta_for_label / get_threshold / compute_baseline_from_labels
+
+Phase 3.0A Task 1 删除:
+  - test_knowledge_base_exposes_personality_baselines (KB.PERSONA_BASELINES 已删, 走 compute_baseline_from_labels)
+  - test_knowledge_base_get_persona_baseline_returns_copy (get_persona_baseline 已删)
 """
 
 import sys
@@ -14,15 +17,6 @@ import os
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def test_knowledge_base_exposes_personality_baselines():
-    """Step 1: KnowledgeBase.PERSONA_BASELINES 必须含 5 persona baseline。"""
-    from emotion_spirit.knowledge import KnowledgeBase
-    assert hasattr(KnowledgeBase, "PERSONA_BASELINES")
-    assert len(KnowledgeBase.PERSONA_BASELINES) == 5
-    for persona in ["INFP-A", "ISTJ-S", "ENTP-AV", "ISFJ-D", "ESTP-A"]:
-        assert persona in KnowledgeBase.PERSONA_BASELINES
 
 
 def test_knowledge_base_exposes_mbti_letter_deltas():
@@ -38,15 +32,6 @@ def test_knowledge_base_get_delta_for_label_dispatches_correctly():
     i_delta = KnowledgeBase.get_delta_for_label("mbti", "I")
     assert "warmth_bias" in i_delta
     assert i_delta["warmth_bias"] < 0  # I 偏冷
-
-
-def test_knowledge_base_get_persona_baseline_returns_copy():
-    """Step 1: get_persona_baseline 返回 dict 副本, 修改不影响原数据。"""
-    from emotion_spirit.knowledge import KnowledgeBase
-    baseline = KnowledgeBase.get_persona_baseline("INFP-A")
-    baseline["gossip_tendency"] = 999  # 不应影响原数据
-    fresh = KnowledgeBase.get_persona_baseline("INFP-A")
-    assert fresh["gossip_tendency"] != 999
 
 
 def test_knowledge_base_thresholds_include_intimacy_segments():
@@ -137,12 +122,126 @@ def test_old_emotion_classifier_fields_removed():
             assert not hasattr(ec, full), f"emotion_classifier.{full} 应已删"
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Phase 3.0A Task 1: KB 重构 (5 标签等权 + 13 维 std + gossip 补源 + 删 fixture)
+# ════════════════════════════════════════════════════════════════════════════
+
+def test_knowledge_base_has_label_weights():
+    """KB.LABEL_WEIGHTS 5 标签权重, 总和=1.0。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert hasattr(KnowledgeBase, "LABEL_WEIGHTS"), "KB 缺 LABEL_WEIGHTS"
+    assert set(KnowledgeBase.LABEL_WEIGHTS.keys()) == {"mbti", "attachment", "emotion_style", "conflict_style", "time_focus"}
+    total = sum(KnowledgeBase.LABEL_WEIGHTS.values())
+    assert abs(total - 1.0) < 0.001, f"LABEL_WEIGHTS 总和 {total} != 1.0"
+
+
+def test_knowledge_base_label_weights_match_user_decision():
+    """MBTI 0.25, time 0.15, 其他 0.20 (用户定)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert KnowledgeBase.LABEL_WEIGHTS["mbti"] == 0.25
+    assert KnowledgeBase.LABEL_WEIGHTS["time_focus"] == 0.15
+    assert KnowledgeBase.LABEL_WEIGHTS["attachment"] == 0.20
+    assert KnowledgeBase.LABEL_WEIGHTS["emotion_style"] == 0.20
+    assert KnowledgeBase.LABEL_WEIGHTS["conflict_style"] == 0.20
+
+
+def test_knowledge_base_has_cross_persona_std_13_dims():
+    """KB.DIM_CROSS_PERSONA_STD 13 维全部 std, 范围 [0.10, 0.30]。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert hasattr(KnowledgeBase, "DIM_CROSS_PERSONA_STD")
+    assert len(KnowledgeBase.DIM_CROSS_PERSONA_STD) == 13
+    for dim, std in KnowledgeBase.DIM_CROSS_PERSONA_STD.items():
+        assert 0.10 <= std <= 0.30, f"{dim} std {std} 超出 [0.10, 0.30]"
+
+
+def test_knowledge_base_cross_persona_std_specific_values():
+    """13 维 std 全部具体值 (B 纯文献, 不用范围)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    expected = {
+        "warmth_bias": 0.20, "patience": 0.19, "boundary_permeability": 0.18,
+        "relational_gravity": 0.20, "intimacy_pull": 0.22, "expression_drive": 0.20,
+        "gossip_tendency": 0.22, "inner_coherence": 0.19, "curiosity": 0.20,
+        "perception_acuity": 0.17, "directness": 0.20, "relational_autonomy": 0.25,
+        "exploration_openness": 0.20,
+    }
+    assert KnowledgeBase.DIM_CROSS_PERSONA_STD == expected
+
+
+def test_knowledge_base_no_persona_baselines_deleted():
+    """KB.PERSONA_BASELINES 已删 (选 A)。"""
+    from emotion_spirit import knowledge
+    assert not hasattr(knowledge.KnowledgeBase, "PERSONA_BASELINES"), (
+        "KB.PERSONA_BASELINES 应删, 5 persona baseline 改用 compute_baseline_from_labels"
+    )
+
+
+def test_knowledge_base_no_test_personas_deleted():
+    """KB.TEST_PERSONAS 已删 (选 B 单入口)。"""
+    from emotion_spirit import knowledge
+    assert not hasattr(knowledge.KnowledgeBase, "TEST_PERSONAS"), (
+        "KB.TEST_PERSONAS 应删, fixture 改用 tests/conftest.py"
+    )
+
+
+def test_compute_baseline_from_labels_infp_a():
+    """INFP-A (5 label) → 13-dim baseline, 公式正确性验证。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    labels = {"mbti": "INFP", "attachment": "安全型", "emotion_style": "表达型",
+              "conflict_style": "合作型", "time_focus": "活在当下"}
+    baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    assert len(baseline) == 13
+    expected_warmth = 0.5 - 0.0125 + 0.05 + 0.02 + 0.01  # 见 spec §5.2 INFP-A 算例
+    assert abs(baseline["warmth_bias"] - expected_warmth) < 0.001
+
+
+def test_compute_baseline_from_labels_gossip_supplemented():
+    """gossip_tendency 4 sources 补源验证 (INFP-A 应 < 0.5)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    labels = {"mbti": "INFP", "attachment": "安全型", "emotion_style": "表达型",
+              "conflict_style": "合作型", "time_focus": "活在当下"}
+    baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    expected_gossip = 0.5 - 0.025 + 0.0125 + 0.01
+    assert abs(baseline["gossip_tendency"] - expected_gossip) < 0.001
+    assert baseline["gossip_tendency"] < 0.5
+
+
+def test_compute_baseline_allows_greater_than_one():
+    """B 决策: dim 允许 > 1.0 (极端 label 组合)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    labels = {"mbti": "ENFP", "attachment": "焦虑型", "emotion_style": "表达型",
+              "conflict_style": "攻击型", "time_focus": "活在当下"}
+    baseline = KnowledgeBase.compute_baseline_from_labels(labels)
+    assert any(v > 0.5 for v in baseline.values())
+
+
+def test_mbti_deltas_have_gossip_tendency():
+    """MBTI_LETTER_DELTAS 加 gossip_tendency 字段 (E/I/F)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert "gossip_tendency" in KnowledgeBase.MBTI_LETTER_DELTAS["E"]
+    assert "gossip_tendency" in KnowledgeBase.MBTI_LETTER_DELTAS["I"]
+    assert "gossip_tendency" in KnowledgeBase.MBTI_LETTER_DELTAS["F"]
+    assert KnowledgeBase.MBTI_LETTER_DELTAS["E"]["gossip_tendency"] > 0
+    assert KnowledgeBase.MBTI_LETTER_DELTAS["I"]["gossip_tendency"] < 0
+
+
+def test_attachment_deltas_have_gossip_tendency():
+    """ATTACHMENT_DELTAS 加 gossip_tendency 字段 (焦虑/回避)。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert "gossip_tendency" in KnowledgeBase.ATTACHMENT_DELTAS["焦虑型"]
+    assert "gossip_tendency" in KnowledgeBase.ATTACHMENT_DELTAS["回避型"]
+
+
+def test_emotion_and_conflict_deltas_have_gossip_tendency():
+    """EMOTION_STYLE_DELTAS + CONFLICT_STYLE_DELTAS 加 gossip_tendency。"""
+    from emotion_spirit.knowledge import KnowledgeBase
+    assert "gossip_tendency" in KnowledgeBase.EMOTION_STYLE_DELTAS["表达型"]
+    assert "gossip_tendency" in KnowledgeBase.CONFLICT_STYLE_DELTAS["攻击型"]
+
+
 if __name__ == "__main__":
-    test_knowledge_base_exposes_personality_baselines()
     test_knowledge_base_exposes_mbti_letter_deltas()
     test_knowledge_base_get_delta_for_label_dispatches_correctly()
-    test_knowledge_base_get_persona_baseline_returns_copy()
     test_knowledge_base_thresholds_include_intimacy_segments()
     test_knowledge_base_get_threshold_supports_mixed_types()
     test_knowledge_base_get_threshold_raises_on_unknown()
-    print("\n[OK] KnowledgeBase Step 1: 7/7 tests passed (parity test xfail via pytest)")
+    print("\n[OK] KnowledgeBase Step 1: 5/5 tests passed (parity test xfail via pytest)")

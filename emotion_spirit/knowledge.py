@@ -31,75 +31,36 @@ class KnowledgeBase:
         PERSONALITY_DIMS_DEEP | PERSONALITY_DIMS_SURFACE
     )
 
-    # ═══ 2. 5 persona baseline (含 gossip_tendency) ═══
-    PERSONA_BASELINES: dict[str, dict[str, float]] = {
-        "INFP-A": {
-            "expression_drive": 0.25, "perception_acuity": 0.70,
-            "boundary_permeability": 0.40, "inner_coherence": 0.95,
-            "relational_gravity": 0.20, "warmth_bias": 0.45,
-            "directness": 0.85, "curiosity": 0.60, "patience": 0.70,
-            "intimacy_pull": 0.30, "relational_autonomy": 0.20,
-            "exploration_openness": 0.75, "gossip_tendency": 0.30,
-        },
-        "ISTJ-S": {
-            "expression_drive": 0.25, "perception_acuity": 0.70,
-            "boundary_permeability": 0.40, "inner_coherence": 0.95,
-            "relational_gravity": 0.20, "warmth_bias": 0.30,
-            "directness": 0.85, "curiosity": 0.60, "patience": 0.70,
-            "intimacy_pull": 0.15, "relational_autonomy": 0.90,
-            "exploration_openness": 0.40, "gossip_tendency": 0.15,
-        },
-        "ENTP-AV": {
-            "expression_drive": 0.25, "perception_acuity": 0.70,
-            "boundary_permeability": 0.40, "inner_coherence": 0.95,
-            "relational_gravity": 0.20, "warmth_bias": 0.40,
-            "directness": 0.85, "curiosity": 0.60, "patience": 0.70,
-            "intimacy_pull": 0.45, "relational_autonomy": 0.85,
-            "exploration_openness": 0.95, "gossip_tendency": 0.65,
-        },
-        "ISFJ-D": {
-            "expression_drive": 0.25, "perception_acuity": 0.70,
-            "boundary_permeability": 0.40, "inner_coherence": 0.95,
-            "relational_gravity": 0.20, "warmth_bias": 0.50,
-            "directness": 0.85, "curiosity": 0.60, "patience": 0.70,
-            "intimacy_pull": 0.40, "relational_autonomy": 0.55,
-            "exploration_openness": 0.15, "gossip_tendency": 0.40,
-        },
-        "ESTP-A": {
-            "expression_drive": 0.25, "perception_acuity": 0.70,
-            "boundary_permeability": 0.40, "inner_coherence": 0.95,
-            "relational_gravity": 0.20, "warmth_bias": 0.35,
-            "directness": 0.85, "curiosity": 0.60, "patience": 0.70,
-            "intimacy_pull": 0.50, "relational_autonomy": 0.45,
-            "exploration_openness": 0.55, "gossip_tendency": 0.70,
-        },
-    }
+    # ═══ 2. (deleted Phase 3.0A) PERSONA_BASELINES → compute_baseline_from_labels ═══
+    # 5 persona 硬编码 baseline 已删除, 改走 5 标签等权公式动态计算 (单一数据源原则)。
+    # 查询: KnowledgeBase.compute_baseline_from_labels({...labels...})
+    # 5 fixture (INFP-A/ISTJ-S/ENTP-AV/ISFJ-D/ESTP-A) 见 tests/conftest.py (Task 2 加)
 
     # ═══ 3. 5 轴标签 delta (按类型) ═══
     MBTI_LETTER_DELTAS: dict[str, dict[str, float]] = {
-        "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05},
-        "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05},
+        "I": {"expression_drive": -0.10, "warmth_bias": -0.05, "intimacy_pull": -0.10, "exploration_openness": -0.05, "gossip_tendency": -0.10},
+        "E": {"expression_drive": +0.15, "warmth_bias": +0.10, "intimacy_pull": +0.10, "exploration_openness": +0.05, "gossip_tendency": +0.10},
         "N": {"curiosity": +0.15, "perception_acuity": +0.05, "boundary_permeability": +0.10, "exploration_openness": +0.20},
         "S": {"curiosity": -0.10, "perception_acuity": -0.05, "inner_coherence": +0.05, "exploration_openness": -0.15},
-        "F": {"warmth_bias": +0.20, "relational_gravity": +0.15, "intimacy_pull": +0.15, "relational_autonomy": -0.05},
+        "F": {"warmth_bias": +0.20, "relational_gravity": +0.15, "intimacy_pull": +0.15, "relational_autonomy": -0.05, "gossip_tendency": +0.05},
         "T": {"warmth_bias": -0.10, "directness": +0.10, "inner_coherence": +0.05, "relational_autonomy": +0.10},
         "P": {"boundary_permeability": +0.15, "patience": -0.10, "relational_autonomy": -0.05},
         "J": {"inner_coherence": +0.05, "patience": +0.05, "relational_autonomy": +0.05},
     }
     ATTACHMENT_DELTAS: dict[str, dict[str, float]] = {
         "安全型": {"boundary_permeability": +0.10, "inner_coherence": +0.10, "intimacy_pull": +0.05, "relational_autonomy": +0.05, "exploration_openness": +0.10},
-        "焦虑型": {"boundary_permeability": +0.25, "inner_coherence": -0.20, "intimacy_pull": +0.30, "relational_autonomy": -0.15, "exploration_openness": -0.05, "expression_drive": +0.15},
-        "回避型": {"boundary_permeability": -0.20, "inner_coherence": +0.10, "intimacy_pull": -0.20, "relational_autonomy": +0.20, "exploration_openness": -0.15},
+        "焦虑型": {"boundary_permeability": +0.25, "inner_coherence": -0.20, "intimacy_pull": +0.30, "relational_autonomy": -0.15, "exploration_openness": -0.05, "expression_drive": +0.15, "gossip_tendency": +0.10},
+        "回避型": {"boundary_permeability": -0.20, "inner_coherence": +0.10, "intimacy_pull": -0.20, "relational_autonomy": +0.20, "exploration_openness": -0.15, "gossip_tendency": -0.05},
         "混乱型": {"boundary_permeability": +0.10, "inner_coherence": -0.30, "intimacy_pull": +0.20, "relational_autonomy": -0.10, "exploration_openness": +0.05},
     }
     EMOTION_STYLE_DELTAS: dict[str, dict[str, float]] = {
         "压抑型": {"expression_drive": -0.20, "warmth_bias": -0.05, "relational_autonomy": +0.10},
-        "表达型": {"expression_drive": +0.20, "warmth_bias": +0.10, "relational_autonomy": -0.05},
+        "表达型": {"expression_drive": +0.20, "warmth_bias": +0.10, "relational_autonomy": -0.05, "gossip_tendency": +0.05},
         "波动型": {"inner_coherence": -0.15, "relational_autonomy": -0.05},
         "稳定型": {"inner_coherence": +0.10, "relational_autonomy": +0.05},
     }
     CONFLICT_STYLE_DELTAS: dict[str, dict[str, float]] = {
-        "攻击型": {"directness": +0.15, "relational_autonomy": +0.10, "relational_gravity": -0.10},
+        "攻击型": {"directness": +0.15, "relational_autonomy": +0.10, "relational_gravity": -0.10, "gossip_tendency": +0.05},
         "顺应型": {"warmth_bias": +0.10, "relational_autonomy": -0.05, "directness": -0.10},
         "合作型": {"warmth_bias": +0.05, "directness": +0.05, "relational_autonomy": 0.0},
         "回避型": {"boundary_permeability": -0.10, "relational_autonomy": +0.05, "relational_gravity": -0.05},
@@ -136,15 +97,6 @@ class KnowledgeBase:
     # ═══ 统一查询 API ═══
 
     @classmethod
-    def get_persona_baseline(cls, persona_id: str) -> dict[str, float]:
-        """5 persona baseline 查询 (返回 dict 副本)。"""
-        if persona_id not in cls.PERSONA_BASELINES:
-            raise KeyError(
-                f"未知 persona: {persona_id} (5 persona: {list(cls.PERSONA_BASELINES.keys())})"
-            )
-        return dict(cls.PERSONA_BASELINES[persona_id])
-
-    @classmethod
     def get_delta_for_label(cls, label_type: str, label_value: str) -> dict[str, float]:
         """查 5 轴标签的 dim delta。"""
         delta_map = {
@@ -169,6 +121,57 @@ class KnowledgeBase:
         if name not in cls.THRESHOLDS:
             raise KeyError(f"未知阈值: {name}")
         return cls.THRESHOLDS[name]
+
+    @classmethod
+    def compute_baseline_from_labels(cls, labels: dict[str, str]) -> dict[str, float]:
+        """5 标签 (任意组合) → 13-dim baseline (5 label 加权, 允许 > 1.0)。
+
+        公式: baseline[dim] = 0.5 + Σ (delta_i × LABEL_WEIGHTS[i]) for label i affecting dim
+
+        MBTI 特殊处理: "INFP" 等 4 字母组合, 逐字母从 MBTI_LETTER_DELTAS 取 delta,
+        每字母都按 mbti 整体权重 (0.25) 计 (不再除以 4)。
+
+        Args:
+            labels: 任意子集 5 标签值, e.g. {"mbti": "INFP", "attachment": "安全型", ...}
+                    缺 label 时跳过 (该 label 不贡献), 不会用 default。
+
+        Returns:
+            13-dim baseline dict (dim → float)
+            允许 > 1.0 / < 0.0 (B 决策, 真实主义, 不 clamp)
+            缺 label 不影响的 dim = 0.5 (中性)
+
+        Raises:
+            KeyError: 未知 label_type (strict mode, 不 silently skip)。
+                     未知 label_value 由 get_delta_for_label 抛出。
+                     MBTI 不存在的字母被忽略 (向后兼容 labels_to_personality 行为)。
+        """
+        baseline = {dim: 0.5 for dim in cls.ALL_PERSONALITY_DIMS}
+        for label_type, label_value in labels.items():
+            if label_type not in cls.LABEL_WEIGHTS:
+                raise KeyError(
+                    f"未知 label_type: '{label_type}' (合法: {list(cls.LABEL_WEIGHTS.keys())})"
+                )
+            weight = cls.LABEL_WEIGHTS[label_type]
+            if label_type == "mbti":
+                # MBTI 4 字母组合, 逐字母应用 deltas
+                for letter in label_value.upper():
+                    if letter in cls.MBTI_LETTER_DELTAS:
+                        for dim, delta in cls.MBTI_LETTER_DELTAS[letter].items():
+                            baseline[dim] += delta * weight
+            else:
+                deltas = cls.get_delta_for_label(label_type, label_value)
+                for dim, delta in deltas.items():
+                    baseline[dim] += delta * weight
+        return baseline
+
+    @classmethod
+    def get_cross_persona_std(cls, dim: str) -> float:
+        """查 13 维跨人方差 (B 纯文献, 0.10-0.30 范围)。"""
+        if dim not in cls.DIM_CROSS_PERSONA_STD:
+            raise KeyError(
+                f"未知 dim: {dim} (13 维: {list(cls.DIM_CROSS_PERSONA_STD.keys())})"
+            )
+        return cls.DIM_CROSS_PERSONA_STD[dim]
 
     # ═══ 5. 情绪区域 (emotion_classifier 迁移) ═══
     CATEGORICAL_REGIONS: dict[str, dict[str, tuple[float, float]]] = {
@@ -273,6 +276,35 @@ class KnowledgeBase:
         "inner_coherence": "doubt", "exploration_openness": "doubt",
         "patience": "righteous", "value_resistance": "value_conflict",
         "gossip_tendency": "righteous",
+    }
+
+    # ═══ 9. 五标签等权 (Phase 3.0A) ═══
+    # 依据: 5 label 各自的解释力近似平均, MBTI/time_focus 微调 (用户定)
+    LABEL_WEIGHTS: dict[str, float] = {
+        "mbti": 0.25,
+        "attachment": 0.20,
+        "emotion_style": 0.20,
+        "conflict_style": 0.20,
+        "time_focus": 0.15,
+    }
+
+    # ═══ 10. 跨人方差 (Phase 3.0A, B 纯文献) ═══
+    # 13 维 std (跨人格典型方差), 用于 force_dynamics 算法 H 归一化。
+    # 数值依据: HEXACO/Big5/Attachment 文献元分析 + 5 persona 经验校准
+    DIM_CROSS_PERSONA_STD: dict[str, float] = {
+        "warmth_bias": 0.20,
+        "patience": 0.19,
+        "boundary_permeability": 0.18,
+        "relational_gravity": 0.20,
+        "intimacy_pull": 0.22,
+        "expression_drive": 0.20,
+        "gossip_tendency": 0.22,
+        "inner_coherence": 0.19,
+        "curiosity": 0.20,
+        "perception_acuity": 0.17,
+        "directness": 0.20,
+        "relational_autonomy": 0.25,
+        "exploration_openness": 0.20,
     }
 
     # ═══ get_narrative_template API (Step 2 新增) ═══

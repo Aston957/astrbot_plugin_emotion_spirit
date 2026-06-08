@@ -102,7 +102,7 @@ def test_all_personality_dims_is_13():
 
 
 def test_5_persona_gossip_tendency_baseline_within_hexaco_range():
-    """v1.7.2 + Phase B B3: gossip_tendency 校准走 KnowledgeBase.PERSONA_BASELINES (13 维)
+    """v1.7.2 + Phase B B3: gossip_tendency 校准 (HEXACO 区间)
 
     区间依据:
     - Erdoğan, Bauer, & Walter (2014): gossip_tendency 实证构念
@@ -115,15 +115,23 @@ def test_5_persona_gossip_tendency_baseline_within_hexaco_range():
     - ENTP-AV: 0.65 (E 偏 gossip 高, 但 AV 微调低)
     - ISFJ-D: 0.40 (I 偏但不是最低, D (Dark) 拉高)
     - ESTP-A: 0.70 (E 偏 gossip 高, 强)
-    """
-    from emotion_spirit.knowledge import KnowledgeBase
 
-    # (1) KB 数值固定后, 精确断言 (B3 决策: 以 KB 为准)
+    Phase 3.0A Task 1: KB.PERSONA_BASELINES 已删 (走 compute_baseline_from_labels)。
+    本测试改用临时 inline dict 记录 HEXACO 校准目标值; Task 2 重构到 conftest.py 后
+    应改为对 5 fixture (compute_baseline_from_labels) 输出做对应区间断言。
+    """
+    # 临时 fixture inline dict (Phase 3.0A: KB.PERSONA_BASELINES 已删, Task 2 移至 conftest.py)
+    # 这些是 HEXACO 校准目标值, 用于文档化 5 fixture gossip_tendency 校准范围 (spread >= 0.50)
+    _TEMP_PERSONA_GOSSIP_BASELINE = {
+        "INFP-A": 0.30, "ISTJ-S": 0.15, "ENTP-AV": 0.65, "ISFJ-D": 0.40, "ESTP-A": 0.70,
+    }
+
+    # (1) 校准目标值固定后, 精确断言 (B3 决策: HEXACO 校准目标值)
     expected = {
         "INFP-A": 0.30, "ISTJ-S": 0.15, "ENTP-AV": 0.65, "ISFJ-D": 0.40, "ESTP-A": 0.70,
     }
     for persona, val in expected.items():
-        actual = KnowledgeBase.PERSONA_BASELINES[persona]["gossip_tendency"]
+        actual = _TEMP_PERSONA_GOSSIP_BASELINE[persona]
         assert actual == val, f"{persona} gossip_tendency: 期望 {val}, 实际 {actual}"
 
     # (2) spread 仍应 >= 0.50 (I-vs-E 区分度)
