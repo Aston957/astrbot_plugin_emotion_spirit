@@ -384,6 +384,57 @@ def force_state_from_persona_id(
     )
 
 
+def force_state_from_persona_id_with_conscience(
+    persona_id: str,
+    conscience_tracker,
+    *,
+    body_state: "BodyState | None" = None,
+) -> "ForceState":
+    """3.0C 便捷方法, 跟 3.0B force_state_with_conscience 对标 (spec §9.5)。
+
+    Args:
+        persona_id: 5 段命名 (见 parse_persona_id)
+        conscience_tracker: 接受 3 种类型:
+            - ConscienceTracker 实例: 调 .get_pressure() 读压力
+            - float: 直接当 conscience_pressure
+            - None: 压力=0
+        body_state: 3.0B BodyState, 透传到 ForceDynamics.compute()
+
+    Returns:
+        ForceState (3 权重, sum=1.0)
+
+    Raises:
+        TypeError: conscience_tracker 不是上述 3 种类型
+
+    设计: 避免 caller 误传 scalar (3.0B 偏离 E 教训), 内部 auto-normalize
+    conscience_tracker.get_pressure() 到 [0, 1] (defensive, 实际 3.0B 已修)。
+    """
+    # 解析 conscience_tracker → pressure
+    if conscience_tracker is None:
+        pressure = 0.0
+    elif isinstance(conscience_tracker, (int, float)):
+        pressure = float(conscience_tracker)
+    elif hasattr(conscience_tracker, "get_pressure") and callable(
+        conscience_tracker.get_pressure
+    ):
+        # 假定 ConscienceTracker 实例 (duck typing, 避免硬依赖 3.0B)
+        # 内部: get_pressure() 返 [0, 1] 已 (3.0B spec 偏离 E 已修),
+        # 但仍 clip 防御
+        raw_pressure = conscience_tracker.get_pressure()
+        pressure = max(0.0, min(1.0, float(raw_pressure)))
+    else:
+        raise TypeError(
+            f"conscience_tracker must be ConscienceTracker, float, or None; "
+            f"got {type(conscience_tracker).__name__}"
+        )
+
+    return force_state_from_persona_id(
+        persona_id,
+        body_state=body_state,
+        conscience_pressure=pressure,
+    )
+
+
 __all__ = [
     "REQUIRED_DIMS",
     "DB_PATH",
@@ -403,4 +454,5 @@ __all__ = [
     "reset_cache",
     "parse_persona_id",
     "force_state_from_persona_id",
+    "force_state_from_persona_id_with_conscience",
 ]
