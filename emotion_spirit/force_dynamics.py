@@ -32,9 +32,10 @@ class ForceState:
 
     def __post_init__(self) -> None:
         total = self.natural + self.social + self.individual
-        assert abs(total - 1.0) < 0.01, (
-            f"ForceState 3 权重归一化和 != 1.0: {total:.4f}"
-        )
+        if abs(total - 1.0) >= 0.01:
+            raise ValueError(
+                f"ForceState 3 权重归一化和 != 1.0: {total:.4f} (must sum to 1.0 ± 0.01)"
+            )
 
     @property
     def dominant(self) -> str:
@@ -107,6 +108,9 @@ class ForceDynamics:
         # |intensity| 归一化
         abs_intensities = {f: abs(intensities[f]) for f in intensities}
         total = sum(abs_intensities.values())
+        # total == 0 (not < 0.01 per spec §4.2): spec threshold would force INFP-A
+        # to uniform 1/3, contradicting spec §4.3's own dominant expectation.
+        # Floating-point zero is exact; non-zero total always produces valid ForceState.
         if total == 0:
             # 全 0.5 时所有 intensity=0 (无偏离中性), 退均匀
             return ForceState(natural=1/3, social=1/3, individual=1/3)

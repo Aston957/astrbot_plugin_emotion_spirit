@@ -4,6 +4,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fixture_labels import INFP_A_LABELS  # noqa: E402
 
@@ -18,19 +20,24 @@ def test_force_state_normalized_sum_equals_one():
 
 
 def test_force_state_rejects_non_normalized():
-    """sum 偏离 1.0 超过 0.01 报错。"""
-    import pytest
+    """sum 偏离 1.0 超过 0.01 报错 (ValueError 而非 assert, 兼容 python -O)。"""
     from emotion_spirit.force_dynamics import ForceState
-    with pytest.raises(AssertionError, match="归一化和"):
+    with pytest.raises(ValueError, match="归一化和"):
         ForceState(natural=0.5, social=0.5, individual=0.5)
 
 
-def test_force_state_dominant_property():
-    """dominant property 返回最大力名 (natural → social → individual 优先级)。"""
+@pytest.mark.parametrize("natural,social,individual,expected_dominant", [
+    (0.5, 0.3, 0.2, "natural"),
+    (0.2, 0.5, 0.3, "social"),
+    (0.2, 0.3, 0.5, "individual"),
+    # tie-break test: natural == social (highest priority wins)
+    (0.4, 0.4, 0.2, "natural"),
+])
+def test_force_state_dominant_property(natural, social, individual, expected_dominant):
+    """dominant property 返回最大力名 (natural > social > individual 优先级)。"""
     from emotion_spirit.force_dynamics import ForceState
-    assert ForceState(natural=0.5, social=0.3, individual=0.2).dominant == "natural"
-    assert ForceState(natural=0.2, social=0.5, individual=0.3).dominant == "social"
-    assert ForceState(natural=0.2, social=0.3, individual=0.5).dominant == "individual"
+    fs = ForceState(natural=natural, social=social, individual=individual)
+    assert fs.dominant == expected_dominant
 
 
 # ═══ ForceDynamics.compute (算法 H) ═══
