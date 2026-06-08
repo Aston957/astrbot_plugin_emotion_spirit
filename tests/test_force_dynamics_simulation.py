@@ -1,18 +1,14 @@
-"""5 fixture × 8 scenarios 三元力学仿真验证 (Phase 3.0A, 复用 C3 framework)。
+"""5 fixture baseline + 1 gossip scenario 三元力学仿真验证 (Phase 3.0A Task 4, 复用 C3 framework)。
+
+Spec §8.1 4 验证目标:
+1. 5 fixture baseline 可分辨 (本文件覆盖: test_5_fixture_force_state_at_baseline + spread)
+2. gossip_topic_heavy shift social (本文件覆盖: test_gossip_topic_heavy_shifts_social)
+3. 8 scenarios 不全同向 (推 Phase 3.0B, spec 标 "可选")
+4. 归一化不变性 (Task 3 单元测试覆盖: test_force_dynamics_compute_handles_empty, _b_greater_than_one)
 
 本测试目的: 集成验证 ForceDynamics (算法 H) 在 C3 gossip_tendency 仿真
 上下文中能输出有意义的 ForceState, 证明三元力学引擎在仿真层"做事"
-(不是个常量)。
-
-4 验证目标 (spec §8.1):
-  1. 5 fixture baseline ForceState 可分辨 (sum=1.0 + dominant 在 3 力之一)
-  2. 5 fixture social weight spread >= 0.05 (gossip_tendency 公式差异可见)
-  3. gossip_topic_heavy 跑 20 步 → social weight 应增或保持
-     (gossip_tendency 升 → social 平均升)
-  4. (可选, Task 3 单元测试已覆盖): 8 scenarios 方向多样性 + 归一化不变性
-
-注: 目标 3-4 在 test_force_dynamics.py 单元测试中已覆盖, 本文件专注集成验证
-(目标 1+2+3, 3 tests)。复用 C3 framework (simulation_runner.simulate_persona +
+(不是个常量)。复用 C3 framework (simulation_runner.simulate_persona +
 DriftSimulator), 不写新 simulator 代码。
 """
 from __future__ import annotations
@@ -52,7 +48,7 @@ def test_5_fixture_social_weight_spread():
     """
     from emotion_spirit.force_dynamics import ForceDynamics
     fd = ForceDynamics()
-    socials = [fd.force_state_from_labels(l).social for l in ALL_5_FIXTURE_LABELS]
+    socials = [fd.force_state_from_labels(labels).social for labels in ALL_5_FIXTURE_LABELS]
     spread = max(socials) - min(socials)
     assert spread >= 0.05, (
         f"5 fixture social spread {spread:.3f} 太小 "
@@ -79,6 +75,7 @@ def test_gossip_topic_heavy_shifts_social():
         steps=20,
         persona_id="ESTP-A",
     )
+    # trajectory[0] = step-0 state (initial); personality = final state after 20-step drift
     initial_fs = fd.compute(result["trajectory"][0])
     final_fs = fd.compute(result["personality"])
     # gossip 升 → social 平均升 (容忍 0.05 浮点噪声)
