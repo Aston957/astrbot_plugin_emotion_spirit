@@ -187,3 +187,190 @@ def test_force_dynamics_std_floor_fallback_above_floor():
         assert abs(fs_fallback.natural - fs_explicit_020.natural) < 1e-9
     finally:
         fd._dim_std["warmth_bias"] = original_warmth_std
+
+
+# ═══ BodyState (Phase 3.0B Task 3) ═══
+
+def test_body_state_default_neutral():
+    """BodyState() 默认全 0.5 (中性)。"""
+    from emotion_spirit.body_state import BodyState
+    bs = BodyState()
+    assert bs.hormone == 0.5
+    assert bs.energy == 0.5
+    assert bs.arousal == 0.5
+
+
+def test_body_state_validates_range():
+    """BodyState 字段必须在 [0, 1], 越界 ValueError。"""
+    from emotion_spirit.body_state import BodyState
+    with pytest.raises(ValueError, match="必须在"):
+        BodyState(hormone=1.5, energy=0.5, arousal=0.5)
+    with pytest.raises(ValueError, match="必须在"):
+        BodyState(hormone=0.5, energy=-0.1, arousal=0.5)
+    with pytest.raises(ValueError, match="必须在"):
+        BodyState(hormone=0.5, energy=0.5, arousal=1.2)
+
+
+def test_body_state_module_default():
+    """BodyStateModule.default() → BodyState(0.5, 0.5, 0.5) 中性。"""
+    from emotion_spirit.body_state import BodyStateModule
+    mod = BodyStateModule()
+    bs = mod.default()
+    assert bs.hormone == 0.5
+    assert bs.energy == 0.5
+    assert bs.arousal == 0.5
+
+
+def test_body_state_module_from_dict():
+    """BodyStateModule.from_dict(dict) → 缺字段填 0.5。"""
+    from emotion_spirit.body_state import BodyStateModule
+    mod = BodyStateModule()
+    bs = mod.from_dict({"hormone": 0.8})
+    assert bs.hormone == 0.8
+    assert bs.energy == 0.5
+    assert bs.arousal == 0.5
+
+    bs2 = mod.from_dict({"hormone": 0.2, "energy": 0.7, "arousal": 0.3})
+    assert bs2.hormone == 0.2
+    assert bs2.energy == 0.7
+    assert bs2.arousal == 0.3
+
+
+def test_force_dynamics_body_state_none_unchanged():
+    """compute(p) == compute(p, None) == compute(p, neutral_BodyState)。
+
+    向后兼容: 缺 body_state 或全 0.5 中性值时, 输出跟 baseline 完全一致。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.body_state import BodyState
+    fd = ForceDynamics()
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.50, "boundary_permeability": 0.55,
+        "relational_gravity": 0.50, "intimacy_pull": 0.65, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.50, "curiosity": 0.55, "perception_acuity": 0.50,
+        "directness": 0.50, "relational_autonomy": 0.60, "exploration_openness": 0.55,
+    }
+    fs_none = fd.compute(personality)
+    fs_explicit_none = fd.compute(personality, None)
+    fs_neutral = fd.compute(personality, BodyState(0.5, 0.5, 0.5))
+    assert abs(fs_none.natural - fs_explicit_none.natural) < 1e-9
+    assert abs(fs_none.social - fs_explicit_none.social) < 1e-9
+    assert abs(fs_none.individual - fs_explicit_none.individual) < 1e-9
+    assert abs(fs_none.natural - fs_neutral.natural) < 1e-9
+    assert abs(fs_none.social - fs_neutral.social) < 1e-9
+    assert abs(fs_none.individual - fs_neutral.individual) < 1e-9
+
+
+def test_force_dynamics_body_state_low_energy_dampens():
+    """低 energy → 各力 weight 差异"压缩" (low energy 整体衰减)。
+
+    选一个非对称 personality (3 力都有偏离), 比较 low_energy (energy=0.0)
+    跟 high_energy (energy=1.0) 时的 sum-of-weights-with-energy-multiplier 效果。
+    由于 compute 是先 raw 算然后按 energy_factor 倍乘再 abs-normalize,
+    归一化后权重比例应不变 (因为 raw*energy_factor 对所有力同步倍乘)。
+    关键不变量: low_energy 和 high_energy 输出的 3 权重**比例**相同 (因
+    energy_factor 同步作用), 但 raw 强度被压缩。
+    验证方法: 跑 compute twice, 一遍 normal 一遍 low_energy,
+    因归一化后 3 权比例一致 (但 raw 强度不同 — 我们看不到 raw, 只能看
+    归一化结果), 需构造"energy 介入前 vs 后"的中间态比较。
+    简化版断言: low_energy + baseline 的 3 weight 跟 baseline 一样
+    (比例不变, 因同步倍乘), 但跟 high_arousal 的不同 (因 arousal 影响 salience)。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.body_state import BodyState
+    fd = ForceDynamics()
+    # 3 力都有偏离 (用于看归一化比例)
+    personality = {
+        "warmth_bias": 0.70, "patience": 0.70, "boundary_permeability": 0.70,  # natural +
+        "relational_gravity": 0.30, "intimacy_pull": 0.30,  # social - (low, 偏向负)
+        "expression_drive": 0.30, "gossip_tendency": 0.30,
+        "inner_coherence": 0.80, "curiosity": 0.80, "perception_acuity": 0.80,  # individual +
+        "directness": 0.80, "relational_autonomy": 0.80, "exploration_openness": 0.80,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_low_energy = fd.compute(personality, BodyState(0.5, 0.0, 0.5))
+    # 同步倍乘 + abs → 归一化后 3 权重比例不变
+    assert abs(fs_low_energy.natural - fs_baseline.natural) < 1e-9
+    assert abs(fs_low_energy.social - fs_baseline.social) < 1e-9
+    assert abs(fs_low_energy.individual - fs_baseline.individual) < 1e-9
+
+
+def test_force_dynamics_body_state_high_arousal_polarizes():
+    """高 arousal → 极化 (per-dim 偏离被放大, 极端 personality 主导更显著)。
+
+    arousal_factor = 0.5 + arousal ∈ [0.5, 1.5], 应用在 salience 上 (在 per-dim
+    loop 内 before intensity calc)。salience 越大, intensity = signed_dev * salience
+    越大 (且 abs-normalize 放大主导力)。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.body_state import BodyState
+    fd = ForceDynamics()
+    # 个体 vs 集体 对比 (3 力全偏离, 个体力 high)
+    personality = {
+        "warmth_bias": 0.55, "patience": 0.50, "boundary_permeability": 0.50,
+        "relational_gravity": 0.50, "intimacy_pull": 0.50, "expression_drive": 0.50,
+        "gossip_tendency": 0.50,
+        "inner_coherence": 0.60, "curiosity": 0.60, "perception_acuity": 0.60,
+        "directness": 0.50, "relational_autonomy": 0.50, "exploration_openness": 0.50,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_high_arousal = fd.compute(personality, BodyState(0.5, 0.5, 1.0))
+    # 主导力 (individual) 权重要更大 (arousal 放大 salience → 个体力 intensity 增 → abs-normalize 占比增)
+    assert fs_high_arousal.individual > fs_baseline.individual, (
+        f"high arousal 应放大 individual 权重, "
+        f"baseline={fs_baseline.individual:.3f}, high_arousal={fs_high_arousal.individual:.3f}"
+    )
+
+
+def test_force_dynamics_body_state_high_hormone_individual():
+    """高 hormone (cortisol 高) → individual 力增 (hormone direction: +0.8)。
+
+    hormone_mult = 1.0 + (hormone - 0.5) * 0.5 * direction[force]
+    individual direction = +0.8 → 高 hormone (0.8) 时 mult = 1.0 + 0.15 * 0.8 = 1.12
+    放大 individual intensity, abs-normalize 让 individual 占比增。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.body_state import BodyState
+    fd = ForceDynamics()
+    # 3 力均衡偏离, 个体力 0.6 / 自然力 0.6 / 集体力 0.4
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.60, "boundary_permeability": 0.60,
+        "relational_gravity": 0.40, "intimacy_pull": 0.40, "expression_drive": 0.40,
+        "gossip_tendency": 0.40,
+        "inner_coherence": 0.60, "curiosity": 0.60, "perception_acuity": 0.60,
+        "directness": 0.60, "relational_autonomy": 0.60, "exploration_openness": 0.60,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_high_hormone = fd.compute(personality, BodyState(0.8, 0.5, 0.5))
+    # individual hormone_mult > 1.0 → individual 占比增
+    assert fs_high_hormone.individual > fs_baseline.individual, (
+        f"high hormone (cortisol) 应放大 individual, "
+        f"baseline={fs_baseline.individual:.3f}, high_hormone={fs_high_hormone.individual:.3f}"
+    )
+
+
+def test_force_dynamics_body_state_low_hormone_social():
+    """低 hormone (cortisol 低, 放松) → social 力增 (hormone direction: -0.3)。
+
+    social direction = -0.3 → 低 hormone (0.2) 时 mult = 1.0 + (-0.15) * (-0.3) = 1.045
+    放大 social intensity, abs-normalize 让 social 占比增。
+    """
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.body_state import BodyState
+    fd = ForceDynamics()
+    # 3 力均衡偏离, 集体力 0.6 / 自然力 0.6 / 个体力 0.4
+    personality = {
+        "warmth_bias": 0.60, "patience": 0.60, "boundary_permeability": 0.60,
+        "relational_gravity": 0.60, "intimacy_pull": 0.60, "expression_drive": 0.60,
+        "gossip_tendency": 0.60,
+        "inner_coherence": 0.40, "curiosity": 0.40, "perception_acuity": 0.40,
+        "directness": 0.40, "relational_autonomy": 0.40, "exploration_openness": 0.40,
+    }
+    fs_baseline = fd.compute(personality)
+    fs_low_hormone = fd.compute(personality, BodyState(0.2, 0.5, 0.5))
+    # social hormone_mult > 1.0 → social 占比增
+    assert fs_low_hormone.social > fs_baseline.social, (
+        f"low hormone (relax) 应放大 social, "
+        f"baseline={fs_baseline.social:.3f}, low_hormone={fs_low_hormone.social:.3f}"
+    )

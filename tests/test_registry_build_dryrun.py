@@ -9,14 +9,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 29 模块 @register
+import emotion_spirit  # noqa: F401  # 触发 30 模块 @register (Phase 3.0B Task 3: +body_state)
 from emotion_spirit.registry import ModuleRegistry, build
 from emotion_spirit.plugin_factory import default_config, build as factory_build
 
 
-def test_dry_run_29_modules_no_error():
-    """dry_run 走 29 模块依赖图检查, 0 错误。"""
-    assert len(ModuleRegistry.get_all()) == 29, f"expected 29 modules, got {len(ModuleRegistry.get_all())}"
+def test_dry_run_30_modules_no_error():
+    """dry_run 走 30 模块依赖图检查, 0 错误。"""
+    assert len(ModuleRegistry.get_all()) == 30, f"expected 30 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -27,7 +27,11 @@ def test_dry_run_29_modules_no_error():
 
 
 def test_dry_run_17_mismatch_resolve():
-    """17 mismatch 模块都能在 dry_run 中找到所有 dep。"""
+    """18 mismatch 模块都能在 dry_run 中找到所有 dep。
+
+    Phase 3.0B Task 3: 17 → 18 (+body_state 无 DI, 实际无 mismatch; 计数沿用
+    Phase B6 末次清的 17 边界, 后续 mismatch 重新数)。
+    """
     for name, spec in ModuleRegistry.get_all().items():
         for dep in spec.depends_on:
             if "." not in dep:
@@ -124,7 +128,10 @@ def test_plugin_factory_returns_same_shape_as_old_manual():
 
 
 def test_dry_run_then_real_build_consistent():
-    """dry_run 跟真装配 module 集合一致。"""
+    """dry_run 跟真装配 module 集合一致。
+
+    Phase 3.0B Task 3: 29 → 30 (+body_state 真装配, 25 instantiable + 5 utility? 待 verify).
+    """
     config = default_config(
         data_dir="/tmp/test_consistent",
         persona_id="INFP-A",
@@ -132,8 +139,9 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility 4 (provides=[]) 也被装配. 29 = 25 instantiable + 4 utility.
-    assert len(real) == 29, f"expected 29 instances (25 + 4 utility), got {len(real)}"
+    # 所以 utility N (provides=[]) 也被装配. Phase 3.0B Task 3: 30 instances
+    # (26 instantiable + 4 utility, or 25 + 5 utility, 等)
+    assert len(real) == 30, f"expected 30 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════

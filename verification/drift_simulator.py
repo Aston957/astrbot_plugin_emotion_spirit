@@ -27,6 +27,7 @@ from typing import Any
 
 from emotion_spirit.label_mapper import labels_to_personality, _BASELINE
 from emotion_spirit.knowledge import KnowledgeBase
+from emotion_spirit.force_dynamics import ForceDynamics
 
 
 DEEP_DIMS = [
@@ -309,12 +310,22 @@ def simulate_persona(
             "labels": dict[str, str],  # 输入参数 (回显)
             "scenario": str,
             "personality": dict[str, float],   # 13 维 flat, 含 gossip_tendency
-            "trajectory": list[dict[str, float]],  # 每步快照
+            "trajectory": list[dict[str, float]],  # 每步快照 (13-dim flat)
+            "force_trajectory": list[dict[str, float]],  # Phase 3.0B Task 3
+                # 每步 ForceState.to_dict() {natural, social, individual}
+                # 长度 = steps + 1 (initial + steps)
         }
     """
     sim = DriftSimulator(labels=labels)
     topic = _SCENARIO_TOPIC.get(scenario, "neutral")
     trajectory: list[dict[str, float]] = [sim.get_initial_personality()]
+
+    # Phase 3.0B Task 3: force_state 快照 — 每步记录 ForceState
+    # 跟 trajectory 一一对应 (同 index = 同时刻 personality 的 force_state)
+    force_dyn = ForceDynamics()
+    force_trajectory: list[dict[str, float]] = [
+        force_dyn.compute(sim.get_initial_personality()).to_dict()
+    ]
 
     for _ in range(steps):
         if topic == "gossip":
@@ -324,6 +335,9 @@ def simulate_persona(
         sim.process_message(topic=topic, content=content)
         sim.run_drift_check()
         trajectory.append(sim.get_current_personality())
+        force_trajectory.append(
+            force_dyn.compute(sim.get_current_personality()).to_dict()
+        )
 
     return {
         "persona_id": persona_id,
@@ -331,4 +345,5 @@ def simulate_persona(
         "scenario": scenario,
         "personality": sim.get_current_personality(),
         "trajectory": trajectory,
+        "force_trajectory": force_trajectory,
     }

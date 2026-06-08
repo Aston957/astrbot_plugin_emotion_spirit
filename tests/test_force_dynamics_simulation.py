@@ -83,3 +83,89 @@ def test_gossip_topic_heavy_shifts_social():
         f"gossip 应让 social 升或保持, "
         f"{initial_fs.social:.3f} → {final_fs.social:.3f}"
     )
+
+
+# ═══ 3. force_state 快照 (Phase 3.0B Task 3) ═══
+
+def test_trajectory_includes_force_state_per_step():
+    """simulate_persona 返回 force_trajectory: list[dict], 长度 = steps + 1。
+
+    每个元素是 ForceState.to_dict() 形式 (natural/social/individual 三键),
+    归一化和 = 1.0。
+    """
+    from verification.simulation_runner import run_simulation
+
+    result = run_simulation(
+        labels=INFP_A_LABELS,
+        scenario="neutral_only",
+        steps=5,
+        persona_id="INFP-A",
+    )
+    # force_trajectory 字段存在
+    assert "force_trajectory" in result, "result 缺 force_trajectory 字段"
+
+    force_trajectory = result["force_trajectory"]
+    # 长度 = steps + 1 (initial + 5 步)
+    assert len(force_trajectory) == 6, (
+        f"force_trajectory 长度应为 6 (initial + 5 steps), got {len(force_trajectory)}"
+    )
+
+    # 每步是 dict, 含 natural/social/individual 三键, 归一化
+    for i, fs in enumerate(force_trajectory):
+        assert isinstance(fs, dict), f"step {i}: expected dict, got {type(fs).__name__}"
+        assert set(fs.keys()) == {"natural", "social", "individual"}, (
+            f"step {i}: keys 错, got {set(fs.keys())}"
+        )
+        total = fs["natural"] + fs["social"] + fs["individual"]
+        assert abs(total - 1.0) < 0.01, (
+            f"step {i}: 归一化和 != 1.0, got {total:.4f}"
+        )
+
+
+def test_force_state_snapshot_varies_with_scenario():
+    """gossip_topic_heavy 跟 neutral_only 跑同样步数, 终态 ForceState 不同。
+
+    验证: gossip 漂移 → social weight 改变 → force_state[last] 跟 neutral
+    scenario 跑同样步数时的 force_state[last] 不同。
+    """
+    from verification.simulation_runner import run_simulation
+
+    result_neutral = run_simulation(
+        labels=ESTP_A_LABELS,
+        scenario="neutral_only",
+        steps=20,
+        persona_id="ESTP-A",
+    )
+    result_gossip = run_simulation(
+        labels=ESTP_A_LABELS,
+        scenario="gossip_topic_heavy",
+        steps=20,
+        persona_id="ESTP-A",
+    )
+    fs_neutral_last = result_neutral["force_trajectory"][-1]
+    fs_gossip_last = result_gossip["force_trajectory"][-1]
+    # gossip 应让 personality drift 不同 → force_state 终态不同
+    assert fs_neutral_last != fs_gossip_last, (
+        f"gossip scenario 跟 neutral scenario 终态 force_state 应不同, "
+        f"neutral={fs_neutral_last}, gossip={fs_gossip_last}"
+    )
+
+
+def test_force_state_snapshot_initial_step_matches_baseline():
+    """force_trajectory[0] (initial step) 应跟 personality 初始 baseline ForceState 一致。"""
+    from emotion_spirit.force_dynamics import ForceDynamics
+    from verification.simulation_runner import run_simulation
+
+    fd = ForceDynamics()
+    result = run_simulation(
+        labels=INFP_A_LABELS,
+        scenario="neutral_only",
+        steps=3,
+        persona_id="INFP-A",
+    )
+    # 初始 ForceState (从 labels 算)
+    initial_fs_expected = fd.force_state_from_labels(INFP_A_LABELS).to_dict()
+    initial_fs_actual = result["force_trajectory"][0]
+    assert abs(initial_fs_actual["natural"] - initial_fs_expected["natural"]) < 0.01
+    assert abs(initial_fs_actual["social"] - initial_fs_expected["social"]) < 0.01
+    assert abs(initial_fs_actual["individual"] - initial_fs_expected["individual"]) < 0.01
