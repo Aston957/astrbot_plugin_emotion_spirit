@@ -50,9 +50,16 @@ def test_force_state_kb_hit():
     assert get_kb_stats()["kb_hit"] == 1
 
 
-def test_force_state_fallback_to_27_sum():
-    """路径 B: persona_id 合法但不在 KB → 27-sum fallback, kb_fallback_labels +1。"""
-    # 没注册 "INFP-AV-EX-CO-PR" → 应该走 27-sum
+def test_force_state_fallback_to_27_sum(tmp_path, monkeypatch):
+    """路径 B: persona_id 合法但不在 KB → 27-sum fallback, kb_fallback_labels +1。
+
+    注: 3.0C.2b 完成后, 3072 组合全在 KB, 正常路径都走 kb_hit。
+    此测试用 monkeypatch 改 DB_PATH 指向空 JSON, 强制 fallback 路径。
+    """
+    monkeypatch.setattr(
+        "emotion_spirit.persona_labels_db.DB_PATH", tmp_path / "empty.json"
+    )
+    # 路径 B: 合法 persona_id, 但 KB 空 → 27-sum fallback
     fs = force_state_from_persona_id("INFP-AV-EX-CO-PR")
     assert fs is not None
     assert get_kb_stats()["kb_fallback_labels"] == 1

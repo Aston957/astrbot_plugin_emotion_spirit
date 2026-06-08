@@ -170,19 +170,19 @@ def test_get_persona_entry_returns_full():
 
 # === Step 1.3 integration: 4 组合 stub 加载验证 ===
 
-def test_kb_json_loads_16_stub_entries():
-    """默认 KB JSON (16 stub, 3.0C.2a 完成) 加载成功, 16 个 entry 都在。"""
-    # 不 monkeypatch DB_PATH, 走默认路径 (16 stub JSON)
+def test_kb_json_loads_3072_full_entries():
+    """默认 KB JSON (3.0C.2b 完成) 加载成功, 3072 个 entry 都在。
+
+    3072 = 16 MBTI × 4 attachment × 4 emotion_style × 4 conflict_style × 3 time_focus
+    """
+    # 不 monkeypatch DB_PATH, 走默认路径 (3072 full JSON)
     db = get_persona_labels_db()
-    assert len(db) == 16, f"Expected 16 entries, got {len(db)}"
-    # 验证 16 MBTI 都在 (3.0C.2a Task 2 Step 2.4)
-    expected = {
-        "INFP-SE-EX-CO-PR", "ENFP-SE-EX-CO-PR", "INFJ-SE-EX-CO-PR", "ENFJ-SE-EX-CO-PR",
-        "INTJ-SE-EX-CO-PR", "ENTJ-SE-EX-CO-PR", "INTP-SE-EX-CO-PR", "ENTP-SE-EX-CO-PR",
-        "ISFP-SE-EX-CO-PR", "ESFP-SE-EX-CO-PR", "ISFJ-SE-EX-CO-PR", "ESFJ-SE-EX-CO-PR",
-        "ISTP-SE-EX-CO-PR", "ESTP-SE-EX-CO-PR", "ISTJ-SE-EX-CO-PR", "ESTJ-SE-EX-CO-PR",
-    }
-    assert set(db.keys()) == expected, f"Missing: {expected - set(db.keys())}"
+    assert len(db) == 3072, f"Expected 3072 entries, got {len(db)}"
+    # 抽样验证: 16 MBTI × 4 attachment = 64 都在 (Step 3.1 覆盖)
+    for mbti in ["INFP", "ENFP", "INFJ", "ENFJ", "INTJ", "ENTJ", "INTP", "ENTP",
+                  "ISFP", "ESFP", "ISFJ", "ESFJ", "ISTP", "ESTP", "ISTJ", "ESTJ"]:
+        for attach in ["SE", "AP", "AV", "DS"]:
+            assert f"{mbti}-{attach}-EX-CO-PR" in db, f"missing {mbti}-{attach}-EX-CO-PR"
 
 
 def test_n_type_curiosity_high_s_type_low():

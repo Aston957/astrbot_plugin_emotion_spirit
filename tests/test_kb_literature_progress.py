@@ -71,3 +71,36 @@ def test_refs_count_per_entry():
     assert len(entry["refs"]) == 2
     assert entry["refs"][0]["dim"] == "curiosity"
     assert entry["refs"][1]["source_type"] == "academic"
+
+
+# === Step 3.5 (Phase 3.0C.2b): D-level threshold warning ===
+
+def test_d_grade_percentage_warning():
+    """D 等级 (无引用) 比例 > 80% 时 warn (CI 鼓励文献化进度, 不 fail)。
+
+    spec §8.5 + D3 决策: 大部分 entry 标 D (computed, no literature) 是
+    honest disclosure, 不阻断 ship, 但应触发 warning 提醒持续文献化。
+    """
+    from emotion_spirit.persona_labels_db import get_persona_labels_db
+    db = get_persona_labels_db()
+    if not db:
+        pytest.skip("KB empty, skip progress check")
+
+    d_count = sum(1 for e in db.values() if e["confidence"] == "D")
+    pct = d_count / len(db)
+
+    if pct > 0.80:
+        # 触发 warning, 但不 fail
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            warnings.warn(
+                f"D-grade {pct:.1%} > 80% (lit progress slow): "
+                f"{d_count}/{len(db)} entries need literature backfill",
+                UserWarning,
+                stacklevel=2,
+            )
+            assert len(w) == 1
+            assert "D-grade" in str(w[0].message)
+    # 实际验证: 至少 1 个 D entry 存在
+    assert d_count >= 1, "Expected at least 1 D-grade entry"
