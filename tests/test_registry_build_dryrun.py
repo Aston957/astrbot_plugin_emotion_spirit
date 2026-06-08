@@ -9,14 +9,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 28 模块 @register
+import emotion_spirit  # noqa: F401  # 触发 29 模块 @register
 from emotion_spirit.registry import ModuleRegistry, build
 from emotion_spirit.plugin_factory import default_config, build as factory_build
 
 
-def test_dry_run_28_modules_no_error():
-    """dry_run 走 28 模块依赖图检查, 0 错误。"""
-    assert len(ModuleRegistry.get_all()) == 28, f"expected 28 modules, got {len(ModuleRegistry.get_all())}"
+def test_dry_run_29_modules_no_error():
+    """dry_run 走 29 模块依赖图检查, 0 错误。"""
+    assert len(ModuleRegistry.get_all()) == 29, f"expected 29 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -42,16 +42,16 @@ def test_dry_run_17_mismatch_resolve():
                 assert in_pc or in_p, f"{name} 缺 sub {sub} from {base}"
 
 
-def test_build_real_construct_24_instances():
-    """真装配 24 个 instantiable 模块, 0 错误。"""
+def test_build_real_construct_25_instances():
+    """真装配 25 个 instantiable 模块, 0 错误。"""
     config = default_config(
         data_dir="/tmp/test_real_build",
         persona_id="INFP-A",
         labels={"EI": "I", "SN": "N", "TF": "F", "JP": "P"},
     )
     instances = build(config, dry_run=False)
-    # 24 instantiable modules (utility 4 不算)
-    assert len(instances) >= 24, f"expected ≥24 instances, got {len(instances)}"
+    # 25 instantiable modules (utility 4 不算)
+    assert len(instances) >= 25, f"expected ≥25 instances, got {len(instances)}"
 
     # 关键模块类型对得上
     from emotion_spirit.store import SpiritStore
@@ -114,7 +114,7 @@ def test_plugin_factory_returns_same_shape_as_old_manual():
         "personality_drift", "predictive_sentinel", "narrative_identity",
         "counterfactual", "persona_analyzer", "relationship_personality",
         "social_graph", "topic_privacy", "bot_decision", "knowledge",
-        "persona_report_parser",
+        "persona_report_parser", "force_dynamics",
     }
     # 检查 24 个 instantiable 都在
     for name in expected_instantiable:
@@ -132,8 +132,8 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility 4 (provides=[]) 也被装配. 28 = 24 instantiable + 4 utility.
-    assert len(real) == 28, f"expected 28 instances (24 + 4 utility), got {len(real)}"
+    # 所以 utility 4 (provides=[]) 也被装配. 29 = 25 instantiable + 4 utility.
+    assert len(real) == 29, f"expected 29 instances (25 + 4 utility), got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════

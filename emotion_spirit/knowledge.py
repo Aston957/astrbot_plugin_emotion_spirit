@@ -310,6 +310,33 @@ class KnowledgeBase:
         "exploration_openness": 0.20,
     }
 
+    # ═══ 11. 三元力学映射 (Phase 3.0A, Task 3) ═══
+    # 13 维 → 3 force 映射。force_dynamics 算法 H 用。
+    # 设计: three-force-framework memory §2.1
+    # - 自然 (3 dim): warmth_bias, patience, boundary_permeability (前道德本能)
+    # - 社会 (4 dim): relational_gravity, intimacy_pull, expression_drive, gossip_tendency
+    # - 个体 (6 dim): inner_coherence, curiosity, perception_acuity, directness,
+    #                 relational_autonomy, exploration_openness (自觉 + 独立判断)
+    # 13 维全覆盖, 0 dim 缺失, 0 dim 重复
+    DIM_FORCE: dict[str, str] = {
+        # 自然
+        "warmth_bias": "natural",
+        "patience": "natural",
+        "boundary_permeability": "natural",
+        # 社会
+        "relational_gravity": "social",
+        "intimacy_pull": "social",
+        "expression_drive": "social",
+        "gossip_tendency": "social",
+        # 个体
+        "inner_coherence": "individual",
+        "curiosity": "individual",
+        "perception_acuity": "individual",
+        "directness": "individual",
+        "relational_autonomy": "individual",
+        "exploration_openness": "individual",
+    }
+
     # ═══ get_narrative_template API (Step 2 新增) ═══
     @classmethod
     def get_narrative_template(cls, dim: str, level: str, scene: str) -> str:

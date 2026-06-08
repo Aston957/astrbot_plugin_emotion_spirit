@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_check_registry_consistency_passes():
-    """跑静态扫描 CI gate, 28 模块全 pass, exit 0。"""
+    """跑静态扫描 CI gate, 29 模块全 pass, exit 0。"""
     import emotion_spirit  # noqa: F401
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     tool_path = os.path.join(project_root, "tools", "check_registry_consistency.py")
@@ -23,11 +23,11 @@ def test_check_registry_consistency_passes():
     )
     assert result.returncode == 0, f"scan failed: stdout={result.stdout}, stderr={result.stderr}"
     assert "PASS" in result.stdout
-    assert "28 modules" in result.stdout
+    assert "29 modules" in result.stdout
 
 
-def test_check_registry_consistency_covers_all_28_specs():
-    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 28 个 specs。
+def test_check_registry_consistency_covers_all_29_specs():
+    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 29 个 specs。
 
     直接在测试进程内验证 _check_module_consistency 不抛错。
     """

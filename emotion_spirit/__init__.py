@@ -11,5 +11,5 @@ from . import (
     life_simulator, diary_writer, prompt_injector, personality_drift,
     predictive_sentinel, narrative_identity, counterfactual, persona_analyzer,
     persona_profiles, persona_report_parser, social_graph, topic_privacy,
-    bot_decision, trend_utils,
+    bot_decision, trend_utils, force_dynamics,
 )
