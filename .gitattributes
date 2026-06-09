@@ -1,7 +1,15 @@
 # Git attributes for emotion_spirit plugin
 # https://git-scm.com/docs/gitattributes
 
-# KB JSON: 2.74 MB / 87k lines, treat as binary-ish for git diff/merge.
+# === Line ending normalization (repo-normalized LF) ===
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+
+# === KB JSON: 2.74 MB / 87k lines, treat as binary-ish for git diff/merge. ===
 # Without this, every KB regeneration shows 87k-line diff which is unreadable
 # and pollutes git log/PR review. The file is still text (UTF-8 JSON), git
 # tracks it normally; only `-diff` skips the diff renderer.
@@ -9,11 +17,55 @@
 # or:  python tools/regenerate_kb.py (regenerate locally, see if output matches)
 emotion_spirit/core/kb/persona_labels_db.json -diff
 
-# Python source: normalize line endings to LF in repo (Windows checkout still
-# shows CRLF if core.autocrlf=true, transparent to user).
-*.py text eol=lf
-*.md text eol=lf
-*.json text eol=lf
-*.yaml text eol=lf
-*.yml text eol=lf
-*.toml text eol=lf
+# === Release build: export-ignore rules ===
+# Files/dirs marked export-ignore are EXCLUDED from `git archive` output,
+# which is what the release workflow (.github/workflows/release.yml) uses to
+# build the slim user-facing zip. This keeps the 16.7 MB full repo slim
+# down to ~5 MB for end users (only the files needed to RUN the plugin).
+#
+# KEEP: main.py, metadata.yaml, _conf_schema.json, pyproject.toml,
+#       requirements.txt, README.md, LICENSE, emotion_spirit/, data/
+# DROP: tests/, verification/, output/, tools/, docs/, *.egg-info/, CI,
+#       __pycache__/, .pytest_cache/, dev-only files
+
+# --- Experiment & simulation harness (not needed at runtime) ---
+/verification/**             export-ignore
+/verification/               export-ignore
+/output/**                   export-ignore
+/output/                     export-ignore
+
+# --- Maintenance tools (only used by developers) ---
+/tools/**                    export-ignore
+/tools/                      export-ignore
+
+# --- Test suite (only used by developers / CI) ---
+/tests/**                    export-ignore
+/tests/                      export-ignore
+conftest.py                  export-ignore
+test_no_stale_11dim_docstrings.sh  export-ignore
+dev-requirements.txt         export-ignore
+
+# --- Developer-facing docs (not needed for plugin to function) ---
+/docs/**                     export-ignore
+/docs/                       export-ignore
+public_api_stable.md         export-ignore
+CHANGELOG.md                 export-ignore
+
+# --- CI / build automation ---
+/.github/**                  export-ignore
+/.github/                    export-ignore
+
+# --- Caches & auto-generated artifacts ---
+__pycache__/                 export-ignore
+**/__pycache__/              export-ignore
+.pytest_cache/               export-ignore
+**/.pytest_cache/            export-ignore
+*.egg-info/                  export-ignore
+**/*.egg-info/               export-ignore
+.hypothesis/                 export-ignore
+**/.hypothesis/              export-ignore
+
+# --- Git internals (should never be in archives anyway, but explicit) ---
+.git/                        export-ignore
+.gitignore                   export-ignore
+.gitattributes               export-ignore

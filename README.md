@@ -12,6 +12,41 @@
 
 ---
 
+## 下载 / Download
+
+### ⭐ 方式 1: GitHub Release slim zip (推荐, **v2.0.0v1 起**)
+
+GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~5 MB), 跳过测试/仿真/开发工具.
+
+1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
+2. 下载 `astrbot-plugin-emotion-spirit-2.0.0v1.zip`
+3. 解压得到 `emotion_spirit/` 文件夹
+4. 复制到 AstrBot 的 `data/plugins/` 目录
+5. 重启 AstrBot → 插件自动加载
+
+zip **包含** (用户运行所需):
+- `main.py`、`metadata.yaml`、`_conf_schema.json`
+- `emotion_spirit/` 核心包 (含 2.74 MB 离线 KB)
+- `data/` 运行时配置 (cmd_config.json + t2i_templates/)
+- `pyproject.toml`、`requirements.txt`、`README.md`、`LICENSE`
+
+zip **不包含** (开发者专用, 通过 .gitattributes 的 `export-ignore` 排除):
+- `tests/`、`verification/`、`output/`、`tools/`、`docs/`
+- `conftest.py`、`dev-requirements.txt`、`CHANGELOG.md`
+- `.github/`、`.git*`、`__pycache__/`、`.pytest_cache/`
+
+### 方式 2: pip install (开发者)
+
+```bash
+git clone https://github.com/Aston957/astrbot_plugin_emotion_spirit.git
+cd astrbot_plugin_emotion_spirit
+pip install -e .[dev]
+```
+
+### 方式 3: 拖拽整个仓库 (不推荐, 含 11 MB 开发者资料)
+
+---
+
 ## 这是什么 / What is this
 
 emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=14 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
@@ -93,7 +128,7 @@ python -c "import emotion_spirit; print(emotion_spirit.__version__)"
 
 ### 通过 AstrBot 拖拽 (传统)
 
-1. 将 `astrbot_plugin_emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/` 目录
+1. 将 `emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/` 目录(从 Release zip 解压后得到的就是这个)
 2. 重启 AstrBot
 3. 插件会自动连接 SylannEngine（延迟 2 秒，等待 SylannEngine 初始化）
 
