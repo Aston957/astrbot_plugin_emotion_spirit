@@ -82,12 +82,12 @@ REQUIRED_DIMS: frozenset[str] = frozenset({
     "curiosity", "perception_acuity", "relational_autonomy", "exploration_openness",
 })
 
-# 默认路径: __file__ 5 级 up → D:\\新建文件夹\\emotion_spirit\\, 然后 emotion_spirit\\knowledge-base\\...
-# (Phase 4 C4: file moved to emotion_spirit/core/, 多 1 级)
+# 默认路径: __file__ 5 级 up → D:\\新建文件夹\\emotion_spirit\\, 然后 knowledge-base\\...
+# (2026-06-09 cleanup: KB 从 emotion_spirit/ 嵌套搬到顶层 sibling, 去掉 emotion_spirit segment)
+# (Phase 4 C4: file 在 emotion_spirit/core/ 子目录, parent 链 5 级到顶层)
 _DEFAULT_DB_PATH = (
-    Path(__file__).parent.parent.parent.parent.parent  # 5 级 up 到 emotion_spirit 根
-    / "emotion_spirit"
-    / "knowledge-base"
+    Path(__file__).parent.parent.parent.parent.parent  # 5 级 up 到顶层工作区根
+    / "knowledge-base"          # 顶层 sibling, 跟 now/ 平级
     / "mega-paper-kb"
     / "persona-labels"
     / "persona_labels_db.json"
