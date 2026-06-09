@@ -36,9 +36,9 @@ class CommandImpl:
 
     async def setup_init(self, event: AstrMessageEvent) -> None:
         """初始化当前人格参数。仅 auto 模式需要手动调用。"""
-        from .emotion_spirit.label_mapper import labels_to_personality
-        from .emotion_spirit.persona_report_parser import parse_persona_report
-        from .emotion_spirit.persona_analyzer import PersonaAnalyzer, save_report
+        from emotion_spirit.core.label_mapper import labels_to_personality
+        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.regulation.persona_analyzer import PersonaAnalyzer, save_report
 
         if self._p._persona_mode == "disabled":
             yield event.plain_result("⚠️ 当前为 disabled 模式，无需初始化。请在配置中切换到 auto 模式。")
@@ -93,8 +93,8 @@ class CommandImpl:
         self._p._update_baseline()
 
         # 3. 重新初始化 superego 模块
-        from .emotion_spirit.superego import ValueAlignment, IdealSelf, ValueResistance
-        from .emotion_spirit.superego_guard import SuperegoGuard
+        from emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
+        from emotion_spirit.regulation.superego_guard import SuperegoGuard
         self._p._alignment = ValueAlignment(persona_id)
         self._p._value_resistance = ValueResistance(persona_id)
         self._p._ideal = IdealSelf(persona_id, labels)
@@ -220,7 +220,7 @@ class CommandImpl:
         self._p._reset_superego_modules()
 
         if self._p._auto_report:
-            from .emotion_spirit.persona_analyzer import save_report
+            from emotion_spirit.regulation.persona_analyzer import save_report
             save_report(self._p._auto_report, self._p._store._dir)
 
         self._p._store.set("persona", {
@@ -238,7 +238,7 @@ class CommandImpl:
             self._p._current_persona, new_labels,
         )
 
-        from .emotion_spirit.label_mapper import labels_to_personality
+        from emotion_spirit.core.label_mapper import labels_to_personality
         personality = labels_to_personality(new_labels)
         deep = personality.get("deep", {})
         sorted_dims = sorted(deep.items(), key=lambda x: x[1], reverse=True)
@@ -258,7 +258,7 @@ class CommandImpl:
         self, event: AstrMessageEvent, persona_id: str = ""
     ) -> None:
         """切换到指定人格。"""
-        from .emotion_spirit.persona_report_parser import parse_persona_report
+        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
 
         if not persona_id:
             yield event.plain_result(
@@ -293,8 +293,8 @@ class CommandImpl:
             self._p._parsed_drives = {}
         self._p._update_baseline()
 
-        from .emotion_spirit.superego import ValueAlignment, IdealSelf, ValueResistance
-        from .emotion_spirit.superego_guard import SuperegoGuard
+        from emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
+        from emotion_spirit.regulation.superego_guard import SuperegoGuard
         self._p._alignment = ValueAlignment(self._p._current_persona)
         self._p._value_resistance = ValueResistance(self._p._current_persona)
         self._p._ideal = IdealSelf(self._p._current_persona, self._p._labels)
@@ -404,7 +404,7 @@ class CommandImpl:
 
     async def view_detail(self, event: AstrMessageEvent, persona_name: str = "") -> None:
         """查看人格的完整 13 维参数。"""
-        from .emotion_spirit.label_mapper import labels_to_personality
+        from emotion_spirit.core.label_mapper import labels_to_personality
 
         if persona_name:
             labels = None

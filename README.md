@@ -134,9 +134,9 @@ pressure = tracker.get_pressure()
 
 | 命令 | 说明 |
 |------|------|
-| `/spirit_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2 输出) |
-| `/spirit_drift` | 查看 14 维人格漂移状态 |
-| `/spirit_diary` | 手动触发日记写入 |
+| `/view_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2 输出) |
+| `/reflect_drift` | 查看 14 维人格漂移状态 |
+| `/reflect_diary` | 手动触发日记写入 |
 
 ## 配置 / Configuration
 
@@ -172,20 +172,34 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 
 ## 命令 / Commands
 
+3 个 namespace, 12 个命令 (Phase 4 post-merge ns 化, v1.x 旧 `/spirit_*` 入口已删).
+
+### `setup_*` ns (4 命令) — 人格配置
+
 | 命令 | 说明 | 依赖模块 |
 |------|------|----------|
-| `/spirit_status` | 查看系统状态 | PublicAPI (L3) |
-| `/spirit_persona` | 查看 5 轴人格标签 | PersonaProfile (L1) |
-| `/spirit_detail` | 查看 14 维参数详情 | PersonaProfile (L1) |
-| `/spirit_personas` | 列出所有人格 | PersonaProfile (L1) |
-| `/spirit_switch <名称>` | 切换人格 | PersonaProfile (L1) |
-| `/spirit_drift` | 查看人格漂移状态 | PersonalityDrift (L2) |
-| `/spirit_sentinel` | 查看预警状态 | PredictiveSentinel (L3) |
-| `/spirit_shadows` | 查看阴影检测 | ShadowDetector (L2) |
-| `/spirit_diary` | 手动触发日记 | DiaryWriter (L3) |
-| `/spirit_patterns` | 查看行为模式 | PatternExtractor (L2) |
-| `/spirit_forces` | 查看三元力学权重 (v2.0 新) | ForceDynamics (L2) |
-| `/spirit_conscience` | 查看 ConscienceTracker 状态 (v2.0 新) | ConscienceTracker (L2) |
+| `/setup_init` | 初始化当前人格参数 (仅 auto 模式) | PersonaAnalyzer (L2) |
+| `/setup_relabel` | 重新分析人格 (LLM 重新解析) | PersonaAnalyzer (L2) |
+| `/setup_switch <name>` | 切换人格 | PersonaProfile (L1) |
+| `/setup_list` | 列出所有人格 | PersonaProfile (L1) |
+
+### `view_*` ns (3 命令) — 状态查看
+
+| 命令 | 说明 | 依赖模块 |
+|------|------|----------|
+| `/view_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2) | PublicAPI (L3) |
+| `/view_detail` | 查看 14 维参数详情 | PersonaProfile (L1) |
+| `/view_whoami` | 查看 5 轴人格标签 | PersonaProfile (L1) |
+
+### `reflect_*` ns (5 命令) — 内省
+
+| 命令 | 说明 | 依赖模块 |
+|------|------|----------|
+| `/reflect_drift` | 查看 14 维人格漂移状态 | PersonalityDrift (L2) |
+| `/reflect_sentinel` | 查看 13 信号预警状态 | PredictiveSentinel (L3) |
+| `/reflect_shadows` | 查看阴影检测 | ShadowDetector (L2) |
+| `/reflect_diary` | 手动触发日记写入 | DiaryWriter (L3) |
+| `/reflect_patterns` | 查看行为模式 | PatternExtractor (L2) |
 
 ## 文档导航 / Documentation
 

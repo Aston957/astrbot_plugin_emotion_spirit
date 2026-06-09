@@ -31,25 +31,22 @@ from emotion_spirit.regulation.persona_analyzer import save_report, load_report
 from emotion_spirit.regulation.persona_report_parser import parse_persona_report
 
 
-def _legacy_redirect(old_name: str, new_name: str, new_attr: str):
-    """生成旧 /spirit_* 命令的兼容方法, 带 deprecation 警告 + 转发到新 ns handler.
+def _ns_command(name: str, cmd_attr: str):
+    """把 CommandImpl.{cmd_attr} 方法注册为 AstrBot /{name} 命令 (Phase 4 post-merge ns 化).
 
     用法 (类体中):
-        spirit_init_legacy = _legacy_redirect("spirit_init", "setup_init", "setup_init")
+        setup_init_cmd = _ns_command("setup_init", "setup_init")
 
     Args:
-        old_name: 旧命令名 (e.g. "spirit_init")
-        new_name: 提示文案中的新命令名 (e.g. "setup_init")
-        new_attr: self._cmd 上对应的新方法名 (e.g. "setup_init" 或 "view_whoami")
-                 当 new_name 与 new_attr 不一致时, 提示文案与实际 handler 路由解耦。
+        name: AstrBot 命令名 (e.g. "setup_init", "view_status", "reflect_drift")
+        cmd_attr: self._cmd 上对应的方法名 (CommandImpl 类)
     """
-    @filter.command(old_name)
-    async def legacy(self, event: AstrMessageEvent, *args, **kwargs):
-        yield event.plain_result(f"⚠️ /{old_name} 已废弃, 请用 /{new_name}")
-        new_handler = getattr(self._cmd, new_attr)
-        async for r in new_handler(event, *args, **kwargs):
+    @filter.command(name)
+    async def _handler(self, event: AstrMessageEvent, *args, **kwargs):
+        handler = getattr(self._cmd, cmd_attr)
+        async for r in handler(event, *args, **kwargs):
             yield r
-    return legacy
+    return _handler
 
 
 class EmotionSpiritPlugin(Star):
@@ -591,26 +588,25 @@ class EmotionSpiritPlugin(Star):
             except Exception:
                 logger.warning("emotion_spirit: engine.inject 失败", exc_info=True)
 
-    # ═══ 旧 /spirit_* 命令兼容层 (1-2 版本期) ═══
-    # 通过 _legacy_redirect 工厂统一生成, 12 个旧命令均带 deprecation 警告 + 转发。
-    # - old_name: 旧 /spirit_* 命令名
-    # - new_name: 提示给用户的新 /ns_sub 命令名 (用于 deprecation 警告文案)
-    # - new_attr: self._cmd 上对应的新方法名
-    # 注意: spirit_persona 的 new_name="setup_whoami" 是历史 typo (新方法实际在 view_whoami),
-    # 保留此文案以避免改变已发布 deprecation 警告的语义, 仅在内部路由到正确 handler。
+    # ═══ 12 个 ns 命令 (Phase 4 post-merge ns 化) ═══
+    # 通过 _ns_command 工厂统一生成, 直接暴露 3 个 namespace:
+    # - setup_* (4): 人格配置 (init / relabel / switch / list)
+    # - view_* (3): 状态查看 (status / detail / whoami)
+    # - reflect_* (5): 内省 (drift / sentinel / shadows / diary / patterns)
+    # v1.x 旧 /spirit_* 入口已删 (v1 无外部用户, spec §1.3).
 
-    spirit_init_legacy = _legacy_redirect("spirit_init", "setup_init", "setup_init")
-    spirit_relabel_legacy = _legacy_redirect("spirit_relabel", "setup_relabel", "setup_relabel")
-    spirit_switch_legacy = _legacy_redirect("spirit_switch", "setup_switch", "setup_switch")
-    spirit_personas_legacy = _legacy_redirect("spirit_personas", "setup_list", "setup_list")
-    spirit_status_legacy = _legacy_redirect("spirit_status", "view_status", "view_status")
-    spirit_detail_legacy = _legacy_redirect("spirit_detail", "view_detail", "view_detail")
-    spirit_persona_legacy = _legacy_redirect("spirit_persona", "setup_whoami", "view_whoami")
-    spirit_drift_legacy = _legacy_redirect("spirit_drift", "reflect_drift", "reflect_drift")
-    spirit_sentinel_legacy = _legacy_redirect("spirit_sentinel", "reflect_sentinel", "reflect_sentinel")
-    spirit_shadows_legacy = _legacy_redirect("spirit_shadows", "reflect_shadows", "reflect_shadows")
-    spirit_diary_legacy = _legacy_redirect("spirit_diary", "reflect_diary", "reflect_diary")
-    spirit_patterns_legacy = _legacy_redirect("spirit_patterns", "reflect_patterns", "reflect_patterns")
+    setup_init_cmd = _ns_command("setup_init", "setup_init")
+    setup_relabel_cmd = _ns_command("setup_relabel", "setup_relabel")
+    setup_switch_cmd = _ns_command("setup_switch", "setup_switch")
+    setup_list_cmd = _ns_command("setup_list", "setup_list")
+    view_status_cmd = _ns_command("view_status", "view_status")
+    view_detail_cmd = _ns_command("view_detail", "view_detail")
+    view_whoami_cmd = _ns_command("view_whoami", "view_whoami")
+    reflect_drift_cmd = _ns_command("reflect_drift", "reflect_drift")
+    reflect_sentinel_cmd = _ns_command("reflect_sentinel", "reflect_sentinel")
+    reflect_shadows_cmd = _ns_command("reflect_shadows", "reflect_shadows")
+    reflect_diary_cmd = _ns_command("reflect_diary", "reflect_diary")
+    reflect_patterns_cmd = _ns_command("reflect_patterns", "reflect_patterns")
 
     # ═══ 内部方法: 持久化 ═══
 
