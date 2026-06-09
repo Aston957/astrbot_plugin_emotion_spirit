@@ -1,0 +1,2 @@
+# Runtime dependencies
+astrbot>=4.9.2,<5

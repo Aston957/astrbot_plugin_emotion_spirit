@@ -26,3 +26,6 @@ from . import (
     bot_decision, trend_utils, force_dynamics, body_state,
     persona_labels_db,  # Phase 3.0C Task 4.4: loader 模块, 不 @register
 )
+
+# Phase 4 C2: 暴露 PEP 440 合法 version (per code review I3)
+from ._version import __version__

@@ -8,3 +8,8 @@ verification/output/
 *.bak
 *.tmp
 .DS_Store
+
+# Python packaging build artifacts (Phase 4 C2)
+*.egg-info/
+build/
+dist/

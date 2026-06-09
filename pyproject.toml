@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "astrbot-plugin-emotion-spirit"
+# 版本由 emotion_spirit/_version.py 提供, 单点真相 (PEP 440 兼容)
+dynamic = ["version"]
+description = "长期记忆、人格演化与超我调控 — SylannEngine 之上的自我层"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "emotion_spirit" }
+]
+keywords = ["astrbot", "personality", "memory", "llm", "emotion"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# 0 第三方依赖! 仅 AstrBot
+dependencies = [
+  "astrbot>=4.9.2,<5",
+]
+
+[project.urls]
+Homepage = "https://github.com/<user>/astrbot_plugin_emotion_spirit"
+Repository = "https://github.com/<user>/astrbot_plugin_emotion_spirit"
+Issues = "https://github.com/<user>/astrbot_plugin_emotion_spirit/issues"
+Changelog = "https://github.com/<user>/astrbot_plugin_emotion_spirit/blob/v2.0/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "hypothesis>=6.100",
+]
+
+[tool.setuptools]
+packages = [
+  "emotion_spirit",
+]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "emotion_spirit._version.__version__" }
+
+[tool.setuptools.package-data]
+emotion_spirit = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+filterwarnings = [
+  "ignore::DeprecationWarning:emotion_spirit",
+  "ignore::PendingDeprecationWarning:emotion_spirit",
+]
