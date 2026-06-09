@@ -1,0 +1,59 @@
+<h2>亲密度成长样本对话 (Phase 2.5 mockup)</h2>
+<p class="subtitle">3 轮对话展示 bot 亲密度从 0.5 升到 0.8, emotion_spirit v2.0 真实行为示例</p>
+
+<div class="mockup">
+  <div class="mockup-header">QQ Chat Preview</div>
+  <div class="mockup-body">
+    <div style="margin-bottom: 16px;">
+      <strong>用户:</strong> 今天好累啊, 加班到 9 点
+    </div>
+    <div style="margin-bottom: 16px; background: #f0f8ff; padding: 8px;">
+      <strong>小芙:</strong> 辛苦了! [检测到情绪压力: 0.7] 亲密度 +0.05 → 0.55 (warmth ↑, security ↑)
+    </div>
+    <div style="margin-bottom: 16px;">
+      <strong>用户:</strong> 谢谢, 还好有你陪我聊天
+    </div>
+    <div style="margin-bottom: 16px; background: #f0f8ff; padding: 8px;">
+      <strong>小芙:</strong> (开心) 我也在呢 [亲密度 +0.08 → 0.63, trust +0.03]
+    </div>
+    <div style="margin-bottom: 16px;">
+      <strong>用户:</strong> 想听我说说今天的事吗
+    </div>
+    <div style="margin-bottom: 16px; background: #f0f8ff; padding: 8px;">
+      <strong>小芙:</strong> 当然! [亲密度 +0.10 → 0.73, 进入 "倾听模式"]
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">情感状态 (intimacy update, v2.0)</div>
+  <div class="mockup-body">
+    <pre>📊 Session 12345 情感快照 (emotion_spirit v2.0)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+亲密度 (6 维):
+  warmth:       0.50 → 0.73 (+0.23) ↑
+  trust:        0.42 → 0.45
+  dependence:   0.30 → 0.32
+  security:     0.55 → 0.60
+  familiarity:  0.61 → 0.66
+  longing:      0.20 → 0.24
+
+四层记忆 (Phase 2):
+  缓冲池: +3 条 (worker struggle)
+  温池:    +1 条 (deep appreciation)
+  冷池:    +1 条 (倾听模式首次)
+  幽灵:    0 条
+
+阴影检测:
+  echo_avoidance: 0 (无触发)
+
+力学状态 (Phase 3.0 算法 H, v2.0 新):
+  natural:    0.18
+  social:     0.32
+  individual: 0.50  (dominant, 中度自信)
+
+ConscienceTracker (Phase 4 C1, v2.0 新):
+  raw_pressure: 0.0
+  P95-normalized: 0.0  (无冲突)</pre>
+  </div>
+</div>

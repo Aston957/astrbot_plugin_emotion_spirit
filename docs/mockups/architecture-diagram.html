@@ -1,0 +1,67 @@
+<h2>emotion_spirit v2.0 4 层架构图</h2>
+<p class="subtitle">core ← memory ← regulation ← output (严格单向, 4 层 mental model)</p>
+
+<div class="mockup">
+  <div class="mockup-header">Layered Architecture (v2.0)</div>
+  <div class="mockup-body">
+    <pre style="font-family: monospace; line-height: 1.6;">
+┌────────────────────────────────────────────────────────────────────┐
+│                     AstrBot 平台 (Plugin Loader)                      │
+│   ┌──────────────────┐         ┌─────────────────────────────────┐ │
+│   │  SylannEngine     │ ←─时序─→│       emotion_spirit v2.0       │ │
+│   │  (本我/即时)      │         │  ┌──────────────────────────┐  │ │
+│   │  ms ~ hr          │         │  │  L3: output/             │  │ │
+│   │  ~80 字段         │         │  │  BotDecisionMaker        │  │ │
+│   └──────────────────┘         │  │  EmotionClassifier       │  │ │
+│         │                       │  │  PromptInjector          │  │ │
+│         ▼                       │  │  PublicAPI ← 7 stable    │  │ │
+│   Surface 输出                   │  └──────────┬───────────────┘  │ │
+│         │                       │             ▼                  │ │
+│         ▼                       │  ┌──────────────────────────┐  │ │
+│   ┌──────────────────┐          │  │  L2: regulation/         │  │ │
+│   │ SurfaceConsumer   │ ←───────│  │  ForceDynamics (算法 H)  │  │ │
+│   │  (v2 L3)          │         │  │  ConscienceTracker (B2)  │  │ │
+│   └──────────────────┘          │  │  BodyState               │  │ │
+│                                 │  │  PersonalityDrift        │  │ │
+│                                 │  │  ShadowDetector          │  │ │
+│                                 │  │  PatternExtractor        │  │ │
+│                                 │  │  LifeSimulator           │  │ │
+│                                 │  └──────────┬───────────────┘  │ │
+│                                 │             ▼                  │ │
+│                                 │  ┌──────────────────────────┐  │ │
+│                                 │  │  L1: memory/             │  │ │
+│                                 │  │  MemoryPool (4层)        │  │ │
+│                                 │  │  IntimacyTracker (6维)   │  │ │
+│                                 │  │  RelationshipPersonality │  │ │
+│                                 │  │  SocialGraph             │  │ │
+│                                 │  │  MeaningReservoir        │  │ │
+│                                 │  └──────────┬───────────────┘  │ │
+│                                 │             ▼                  │ │
+│                                 │  ┌──────────────────────────┐  │ │
+│                                 │  │  L0: core/               │  │ │
+│                                 │  │  Registry (@register)    │  │ │
+│                                 │  │  Config + Knowledge      │  │ │
+│                                 │  │  PersonaLabelsDB (3072)  │  │ │
+│                                 │  │  LabelMapper             │  │ │
+│                                 │  │  PluginFactory           │  │ │
+│                                 │  └──────────────────────────┘  │ │
+│                                 │  根层: layer.py / _version.py │ │
+│                                 │  / _v1_compat.py / __init__.py│ │
+│                                 └─────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────┘
+
+依赖方向: L0 ← L1 ← L2 ← L3 (严格单向, test_layer_dependency_no_reverse enforce)
+公共 API: PublicAPI.get_emotion_state() / get_body_state() / get_emotion_trajectory()
+v1 → v2 过渡: 0 (v1 无用户, 兼容垫片仅 codebase 内部卫生)
+v2.0.0v1 = 2.0.0.post1 (PEP 440, per Phase 4 C2 偏离 #1)
+
+Phase 4 收尾 (v2.0.0v1):
+  C1 (commit 525b191): ConscienceTracker B2 — 8 tests, 591→600
+  C2 (commit 26f3aaa): Plugin packaging — 3 tests, 600→603
+  C3 (commit 27d4daa): Public API markers — 6 tests, 603→609
+  C4 (commit 985bf3f): 4-layer dir — 3 tests, 609→612
+  + C5 (本 commit): 厚 README + 3 受众文档 + 5 mockup + theory.md
+  C6 (release): CHANGELOG + tag v2.0.0v1 + push + PR
+  终态: 612/612 tests pass, 0 回归, 38 modules v2 路径, 4 层依赖 0 反向</pre>
+  </div>
+</div>

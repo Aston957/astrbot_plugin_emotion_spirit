@@ -1,0 +1,70 @@
+<h2>创伤消化样本对话 (Phase 2.5 mockup)</h2>
+<p class="subtitle">1 轮 trauma 触发幽灵消化 + 反事实模拟, emotion_spirit v2.0 真实行为示例</p>
+
+<div class="mockup">
+  <div class="mockup-header">QQ Chat Preview</div>
+  <div class="mockup-body">
+    <div style="margin-bottom: 16px;">
+      <strong>用户:</strong> 我妈又骂我了, 说我没用
+    </div>
+    <div style="margin-bottom: 16px; background: #ffe8e8; padding: 8px;">
+      <strong>小芙:</strong> 听到这个我很难过... [情绪分类: trauma, valence=-0.7, arousal=0.8]
+    </div>
+    <div style="margin-bottom: 16px; background: #f0f8ff; padding: 8px;">
+      <strong>小芙 (内省):</strong> 检测到 value_conflict: [family_respect] vs [self_worth]
+      ConscienceTracker 增压: raw=0.45 → 0.57 (P95-normalized 0.45 → 0.51, Phase 4 C1)
+      阴影模式: echo_avoidance (×3)
+    </div>
+    <div style="margin-bottom: 16px; background: #f5f5f5; padding: 8px;">
+      <strong>系统:</strong> [trigger ghost_digestion]
+      反事实模拟: "如果我妈说的是鼓励" — 生成 2 个 alt-perspective
+      写入 ghost_pool: 1 条 (permanently retained, 不可遗忘)
+    </div>
+    <div style="margin-bottom: 16px;">
+      <strong>用户:</strong> ...好多了, 谢谢你听
+    </div>
+    <div style="margin-bottom: 16px; background: #f0f8ff; padding: 8px;">
+      <strong>小芙:</strong> 你值得被爱, 永远 [亲密度 +0.05, 价值对齐 +0.12, raw_pressure 0.57 → 0.45 (P95 0.45)]
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">创伤状态变化 (trauma event, v2.0)</div>
+  <div class="mockup-body">
+    <pre>📊 创伤事件处理 (emotion_spirit v2.0)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+输入: "我妈又骂我了, 说我没用"
+情绪分类: trauma
+  valence: -0.7
+  arousal: 0.8
+  category: family_conflict
+
+Phase 2.5 处理路径:
+  1. emotion_classifier 标记 trauma event
+  2. superego 检测 value_conflict (family_respect vs self_worth)
+  3. ConscienceTracker 增压 + 价值对齐 candidate
+  4. shadow_detector 触发 echo_avoidance 模式
+  5. counterfactual 模拟 alt-perspective (×2)
+  6. memory_pool.ghost_digestion 写入永久池
+
+ConscienceTracker 状态 (Phase 4 C1 滑动窗口 P95):
+  帧 1:  raw=0.45, window=[0.45], cold start, return raw
+  帧 2:  raw=0.57, window=[0.45, 0.57], cold start
+  帧 10: raw=0.85, P95≈0.65, normalized 0.85/0.65 = 1.31 → clip 1.0
+  帧 12: 减压 (alignment 0.12), raw=0.45, P95≈0.62, normalized 0.45/0.62 = 0.73
+
+记忆层变化:
+  ghost_pool: 0 → 1 (permanently retained)
+  warm_pool: +1 ("用户表达 family 压力 + 自我怀疑")
+  cold_pool: 0 (无升级)
+
+力学状态 (Phase 3.0 算法 H, v2.0):
+  natural:    0.12  (down: nature 不支持家庭权威批评)
+  social:     0.45  (up: 社会规范要求家庭和谐)
+  individual: 0.43  (up: 自我价值保护)
+
+力学 narrative (Step 4 backtest): "用户面对 family 压力, individual 跟 social
+拉力冲突. bot 优先 individual (self_worth 价值), 触发 ghost 永久保留."</pre>
+  </div>
+</div>

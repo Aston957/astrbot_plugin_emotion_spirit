@@ -1,0 +1,61 @@
+<h2>/spirit_status 命令输出 (v2.0)</h2>
+<p class="subtitle">包含三元力学权重 (Phase 3 新增) + 滑动窗口 P95 压力归一化 (Phase 4 C1)</p>
+
+<div class="mockup">
+  <div class="mockup-header">QQ Chat /spirit_status 命令</div>
+  <div class="mockup-body">
+    <pre style="background: #1a1a1a; color: #e0e0e0; padding: 12px; font-family: monospace;">
+📊 emotion_spirit 状态 (v2.0.0v1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+人格模式: auto
+当前人格: 小芙
+SylannEngine: 已连接
+人格标签: INFP-AP (5 轴)
+v2.0.0v1 (PEP 440: 2.0.0.post1)
+
+— 三元力学权重 (Phase 3 算法 H, v2.0 新) —
+🌿 natural:    0.18
+👥 social:     0.32
+🧠 individual: 0.50
+   ↓ dominant: individual (中度自信)
+
+— 记忆层 (Phase 2) —
+缓冲池: 3 条
+温池:    12 条
+冷池:    5 条
+幽灵:    1 条 (创伤永久)
+
+— 关系 (Phase 2.5) —
+小 A (亲近, 亲密度 0.72)
+小 B (熟悉, 亲密度 0.45)
+
+— 调控层 (Phase 1.5 + Phase 4) —
+价值对齐: 0.85
+良心压力: 0.12 (P95 归一化, raw=0.04) [Phase 4 C1]
+意义蓄水: 0.45
+理想自我差距: 0.23
+
+— 功能开关 —
+阴影: ON / 预警: ON / 叙事: ON / 生活: both
+情感轨迹: 8 帧 (近 1 小时)
+
+— 系统健康 (Phase 3) —
+人称一致性: 0.91 ✓
+无漂移告警
+13 信号预警: 全部 GREEN
+
+— v2.0 4 层架构 —
+core ← memory ← regulation ← output
+public_api_stable.md: 7 stable, 3 internal, 2 deprecated
+__all__ 标记: 38 modules (Phase 4 C3)</pre>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Phase 4 v2.0 增强说明</div>
+  <div class="mockup-body">
+    <p><strong>Phase 4 C1 (ConscienceTracker B2):</strong> 良心压力从 hard-clip [0,1] 改为 raw 累加器 + 滑动窗口 P95 分位归一化。"持续 50 次冲突" 跟 "持续 1 次大冲突" 现在在压力信号上有差异, 三元力学能更准确反映慢性 vs 急性压力。</p>
+    <p><strong>Phase 4 C3 (Public API markers):</strong> 38 模块加 <code>__all__</code>, public_api_stable.md 列出 7 stable + 3 internal + 2 deprecated API, 跟 v1.x 兼容垫片 <code>_v1_compat.py</code> + <code>_DeprecatedImportFinder</code> hook 配套。</p>
+    <p><strong>Phase 4 C4 (4-layer dir):</strong> 38 modules 迁到 <code>emotion_spirit/{core|memory|regulation|output}/</code>, 依赖方向严格单向 <code>L0 ← L1 ← L2 ← L3</code>, 跟 4 层架构 mental model 对应。</p>
+  </div>
+</div>
