@@ -12,6 +12,7 @@ P0 重构: 从"外部拦截"到"内在冲突"的范式转换。
 from __future__ import annotations
 
 import math
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -20,6 +21,17 @@ from typing import Any
 from .persona_profiles import get_personality_params, get_value_behaviors, DIMENSION_DISPLAY, get_narrative
 from .config import SUPEREGO_CONFIG
 from .layer import global_only
+
+# Phase 4 C1: ConscienceTracker 滑动窗口 P95 归一化 (B2 算法)
+_DEFAULT_WINDOW = 200
+_DEFAULT_QUANTILE = 0.95
+_COLD_START_THRESHOLD = 10
+_PRESSURE_WINDOW_ENV = "EMOTION_SPIRIT_PRESSURE_WINDOW"
+
+
+def _get_window_size() -> int:
+    """读 env var 覆盖窗口大小, 默认 200。"""
+    return int(os.environ.get(_PRESSURE_WINDOW_ENV, _DEFAULT_WINDOW))
 
 
 # ═══ 维度 → 张力倾向映射 (Phase B: 走 KnowledgeBase.TENSION_INCLINATION) ═══
@@ -518,7 +530,11 @@ class ConscienceTracker:
         self.guilt_events: list[GuiltEvent] = []
         self.alignment_events: list[AlignmentEvent] = []
         self._last_collapse_count: int = 0
-        self._pressure: float = 0.0
+        # Phase 4 C1: 累加器是真相源, raw 真相 ℝ⁺ 无上限
+        self._raw_pressure: float = 0.0
+        # 滑动窗口 P95 分位归一化 (B2 算法)
+        self._window: deque[float] = deque(maxlen=_get_window_size())
+        self._window_quantile: float = 0.0
         self._pressure_decay_rate: float = SUPEREGO_CONFIG["pressure_decay_rate_per_hour"]
 
     # ═══ 增压路径 ═══
@@ -541,7 +557,9 @@ class ConscienceTracker:
             reason=f"values {conflict_values} in conflict, tension={tension_type}",
         )
         self.guilt_events.append(event)
-        self._pressure = min(1.0, self._pressure + abs(conscience_impact))
+        self._raw_pressure += abs(conscience_impact)  # 累加器是真相源, 无上限
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0  # 失效缓存
         return event
 
     def record_guard_reflex(self, risk_score: float, reason: str) -> GuiltEvent:
@@ -559,7 +577,9 @@ class ConscienceTracker:
             conscience_impact=severity,
         )
         self.guilt_events.append(event)
-        self._pressure = min(1.0, self._pressure + severity)
+        self._raw_pressure += severity
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0
         return event
 
     def record_cascade(self, intensity: float) -> GuiltEvent:
@@ -574,7 +594,9 @@ class ConscienceTracker:
             reason="emotional cascade",
         )
         self.guilt_events.append(event)
-        self._pressure = min(1.0, self._pressure + severity * 0.5)
+        self._raw_pressure += severity * 0.5
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0
         return event
 
     def record_collapse(self, collapse_count: int) -> GuiltEvent | None:
@@ -589,7 +611,9 @@ class ConscienceTracker:
                 reason="personality collapse detected",
             )
             self.guilt_events.append(event)
-            self._pressure = min(1.0, self._pressure + 0.8)
+            self._raw_pressure += 0.8
+            self._window.append(self._raw_pressure)
+            self._window_quantile = 0.0
             return event
         return None
 
@@ -604,14 +628,18 @@ class ConscienceTracker:
             relief=relief,
         )
         self.alignment_events.append(event)
-        self._pressure = max(0.0, self._pressure - relief)
+        self._raw_pressure = max(0.0, self._raw_pressure - relief)
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0
         return event
 
     def record_repair(self, repair_type: str = "simple") -> None:
         """修复行为 → 良心大幅减压。"""
         relief_map = SUPEREGO_CONFIG["repair_relief"]
         relief = relief_map.get(repair_type, relief_map["simple"])
-        self._pressure = max(0.0, self._pressure - relief)
+        self._raw_pressure = max(0.0, self._raw_pressure - relief)
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0
 
     # ═══ 向后兼容 ═══
 
@@ -622,13 +650,32 @@ class ConscienceTracker:
     # ═══ 读取 ═══
 
     def get_pressure(self) -> float:
-        """良心压力 [0, 1]。"""
-        return round(max(0.0, min(1.0, self._pressure)), 4)
+        """良心压力 [0, 1] (P95 分位归一化)。
+
+        累加器 (_raw_pressure) 保留 raw 真相 (ℝ⁺, 无上限)。
+        消费时按滑动窗口 P95 分位归一化。
+        冷启动期 (< 10 帧) 返回 raw 不归一化 (degraded mode)。
+        极低压力场景 (P95 < 0.01) 返回 0.0 避免除零。
+
+        Returns:
+            ∈ [0, 1] (ForceDynamics 契约保持)
+        """
+        if len(self._window) < _COLD_START_THRESHOLD:
+            return self._raw_pressure
+        if self._window_quantile == 0.0:
+            sorted_window = sorted(self._window)
+            p95_idx = int(len(sorted_window) * _DEFAULT_QUANTILE)
+            self._window_quantile = sorted_window[p95_idx]
+        if self._window_quantile < 0.01:
+            return 0.0
+        return min(1.0, self._raw_pressure / self._window_quantile)
 
     def tick_pressure(self, hours_elapsed: float) -> None:
         """自然衰减 (每小时调用)。"""
         ratio = (1.0 - self._pressure_decay_rate) ** hours_elapsed
-        self._pressure *= ratio
+        self._raw_pressure *= ratio
+        self._window.append(self._raw_pressure)
+        self._window_quantile = 0.0
 
     def get_recent(self, hours: float = 24, event_type: str | None = None) -> list:
         """获取近期事件。可选按类型筛选。"""
@@ -657,7 +704,8 @@ class ConscienceTracker:
         total_alignment = sum(e.relief for e in recent_align)
 
         return {
-            "pressure": self.get_pressure(),
+            "pressure": self.get_pressure(),  # P95 归一化 (Phase 4 C1)
+            "raw_pressure": self._raw_pressure,  # 新增: raw 真相
             "by_type": by_type,
             "alignment_relief_24h": round(total_alignment, 4),
             "dominant_tension": max(by_type, key=by_type.get) if by_type else None,
@@ -672,7 +720,8 @@ class ConscienceTracker:
                 "timestamp": e.timestamp,
                 "relief": e.relief,
             } for e in self.alignment_events[-30:]],
-            "pressure": self._pressure,
+            "pressure": self._raw_pressure,
+            "raw_pressure": self._raw_pressure,  # Phase 4 C1: 双写兼容
             "last_collapse_count": self._last_collapse_count,
         }
 
@@ -699,7 +748,9 @@ class ConscienceTracker:
                 timestamp=e.get("timestamp", time.time()),
                 relief=e.get("relief", 0.03),
             ))
-        self._pressure = data.get("pressure", 0.0)
+        self._raw_pressure = data.get("pressure", 0.0)  # 兼容旧 schema
+        if "raw_pressure" in data:
+            self._raw_pressure = data["raw_pressure"]
         self._last_collapse_count = data.get("last_collapse_count", 0)
 
 
