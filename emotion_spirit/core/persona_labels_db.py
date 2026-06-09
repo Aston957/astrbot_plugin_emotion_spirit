@@ -1,15 +1,16 @@
 """emotion_spirit — 3072 组合 persona-labels KB loader (Phase 3.0C.1)。
 
-数据层 loader: 加载 D:\\新建文件夹\\emotion_spirit\\emotion_spirit\\knowledge-base\\
-mega-paper-kb\\persona-labels\\persona_labels_db.json, in-memory 缓存, 提供
-baseline 查询 + 渐进式注册 API。
+数据层 loader: 加载 plugin 内 emotion_spirit/core/kb/persona_labels_db.json
+(~2.6 MB, 3072 entries), in-memory 缓存, 提供 baseline 查询 + 渐进式注册 API。
 
 注意: 本模块**不加 @register** (loader 是数据查询, 不是 plugin module)。
 3.0C.1 范围: loader 骨架 + 4 组合 stub + register/export API。Task 2 加
 force_state_from_persona_id() 主入口。
 
-路径覆盖: 支持 EMOTION_SPIRIT_PERSONA_KB_PATH 环境变量, 缺省 = 默认路径
+路径覆盖: 支持 EMOTION_SPIRIT_PERSONA_KB_PATH 环境变量, 缺省 = plugin 内默认路径
 (测试可临时指向 tmp_path)。
+
+KB 重生成: tools/regenerate_kb.py (开发时跑这个脚本可重新算 3072 baseline 写 JSON)
 
 API 列表:
 - get_persona_labels_db() — 全量加载 + 缓存
@@ -82,14 +83,14 @@ REQUIRED_DIMS: frozenset[str] = frozenset({
     "curiosity", "perception_acuity", "relational_autonomy", "exploration_openness",
 })
 
-# 默认路径: __file__ 5 级 up → D:\\新建文件夹\\emotion_spirit\\, 然后 knowledge-base\\...
-# (2026-06-09 cleanup: KB 从 emotion_spirit/ 嵌套搬到顶层 sibling, 去掉 emotion_spirit segment)
-# (Phase 4 C4: file 在 emotion_spirit/core/ 子目录, parent 链 5 级到顶层)
+# 默认路径: plugin 内 emotion_spirit/core/kb/persona_labels_db.json
+# 跟 plugin 一起分发, git clone / pip install 即用, 无需用户额外配置.
+# 历史: 2026-06-08 KB 在外部 mega-paper-kb sibling, 2026-06-09 cleanup 后搬入 plugin
+# (commit 5d28c13 修外部路径, 后续 commit 移到 plugin 内 core/kb/ 永久存放)
+# env var EMOTION_SPIRIT_PERSONA_KB_PATH 仍可覆盖默认路径 (开发/部署灵活)
 _DEFAULT_DB_PATH = (
-    Path(__file__).parent.parent.parent.parent.parent  # 5 级 up 到顶层工作区根
-    / "knowledge-base"          # 顶层 sibling, 跟 now/ 平级
-    / "mega-paper-kb"
-    / "persona-labels"
+    Path(__file__).parent  # emotion_spirit/core/
+    / "kb"                 # emotion_spirit/core/kb/
     / "persona_labels_db.json"
 )
 DB_PATH: Path = Path(os.environ.get("EMOTION_SPIRIT_PERSONA_KB_PATH", str(_DEFAULT_DB_PATH)))
