@@ -29,7 +29,7 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.intimacy import IntimacyTracker
+from emotion_spirit.memory.intimacy import IntimacyTracker
 
 
 # ═══ get_segment 基础 ═══
@@ -90,7 +90,7 @@ def test_get_relationship_tone_returns_dict():
     tone = tracker.get_relationship_tone("alice")
     assert isinstance(tone, dict)
     # 11 维参数都应有色调 (即使是 0.0 = 无微调)
-    from emotion_spirit.relationship_personality import ALL_DIMS
+    from emotion_spirit.memory.relationship_personality import ALL_DIMS
     for dim in ALL_DIMS:
         assert dim in tone, f"tone 应包含 dim: {dim}"
 
@@ -160,8 +160,8 @@ def test_segment_tones_uses_warmth_bias_not_narrative_coherence():
     (不是 personality dim), 导致 apply_to_layers 静默失败。修复后: 用 'warmth_bias' (13 维
     权威) 且不含非 personality dim。
     """
-    from emotion_spirit.intimacy import IntimacyTracker
-    from emotion_spirit.label_mapper import ALL_PERSONALITY_DIMS
+    from emotion_spirit.memory.intimacy import IntimacyTracker
+    from emotion_spirit.core.label_mapper import ALL_PERSONALITY_DIMS
 
     tracker = IntimacyTracker()
 

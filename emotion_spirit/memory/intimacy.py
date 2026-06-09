@@ -1,0 +1,237 @@
+"""亲密度追踪 — 6 维不对称亲密度 + 5 插入点调制。"""
+
+from __future__ import annotations
+
+import math
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from .persona_profiles import get_intimacy_weights, get_intimacy_modulation
+from ..layer import per_user_only
+
+
+
+__all__ = [
+    "IntimacyProfile",
+    "IntimacyTracker",
+]
+
+@dataclass
+class IntimacyProfile:
+    """单个用户-人格对的亲密度。"""
+    temporal_depth: float = 0.0
+    interaction_freq: float = 0.0
+    vulnerability_exposure: float = 0.0
+    repair_history: float = 0.0
+    shared_narrative: float = 0.0
+    user_investment: float = 0.0
+    last_update: float = field(default_factory=time.time)
+    lifecycle: str = "stranger"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "temporal_depth": round(self.temporal_depth, 6),
+            "interaction_freq": round(self.interaction_freq, 6),
+            "vulnerability_exposure": round(self.vulnerability_exposure, 6),
+            "repair_history": round(self.repair_history, 6),
+            "shared_narrative": round(self.shared_narrative, 6),
+            "user_investment": round(self.user_investment, 6),
+            "last_update": self.last_update,
+            "lifecycle": self.lifecycle,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> IntimacyProfile:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+from ..core.registry import register
+
+
+@register(name="intimacy", provides=["IntimacyTracker"], depends_on=[])
+class IntimacyTracker:
+    """管理所有用户的亲密度。"""
+
+    def __init__(self) -> None:
+        self._profiles: dict[str, IntimacyProfile] = {}
+
+    def get_profile(self, user_id: str) -> IntimacyProfile:
+        if user_id not in self._profiles:
+            self._profiles[user_id] = IntimacyProfile()
+        return self._profiles[user_id]
+
+    @per_user_only
+    def update(
+        self,
+        user_id: str,
+        temporal_hours: float | None = None,
+        interval_seconds: float | None = None,
+        repair_count: int | None = None,
+        vulnerability_delta: float = 0.0,
+        shared_narrative: float | None = None,
+        user_investment_delta: float = 0.0,
+    ) -> None:
+        """更新用户的亲密度。"""
+        profile = self.get_profile(user_id)
+        now = time.time()
+
+        if temporal_hours is not None:
+            profile.temporal_depth = temporal_hours
+        if interval_seconds is not None:
+            alpha = 0.1
+            freq = 1.0 / max(1.0, interval_seconds / 3600.0)
+            profile.interaction_freq = profile.interaction_freq * (1 - alpha) + freq * alpha
+        if repair_count is not None:
+            profile.repair_history = float(repair_count)
+        profile.vulnerability_exposure = max(
+            0.0,
+            profile.vulnerability_exposure + vulnerability_delta,
+        )
+        if shared_narrative is not None:
+            profile.shared_narrative = shared_narrative
+        profile.user_investment = max(
+            0.0,
+            profile.user_investment + user_investment_delta,
+        )
+
+        # 自然衰减
+        elapsed_days = (now - profile.last_update) / 86400
+        vuln_hl = 14.0
+        inv_hl = 30.0
+        profile.vulnerability_exposure *= math.exp(-0.693 * elapsed_days / vuln_hl)
+        profile.user_investment *= math.exp(-0.693 * elapsed_days / inv_hl)
+        profile.last_update = now
+
+        # 更新生命周期
+        profile.lifecycle = self._compute_lifecycle(profile)
+
+    @per_user_only
+    def get_intimacy(self, user_id: str, persona: str = "") -> float:
+        """计算加权亲密度分数 [0, 1]。"""
+        profile = self.get_profile(user_id)
+        weights = get_intimacy_weights()
+        score = (
+            profile.temporal_depth / max(1.0, profile.temporal_depth + 720) * weights["temporal_depth"]
+            + min(1.0, profile.interaction_freq) * weights["interaction_freq"]
+            + min(1.0, profile.vulnerability_exposure) * weights["vulnerability_exposure"]
+            + min(1.0, profile.repair_history / 10.0) * weights["repair_history"]
+            + min(1.0, profile.shared_narrative) * weights["shared_narrative"]
+            + min(1.0, profile.user_investment) * weights["user_investment"]
+        )
+        return max(0.0, min(1.0, score))
+
+    @per_user_only
+    def get_weight(
+        self,
+        user_id: str,
+        persona: str,
+        insertion_point: str,
+    ) -> float:
+        """获取插入点调制系数。返回乘数 (1.0 = 无调制)。"""
+        intimacy = self.get_intimacy(user_id, persona)
+        mod = get_intimacy_modulation()
+
+        if insertion_point == "hot_pool":
+            return 1.0 + mod["alpha"] * intimacy
+        elif insertion_point == "consolidation_speed":
+            return 1.0 - mod["beta"] * intimacy
+        elif insertion_point == "eruption_threshold":
+            return mod["gamma"] * intimacy
+        elif insertion_point == "ghost_depth":
+            return 1.0 + mod["epsilon"] * intimacy
+        elif insertion_point == "drift_pull":
+            return intimacy
+        return 1.0
+
+    @per_user_only
+    def get_lifecycle(self, user_id: str) -> str:
+        return self.get_profile(user_id).lifecycle
+
+    # ═══ Phase 2.5: 亲密度分段 + 关系色调 ═══
+
+    # 4 段阈值 (基于 get_intimacy 分数 [0, 1])
+    _SEGMENT_THRESHOLDS = (
+        (0.65, "inner_circle"),  # 深度共情
+        (0.40, "friend"),        # 朋友
+        (0.15, "acquaintance"),  # 熟人
+        (0.0,  "stranger"),      # 陌生人
+    )
+
+    @per_user_only
+    def get_segment(self, user_id: str) -> str:
+        """Phase 2.5: 获取 user 的亲密度段。
+
+        4 段: stranger / acquaintance / friend / inner_circle
+        基于 get_intimacy 分数的离散桶, 决定 bot 与 user 互动的"色调"。
+        """
+        score = self.get_intimacy(user_id)
+        for threshold, name in self._SEGMENT_THRESHOLDS:
+            if score >= threshold:
+                return name
+        return "stranger"
+
+    @per_user_only
+    def get_relationship_tone(self, user_id: str) -> dict[str, float]:
+        """Phase 2.5: 获取 user 的关系色调 (13 维微调建议)。
+
+        基于亲密度段映射的色调:
+        - stranger: 保守/正式 (warmth_bias ↓, expression ↓, intimacy_pull ↓)
+        - acquaintance: 中性 (无微调 = 0.0)
+        - friend: 温暖/主动 (warmth_bias ↑, intimacy_pull ↑)
+        - inner_circle: 深度/共情 (warmth_bias ↑↑, expression ↑, intimacy_pull ↑↑)
+
+        Returns:
+            dict[dim_name, delta_value]: 13 维全部返回 (未提到的 dim = 0.0),
+            可直接应用到 RelationshipPersonality.set_delta
+        """
+        from .relationship_personality import ALL_DIMS
+        segment = self.get_segment(user_id)
+        # 全部 13 维初始化为 0
+        tone = {dim: 0.0 for dim in ALL_DIMS}
+        # 段特定的微调 (覆盖默认值)
+        segment_tones = {
+            "stranger": {
+                "warmth_bias": -0.05,
+                "expression_drive": -0.05,
+                "intimacy_pull": -0.10,
+                "relational_autonomy": 0.05,  # 保持边界
+                "exploration_openness": -0.05,  # 不主动探索
+            },
+            "acquaintance": {},
+            "friend": {
+                "warmth_bias": 0.10,
+                "expression_drive": 0.05,
+                "intimacy_pull": 0.10,
+                "relational_autonomy": -0.05,  # 适度依赖
+            },
+            "inner_circle": {
+                "warmth_bias": 0.20,
+                "expression_drive": 0.15,
+                "intimacy_pull": 0.25,
+                "relational_autonomy": -0.10,  # 深度共情
+            },
+        }
+        tone.update(segment_tones.get(segment, {}))
+        return tone
+
+    def _compute_lifecycle(self, profile: IntimacyProfile) -> str:
+        intimacy = (
+            profile.temporal_depth / max(1.0, profile.temporal_depth + 720) * 0.3
+            + min(1.0, profile.repair_history / 10.0) * 0.3
+            + min(1.0, profile.vulnerability_exposure) * 0.2
+            + min(1.0, profile.user_investment) * 0.2
+        )
+        if intimacy > 0.75 and profile.repair_history >= 5:
+            return "intimate"
+        if intimacy > 0.5 and profile.repair_history >= 2:
+            return "close"
+        if intimacy > 0.2 and profile.temporal_depth >= 168:
+            return "acquaintance"
+        return "stranger"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {uid: p.to_dict() for uid, p in self._profiles.items()}
+
+    def from_dict(self, data: dict[str, Any]) -> None:
+        self._profiles = {uid: IntimacyProfile.from_dict(p) for uid, p in data.items()}

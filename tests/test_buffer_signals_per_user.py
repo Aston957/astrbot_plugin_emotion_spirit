@@ -24,8 +24,8 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.memory_pool import MemoryPool
-from emotion_spirit.buffer_signals import BufferSignals
+from emotion_spirit.memory.memory_pool import MemoryPool
+from emotion_spirit.output.buffer_signals import BufferSignals
 
 
 # ═══ 测试 1: 构造函数接受 user_id 参数 ═══

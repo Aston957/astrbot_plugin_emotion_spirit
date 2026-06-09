@@ -27,16 +27,16 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.memory_pool import MemoryPool
-from emotion_spirit.buffer_signals import BufferSignals
-from emotion_spirit.pattern_extractor import PatternExtractor
-from emotion_spirit.counterfactual import Counterfactual
-from emotion_spirit.diary_writer import DiaryWriter
-from emotion_spirit.narrative_identity import NarrativeIdentity
-from emotion_spirit.prompt_injector import PromptInjector
-from emotion_spirit.social_graph import SocialGraph, RelationType
-from emotion_spirit.topic_privacy import TopicPrivacy, PrivacyLevel
-from emotion_spirit.bot_decision import BotDecisionMaker
+from emotion_spirit.memory.memory_pool import MemoryPool
+from emotion_spirit.output.buffer_signals import BufferSignals
+from emotion_spirit.regulation.pattern_extractor import PatternExtractor
+from emotion_spirit.regulation.counterfactual import Counterfactual
+from emotion_spirit.output.diary_writer import DiaryWriter
+from emotion_spirit.output.narrative_identity import NarrativeIdentity
+from emotion_spirit.output.prompt_injector import PromptInjector
+from emotion_spirit.memory.social_graph import SocialGraph, RelationType
+from emotion_spirit.memory.topic_privacy import TopicPrivacy, PrivacyLevel
+from emotion_spirit.output.bot_decision import BotDecisionMaker
 
 
 def test_e2e_per_user_memory_isolation():

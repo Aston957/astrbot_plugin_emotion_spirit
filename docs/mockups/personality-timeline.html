@@ -1,0 +1,43 @@
+<h2>6 个月人格漂移时间线 (v2.0)</h2>
+<p class="subtitle">11 + 3 = 14 维人格参数双 EMA 趋势 (Phase 1.5 升级到 13 维 Phase 3, 拆分 2 维到 14 维 v1.7)</p>
+
+<div class="mockup">
+  <div class="mockup-header">Personality Timeline (ASCII mockup)</div>
+  <div class="mockup-body">
+    <pre>
+        Jan   Feb   Mar   Apr   May   Jun
+        |     |     |     |     |     |
+Phase 1.5 原始 11 维 (v1.0-v1.6):
+warmth  ████████████████████████████  ↑ +0.15 (more empathic)
+stability ████████████████████▌▌▌▌▌▌  ↓ -0.12 (more emotional, Phase 3 individual ↑)
+curiosity ██████████▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌  ↑ +0.22 (asks more questions)
+creativity ████████████████████▌▌▌▌▌▌  ↑ +0.18
+self_reflect ██▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌  ↑ +0.31 (大跳: Phase 3 introspective prompts)
+social_anxiety ████████████████████▌▌▌  ↓ -0.08
+expression_needs ████████████████▌▌▌▌▌  ↑ +0.12
+connection_circul ████████████████████  stable
+emotional_depth ██████████████████▌▌▌  ↑ +0.14
+repair_heat ████████████▌▌▌▌▌▌▌▌▌▌▌▌  ↓ -0.10 (less guilt)
+
+                + Phase 3 新增 3 维 (v1.7+):
+perception_acuity ████████████▌▌▌▌▌▌▌  ↑ +0.18
+boundary_clarity ████████████████▌▌▌▌  stable
+autonomy_strength ██████████████████▌▌  ↑ +0.21 (Phase 3 v1.7 拆分)
+exploration_open ██████████████████▌▌  ↑ +0.19 (Phase 3 v1.7 拆分)
+
+漂移事件 (drift events):
+  Apr 15: "用户说"你变了"" → 触发 self_reflect 0.55→0.65
+  May 03: "工作压力" → warmth 0.62→0.68, repair_heat 0.42→0.32
+  May 20: 月度叙事 "适应性成长" 弧生成 (Phase 1.5 + Phase 3 联合)
+
+力学权重 (Phase 3 算法 H, v2.0 新):
+  Jan:  natural 0.25 / social 0.40 / individual 0.35
+  Jun:  natural 0.18 / social 0.32 / individual 0.50
+  → individual ↑15% over 6 months (more "自我主导" 走向)
+
+ConscienceTracker (Phase 4 C1, v2.0 新):
+  Apr 高峰: raw=2.4, P95=1.8, normalized 2.4/1.8 = 1.33 → clip 1.0
+  Jun 平稳: raw=0.4, P95=0.45, normalized 0.4/0.45 = 0.89
+  → 区分"短期大冲突"vs"长期累积"的能力 (v1.x 完全 clip 区分不了)</pre>
+  </div>
+</div>

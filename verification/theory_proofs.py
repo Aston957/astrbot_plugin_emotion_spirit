@@ -105,8 +105,8 @@ def verify_d4_differentiation_gain() -> dict:
 
 def verify_d5_topk_differentiation() -> dict:
     """D-5: Top-K 核心维度区分度。"""
-    from emotion_spirit.label_mapper import _BASELINE
-    from emotion_spirit.superego import ValueResistance
+    from emotion_spirit.core.label_mapper import _BASELINE
+    from emotion_spirit.regulation.superego import ValueResistance
 
     labels = {
         "mbti": "INFP", "attachment": "焦虑型",
@@ -271,21 +271,22 @@ def verify_d10_ema_convergence() -> dict:
 
 def verify_d11_tension_mapping() -> dict:
     """D-11: tension 分类映射。"""
-    from emotion_spirit.superego import _TENSION_INCLINATION
+    from emotion_spirit.core.knowledge import KnowledgeBase
 
+    tension_map = KnowledgeBase.TENSION_INCLINATION
     checks = {
-        "autonomy_guard_is_shame": _TENSION_INCLINATION.get("relational_autonomy") == "shame",  # v1.7: 替换 autonomy_guard
-        "relational_gravity_is_guilt": _TENSION_INCLINATION.get("relational_gravity") == "guilt",
-        "inner_coherence_is_doubt": _TENSION_INCLINATION.get("inner_coherence") == "doubt",
-        "all_dims_covered": len(_TENSION_INCLINATION) >= 8,
+        "autonomy_guard_is_shame": tension_map.get("relational_autonomy") == "shame",  # v1.7: 替换 autonomy_guard
+        "relational_gravity_is_guilt": tension_map.get("relational_gravity") == "guilt",
+        "inner_coherence_is_doubt": tension_map.get("inner_coherence") == "doubt",
+        "all_dims_covered": len(tension_map) >= 8,
         "only_valid_types": all(
-            v in ("guilt", "doubt", "shame") for v in _TENSION_INCLINATION.values()
+            v in ("guilt", "doubt", "shame", "righteous", "value_conflict") for v in tension_map.values()
         ),
     }
     return {
         "id": "D-11",
         "name": "tension 分类映射",
-        "tension_map": _TENSION_INCLINATION,
+        "tension_map": tension_map,
         "checks": checks,
         "passed": all(checks.values()),
     }
@@ -293,7 +294,7 @@ def verify_d11_tension_mapping() -> dict:
 
 def verify_d12_slope_direction() -> dict:
     """D-12: EMA slope 方向与趋势一致。"""
-    from emotion_spirit.trend_utils import TrendDetector
+    from emotion_spirit.output.trend_utils import TrendDetector
 
     td_inc = TrendDetector(0.1, 0.01)
     for v in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:

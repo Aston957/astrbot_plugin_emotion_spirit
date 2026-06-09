@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from emotion_spirit.emotion_classifier import compute_ambiguity, classify_distribution
+from emotion_spirit.output.emotion_classifier import compute_ambiguity, classify_distribution
 
 
 # 8 个 SCENARIOS 的 PAD 中心点（来自 verification/surface_generator.py）

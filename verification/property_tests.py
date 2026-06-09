@@ -12,15 +12,15 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from emotion_spirit.superego import (
+from emotion_spirit.regulation.superego import (
     ValueResistance, ValueAlignment, ConscienceTracker, IdealSelf,
 )
-from emotion_spirit.superego_guard import SuperegoGuard
-from emotion_spirit.surface_consumer import SurfaceConsumer, SemanticSignals
-from emotion_spirit.personality_drift import PersonalityDrift
-from emotion_spirit.trend_utils import TrendDetector, EMASmoother
-from emotion_spirit.config import SUPEREGO_CONFIG, SAFETY_CONFIG
-from emotion_spirit.label_mapper import labels_to_personality, _BASELINE
+from emotion_spirit.regulation.superego_guard import SuperegoGuard
+from emotion_spirit.output.surface_consumer import SurfaceConsumer, SemanticSignals
+from emotion_spirit.regulation.personality_drift import PersonalityDrift
+from emotion_spirit.output.trend_utils import TrendDetector, EMASmoother
+from emotion_spirit.core.config import SUPEREGO_CONFIG, SAFETY_CONFIG
+from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
 
 
 # ═══ Hypothesis Strategies ═══
@@ -450,7 +450,7 @@ def test_slope_decreasing():
 def test_drift_update_robust(personality):
     """PersonalityDrift.update() 不应该抛异常。"""
     consumer = SurfaceConsumer()
-    from emotion_spirit.meaning_reservoir import MeaningReservoir
+    from emotion_spirit.memory.meaning_reservoir import MeaningReservoir
     reservoir = MeaningReservoir()
     drift = PersonalityDrift(consumer, reservoir)
 

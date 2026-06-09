@@ -33,12 +33,12 @@ _this_dir = Path(__file__).parent
 sys.path.insert(0, str(_this_dir.parent.parent))
 sys.path.insert(0, str(_this_dir.parent))
 
-from emotion_spirit.label_mapper import labels_to_personality
-from emotion_spirit.surface_consumer import SurfaceConsumer
-from emotion_spirit.superego import (
+from emotion_spirit.core.label_mapper import labels_to_personality
+from emotion_spirit.output.surface_consumer import SurfaceConsumer
+from emotion_spirit.regulation.superego import (
     ValueResistance, ValueAlignment, ConscienceTracker, IdealSelf,
 )
-from emotion_spirit.superego_guard import SuperegoGuard
+from emotion_spirit.regulation.superego_guard import SuperegoGuard
 from verification.surface_generator import (
     generate_bursty_scenario_sequence,
     SCENARIOS,
@@ -88,7 +88,7 @@ def run_one_persona_full(
     """运行一个 persona 的完整管线数据收集。"""
     import random
     random.seed(seed)
-    drift_sim = DriftSimulator(labels)
+    drift_sim = DriftSimulator(labels=labels)
     baseline = drift_sim.baseline
 
     # 真实 SurfaceConsumer
@@ -272,7 +272,7 @@ def run_one_persona_partial(
     """运行一个 persona 的 partial 管线 (旧版, 仅 drift + consume + log)。"""
     import random
     random.seed(seed)
-    drift_sim = DriftSimulator(labels)
+    drift_sim = DriftSimulator(labels=labels)
     baseline = drift_sim.baseline
     consumer = SurfaceConsumer()
     sequence = generate_bursty_scenario_sequence(n_turns, seed=seed)
