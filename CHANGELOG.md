@@ -7,6 +7,39 @@
 
 ## [Unreleased]
 
+### Added (Release Infrastructure)
+
+#### Slim Release Zip via .gitattributes + GitHub Actions (commit ef2c4f3)
+- **`.gitattributes`**: 新增 `export-ignore` 规则集, `git archive` 时自动排除:
+  - 开发/实验台: `tests/`、`verification/`、`output/`、`tools/`
+  - 文档: `docs/`、`public_api_stable.md`、`CHANGELOG.md`
+  - CI: `.github/`、`.git*`
+  - 缓存: `__pycache__/`、`.pytest_cache/`、`.hypothesis/`、`*.egg-info/`
+  - 开发专用: `conftest.py`、`dev-requirements.txt`、`test_no_stale_11dim_docstrings.sh`
+- **`.gitignore`**: 加 negation 规则让 `data/cmd_config.json` + `data/t2i_templates/*.html` 强制被 git 跟踪 (之前被忽略, 现需进 release zip)
+- **`.github/workflows/release.yml`**: 推送 `v*` 标签自动触发, 跑 `git archive --prefix=emotion_spirit/ --format=zip` → `astrbot-plugin-emotion-spirit-$VERSION.zip` → attach 到 GitHub Release
+- **体积**: 16.7 MB 全量仓库 → 234 KB 压缩后 / 3.26 MB 解压后 (zip 文件)
+- **本地验证**: 68 文件, 包含 main.py + metadata.yaml + emotion_spirit/ + data/ + README.md + LICENSE + pyproject.toml + requirements.txt, **不**包含 tests/verification/output/tools/docs/conftest/CHANGELOG/public_api_stable/__pycache__/.egg-info
+
+### Changed
+
+#### Plugin Rename: `astrbot_plugin_emotion_spirit` → `emotion_spirit` (commit ef2c4f3)
+- **`metadata.yaml`**: `name: astrbot_plugin_emotion_spirit` → `name: emotion_spirit`
+- **PyPI distribution name** (`pyproject.toml` 中 `name = "astrbot-plugin-emotion-spirit"`): **保持不变** (这是 pip 安装名, 跟 AstrBot 插件名是两个概念)
+- **影响**:
+  - AstrBot 插件列表显示 "emotion_spirit" (短)
+  - release zip 内顶层文件夹是 `emotion_spirit/` (而不是 `astrbot_plugin_emotion_spirit/`)
+  - 用户解压后得到 `emotion_spirit/` 文件夹, 直接拖到 AstrBot `data/plugins/` 即可
+- **破坏性**: 是 — 旧用户的工作目录/配置引用旧名的需手动迁移; 鉴于 v2.0.0v1 刚发, 影响窗口小
+
+### Documentation
+
+- **`README.md`**: 新增 "下载 / Download" 章节, 优先级排序:
+  1. GitHub Release slim zip (推荐, ~5 MB 解压, 只含运行所需)
+  2. `pip install -e .[dev]` (开发者)
+  3. 拖拽整个仓库 (不推荐, 16.7 MB 含开发资料)
+- 章节明确列出"zip 包含"和"zip 不包含"的文件清单
+
 ## [2.0.0v1] - 2026-06-09
 
 > **里程碑**: Phase 3 闭环 + Phase 4 Launch 收尾 (5 commits + 1 debt cleanup, 591→612 tests, 0 回归)
