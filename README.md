@@ -14,9 +14,9 @@
 
 ## 这是什么 / What is this
 
-[中文] emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=14 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
+emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=14 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
 
-[English] emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=14-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
+emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=14-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
 
 ```
 弗洛伊德           实现                  时间尺度
