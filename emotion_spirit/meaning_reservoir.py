@@ -13,6 +13,11 @@ from typing import Any
 from .registry import register
 
 
+
+__all__ = [
+    "MeaningReservoir",
+]
+
 @register(name="meaning_reservoir", provides=["MeaningReservoir"], depends_on=[])
 class MeaningReservoir:
     """Φ 意义蓄水池。"""

@@ -35,6 +35,15 @@ _NS_KEYS = ("pad_history", "pad_trajectory", "memory_pools", "social_graph")
 # ═══ 4 个 typed NS class ═══
 
 
+
+__all__ = [
+    "PadHistoryNS",
+    "PadTrajectoryNS",
+    "MemoryPoolsNS",
+    "SocialGraphNS",
+    "SpiritStore",
+]
+
 class PadHistoryNS:
     """per-session PAD 历史 (v1.2 引入)。
 

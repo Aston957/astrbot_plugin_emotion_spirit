@@ -12,6 +12,11 @@ if TYPE_CHECKING:
     from main import EmotionSpiritPlugin
 
 
+
+__all__ = [
+    "SurfaceHandler",
+]
+
 class SurfaceHandler:
     """Surface 消费者 - 处理 SylannEngine 回调。
 

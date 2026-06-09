@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from .memory_pool import MemoryPool
 
 
+
+__all__ = [
+    "Pattern",
+    "PatternExtractor",
+]
+
 @dataclass
 class Pattern:
     """行为模式。"""

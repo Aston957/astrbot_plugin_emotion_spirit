@@ -11,6 +11,12 @@ from .persona_profiles import get_intimacy_weights, get_intimacy_modulation
 from .layer import per_user_only
 
 
+
+__all__ = [
+    "IntimacyProfile",
+    "IntimacyTracker",
+]
+
 @dataclass
 class IntimacyProfile:
     """单个用户-人格对的亲密度。"""

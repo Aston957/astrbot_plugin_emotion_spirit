@@ -16,6 +16,7 @@ try:
 except ImportError:  # 测试环境无 astrbot 时降级
     _ASTRBOT_AVAILABLE = False
 
+
     class _FilterStub:
         """降级 stub: 测试环境用, 不真正注册到 astrbot。"""
         def command(self, name: str):
@@ -26,6 +27,11 @@ except ImportError:  # 测试环境无 astrbot 时降级
 
     _astrbot_filter = _FilterStub()
 
+
+__all__ = [
+    "NamespaceRouter",
+    "CommandRouter",
+]
 
 class NamespaceRouter:
     """单个 ns 的子命令路由器。"""

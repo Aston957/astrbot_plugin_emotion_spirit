@@ -72,6 +72,15 @@ _TIME_FOCUS_KEYWORDS: dict[str, list[str]] = {
 
 # ═══ 解析结果数据类 ═══
 
+
+__all__ = [
+    "ParsedPersona",
+    "PersonaReportParser",
+    "parse_persona_report",
+    "get_labels_from_report",
+    "get_drives_from_report",
+]
+
 class ParsedPersona:
     """解析后的人格参数。"""
 

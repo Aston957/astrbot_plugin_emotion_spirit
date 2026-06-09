@@ -103,6 +103,14 @@ PERSONA_BASELINES: dict[str, dict[str, float]] = {
 
 # ═══ 汇总 ═══
 # Phase B Step 3 (P3-2): 5 轴 delta 走 KnowledgeBase 路径
+
+__all__ = [
+    "clamp",
+    "labels_to_personality",
+    "personality_to_labels",
+    "get_label_options",
+]
+
 def _get_all_label_deltas() -> dict[str, dict[str, dict[str, float]]]:
     """从 KnowledgeBase 拉取 5 轴 delta (mbti 单独处理)。"""
     from .knowledge import KnowledgeBase

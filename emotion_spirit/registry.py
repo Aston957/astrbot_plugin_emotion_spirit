@@ -15,6 +15,14 @@ from dataclasses import dataclass, field
 from typing import Type, Callable, Any
 
 
+
+__all__ = [
+    "ModuleSpec",
+    "ModuleRegistry",
+    "register",
+    "build",
+]
+
 @dataclass
 class ModuleSpec:
     """模块规格: name + provides + depends_on + class + 装配配置。"""

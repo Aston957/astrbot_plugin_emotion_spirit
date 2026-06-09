@@ -17,6 +17,12 @@ from .emotion_classifier import (
 from .trend_utils import EMASmoother
 
 
+
+__all__ = [
+    "SemanticSignals",
+    "SurfaceConsumer",
+]
+
 @dataclass
 class SemanticSignals:
     """从 Surface 提取的语义信号，所有模块从这里读取数据。"""

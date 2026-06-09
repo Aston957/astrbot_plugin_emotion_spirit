@@ -29,6 +29,17 @@ _COLD_START_THRESHOLD = 10
 _PRESSURE_WINDOW_ENV = "EMOTION_SPIRIT_PRESSURE_WINDOW"
 
 
+
+__all__ = [
+    "ResistanceResult",
+    "ValueResistance",
+    "ValueAlignment",
+    "GuiltEvent",
+    "AlignmentEvent",
+    "ConscienceTracker",
+    "IdealSelf",
+]
+
 def _get_window_size() -> int:
     """读 env var 覆盖窗口大小, 默认 200。"""
     return int(os.environ.get(_PRESSURE_WINDOW_ENV, _DEFAULT_WINDOW))

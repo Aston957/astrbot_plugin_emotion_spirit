@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 from .registry import register
 
 
+
+__all__ = [
+    "BotDecisionMaker",
+]
+
 @register(
     name="bot_decision",
     provides=["BotDecisionMaker"],

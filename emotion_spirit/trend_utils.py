@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 
+
+__all__ = [
+    "EMASmoother",
+    "TrendDetector",
+]
+
 class EMASmoother:
     """单 EMA 平滑器。"""
 

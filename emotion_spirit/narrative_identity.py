@@ -28,6 +28,11 @@ _ARC_PROMPTS = {
 from .registry import register
 
 
+
+__all__ = [
+    "NarrativeIdentity",
+]
+
 @register(
     name="narrative_identity",
     provides=["NarrativeIdentity"],

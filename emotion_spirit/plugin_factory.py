@@ -9,6 +9,12 @@ from typing import Any
 from .registry import ModuleRegistry, build as _registry_build
 
 
+
+__all__ = [
+    "default_config",
+    "build",
+]
+
 def _instantiable_modules() -> list[str]:
     """从 registry derive 所有 instantiable module 名字 (filter utility 4: provides=[])。
 

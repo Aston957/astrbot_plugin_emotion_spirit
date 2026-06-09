@@ -19,6 +19,16 @@ from typing import Any
 
 # === 占位实现（后续 Task 替换） ===
 
+
+__all__ = [
+    "build_emotion_payload",
+    "compute_ambiguity",
+    "compute_velocity",
+    "classify_distribution",
+    "classify_primary_secondary",
+    "render_description",
+]
+
 def build_emotion_payload(signals: Any) -> dict[str, Any]:
     """v1.1.2: 把 emotion 字段打包成稳定 schema dict（共享层）。
     v1.2: +emotion_ambiguity +emotion_velocity

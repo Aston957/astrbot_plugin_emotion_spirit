@@ -16,6 +16,12 @@ Spec deviation (vs plan Step 4.4):
   接入时 force_state_from_persona_id / force_state_from_persona_id_with_conscience
   已经被模块系统知道, 不需要 re-import。
 """
+import sys
+import warnings
+import importlib
+import importlib.abc
+import importlib.util
+
 from . import (
     store, knowledge, label_mapper, emotion_classifier, surface_consumer,
     memory_pool, buffer_signals, intimacy, relationship_personality, superego,
@@ -29,3 +35,30 @@ from . import (
 
 # Phase 4 C2: 暴露 PEP 440 合法 version (per code review I3)
 from ._version import __version__
+
+
+# ═══ Phase 4 C3: v1.x import path redirect ═══
+class _DeprecatedImportFinder(importlib.abc.MetaPathFinder):
+    """Redirect v1.x import paths to v2.0 paths, with DeprecationWarning.
+
+    C3 阶段 REDIRECTS 空: v1 path 还能 import, hook 静默 no-op。
+    C4 实施时填 38 mapping, 那时 redirect 才生效。
+    """
+
+    _REDIRECTS: dict[str, str] = {
+        # C3 阶段空, C4 才填
+    }
+
+    def find_spec(self, name, path, target=None):
+        new_name = self._REDIRECTS.get(name)
+        if new_name is None:
+            return None
+        warnings.warn(
+            f"importing from '{name}' is deprecated, use '{new_name}' instead",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return importlib.util.find_spec(new_name)
+
+
+sys.meta_path.insert(0, _DeprecatedImportFinder())

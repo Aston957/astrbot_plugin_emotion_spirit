@@ -16,6 +16,13 @@ import inspect
 from functools import wraps
 
 
+
+__all__ = [
+    "LayerViolationError",
+    "per_user_only",
+    "global_only",
+]
+
 class LayerViolationError(RuntimeError):
     """跨层访问错误 (Layer 2 → Layer 3 等)。"""
     pass

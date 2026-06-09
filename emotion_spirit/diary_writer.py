@@ -29,6 +29,11 @@ _DIARY_PROMPTS = {
 }
 
 
+
+__all__ = [
+    "DiaryWriter",
+]
+
 def _format_emotion_block(signals: "SemanticSignals") -> str:
     """v1.1.2 + v1.2: 调用共享 payload，再格式化为 LLM 友好文本。
 

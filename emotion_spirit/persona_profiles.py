@@ -18,6 +18,17 @@ from typing import Any
 # Phase B Step 3: 数据已迁移到 KnowledgeBase.NARRATIVE_TEMPLATES / KnowledgeBase.VARIANT_KEY
 
 
+
+__all__ = [
+    "get_narrative",
+    "get_personality_params",
+    "get_intimacy_weights",
+    "get_intimacy_modulation",
+    "get_value_behaviors",
+    "get_personality_from_labels",
+    "get_labels_from_config",
+]
+
 def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -> str:
     """根据人格参数选择叙事变体 (high/low)。
 

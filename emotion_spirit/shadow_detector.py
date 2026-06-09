@@ -24,6 +24,11 @@ if TYPE_CHECKING:
 from .registry import register
 
 
+
+__all__ = [
+    "ShadowDetector",
+]
+
 @register(
     name="shadow_detector",
     provides=["ShadowDetector"],

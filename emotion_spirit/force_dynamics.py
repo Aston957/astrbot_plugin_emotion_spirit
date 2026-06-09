@@ -93,6 +93,12 @@ if TYPE_CHECKING:
     from .superego import ConscienceTracker
 
 
+
+__all__ = [
+    "ForceState",
+    "ForceDynamics",
+]
+
 @dataclass
 class ForceState:
     """三元力学状态 (3 权重, 归一化到 sum=1.0)."""

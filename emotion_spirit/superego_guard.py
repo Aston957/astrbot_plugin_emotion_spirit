@@ -19,6 +19,12 @@ if TYPE_CHECKING:
     from .superego import ConscienceTracker, ValueAlignment, IdealSelf
 
 
+
+__all__ = [
+    "InterventionResult",
+    "SuperegoGuard",
+]
+
 @dataclass
 class InterventionResult:
     """干预指令。"""

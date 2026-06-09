@@ -28,6 +28,12 @@ from dataclasses import dataclass
 from .registry import register
 
 
+
+__all__ = [
+    "BodyState",
+    "BodyStateModule",
+]
+
 @dataclass
 class BodyState:
     """身体状态 (Phase 3.0B) — 3 字段 [0, 1]。

@@ -21,6 +21,13 @@ from enum import Enum
 from typing import Any
 
 
+
+__all__ = [
+    "RelationType",
+    "SocialEdge",
+    "SocialGraph",
+]
+
 class RelationType(str, Enum):
     """关系类型 — A 视角下对 B 的认知。"""
     IN_CIRCLE = "in_circle"  # 内心圈 (心理层, 最强)

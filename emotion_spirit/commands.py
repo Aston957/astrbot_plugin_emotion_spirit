@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from main import EmotionSpiritPlugin
 
 
+
+__all__ = [
+    "CommandImpl",
+]
+
 class CommandImpl:
     """12 命令的具体实现。
 

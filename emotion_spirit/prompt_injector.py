@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 from .registry import register
 
 
+
+__all__ = [
+    "PromptInjector",
+]
+
 @register(
     name="prompt_injector",
     provides=["PromptInjector"],

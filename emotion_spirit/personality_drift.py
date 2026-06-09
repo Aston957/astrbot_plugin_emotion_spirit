@@ -37,6 +37,11 @@ _SURFACE_DIMS = [
 from .registry import register
 
 
+
+__all__ = [
+    "PersonalityDrift",
+]
+
 @register(
     name="personality_drift",
     provides=["PersonalityDrift"],

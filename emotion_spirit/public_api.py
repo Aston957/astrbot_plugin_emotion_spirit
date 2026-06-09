@@ -12,6 +12,11 @@ from __future__ import annotations
 from typing import Any
 
 
+
+__all__ = [
+    "PublicAPI",
+]
+
 class PublicAPI:
     """3 个公开 API 的统一网关。
 

@@ -49,6 +49,16 @@ _USER_PROMPT_TEMPLATE = "以下是人格描述文本，请分析并返回 5 轴�
 
 # ═══ 数据类 ═══
 
+
+__all__ = [
+    "PersonaAnalysisResult",
+    "LLMAnalyzer",
+    "RuleBasedAnalyzer",
+    "PersonaAnalyzerWithFallback",
+    "save_report",
+    "load_report",
+]
+
 @dataclass
 class PersonaAnalysisResult:
     """人格分析结果 (P3-6: 拆 3 类后的 5 字段 dataclass)。"""

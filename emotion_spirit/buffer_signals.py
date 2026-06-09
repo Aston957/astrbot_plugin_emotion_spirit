@@ -23,6 +23,11 @@ if TYPE_CHECKING:
     from .memory_pool import MemoryPool, BufferEntry
 
 
+
+__all__ = [
+    "BufferSignals",
+]
+
 @register(
     name="buffer_signals",
     provides=["BufferSignals"],

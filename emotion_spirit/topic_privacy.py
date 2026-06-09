@@ -20,6 +20,12 @@ if TYPE_CHECKING:
     from .social_graph import SocialGraph
 
 
+
+__all__ = [
+    "PrivacyLevel",
+    "TopicPrivacy",
+]
+
 class PrivacyLevel(str, Enum):
     """话题隐私级别 (CPM 边界)。"""
     PRIVATE = "private"   # 只对自己, 永不提及

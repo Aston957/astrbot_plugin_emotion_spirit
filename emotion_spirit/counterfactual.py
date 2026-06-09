@@ -24,6 +24,11 @@ _PERSPECTIVES = {
 from .registry import register
 
 
+
+__all__ = [
+    "Counterfactual",
+]
+
 @register(
     name="counterfactual",
     provides=["Counterfactual"],

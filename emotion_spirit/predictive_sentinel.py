@@ -23,6 +23,11 @@ if TYPE_CHECKING:
 from .registry import register
 
 
+
+__all__ = [
+    "PredictiveSentinel",
+]
+
 @register(
     name="predictive_sentinel",
     provides=["PredictiveSentinel"],

@@ -28,6 +28,14 @@ from .config import BUFFER_POOL_CONFIG, MEMORY_POOL_CONFIG
 GLOBAL_USER_ID = "<global>"
 
 
+
+__all__ = [
+    "GLOBAL_USER_ID",
+    "BufferEntry",
+    "MemoryEntry",
+    "MemoryPool",
+]
+
 @dataclass
 class _UserPool:
     """单用户的四层记忆池状态 (Phase 2.0)。"""
