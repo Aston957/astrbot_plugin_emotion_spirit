@@ -105,7 +105,6 @@
 - **新测试文件**: `tests/regulation/test_conscience_tracker_quantile.py` (C1, 9 tests), `tests/test_packaging.py` (C2, 3 tests), `tests/test_public_api_markers.py` (C3, 6 tests), `tests/test_dir_structure.py` (C4, 3 tests)
 
 ### Spec Deviations
-完整 16 条 spec 偏离记录在 [`docs/superpowers/specs/2026-06-08-phase-4-launch-design.md` §12.2](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md).
 
 - C2 偏离 3 条 (PEP 440 / test 扩展 / packages 暂列 1)
 - C3 偏离 5 条 (module count / `__all__` AST-aligned / version test / `_v1_compat` skip / test rearrange)
