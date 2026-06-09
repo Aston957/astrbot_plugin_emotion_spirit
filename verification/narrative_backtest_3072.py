@@ -21,12 +21,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.persona_labels_db import (
     force_state_from_persona_id,
     list_persona_ids,
     get_persona_entry,
 )
-from emotion_spirit.force_dynamics import ForceDynamics
+from emotion_spirit.regulation.force_dynamics import ForceDynamics
 from verification.drift_simulator import simulate_persona
 
 
@@ -133,7 +133,7 @@ def run_neutral_3072(steps: int = 5) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
 
     for persona_id in list_persona_ids():
-        from emotion_spirit.persona_labels_db import parse_persona_id
+        from emotion_spirit.core.persona_labels_db import parse_persona_id
         labels_3c = parse_persona_id(persona_id)
         if labels_3c is None:
             continue

@@ -14,17 +14,17 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-from emotion_spirit.superego import (
+from emotion_spirit.regulation.superego import (
     ValueResistance, ValueAlignment, ConscienceTracker, IdealSelf,
 )
-from emotion_spirit.superego_guard import SuperegoGuard
-from emotion_spirit.surface_consumer import SurfaceConsumer
-from emotion_spirit.personality_drift import PersonalityDrift
-from emotion_spirit.meaning_reservoir import MeaningReservoir
-from emotion_spirit.buffer_signals import BufferSignals
-from emotion_spirit.memory_pool import MemoryPool
-from emotion_spirit.intimacy import IntimacyTracker
-from emotion_spirit.label_mapper import labels_to_personality, _BASELINE
+from emotion_spirit.regulation.superego_guard import SuperegoGuard
+from emotion_spirit.output.surface_consumer import SurfaceConsumer
+from emotion_spirit.regulation.personality_drift import PersonalityDrift
+from emotion_spirit.memory.meaning_reservoir import MeaningReservoir
+from emotion_spirit.output.buffer_signals import BufferSignals
+from emotion_spirit.memory.memory_pool import MemoryPool
+from emotion_spirit.memory.intimacy import IntimacyTracker
+from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
 
 from surface_generator import ScenarioProfile, SCENARIOS, generate_scenario_sequence, generate_bursty_scenario_sequence
 from drift_simulator import DriftSimulator, simulate_persona

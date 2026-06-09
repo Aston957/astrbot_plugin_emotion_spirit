@@ -45,6 +45,8 @@ dev = [
 [tool.setuptools]
 packages = [
   "emotion_spirit",
+  "emotion_spirit.core", "emotion_spirit.memory",
+  "emotion_spirit.regulation", "emotion_spirit.output",
 ]
 include-package-data = true
 

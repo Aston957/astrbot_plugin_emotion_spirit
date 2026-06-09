@@ -12,15 +12,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.persona_labels_db import (
     REQUIRED_DIMS,
     force_state_from_persona_id_with_conscience,
     register_persona_baseline,
     reset_cache,
     get_kb_stats,
 )
-from emotion_spirit.body_state import BodyState
-from emotion_spirit.force_dynamics import ForceState
+from emotion_spirit.regulation.body_state import BodyState
+from emotion_spirit.regulation.force_dynamics import ForceState
 
 
 def _make_baseline(centers: dict[str, float] | None = None) -> dict[str, float]:

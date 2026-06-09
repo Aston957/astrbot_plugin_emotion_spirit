@@ -23,7 +23,7 @@ import time
 
 import pytest
 
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.persona_labels_db import (
     get_persona_labels_db,
     get_baseline_for_persona,
     list_persona_ids,

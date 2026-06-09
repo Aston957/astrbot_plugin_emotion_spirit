@@ -84,7 +84,9 @@ def test_no_third_party_imports():
         for p in REPO_ROOT.glob("*.py")
         if p.stem != "__init__"
     }
-    local_top_levels = local_modules | repo_root_modules | {"emotion_spirit"}
+    local_top_levels = local_modules | repo_root_modules | {
+        "emotion_spirit", "core", "memory", "regulation", "output",
+    }
     allowed_prefixes = (
         "__future__",
         "ast", "astrbot", "collections", "dataclasses", "datetime",

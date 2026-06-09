@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _build_with_defaults():
     """Helper: 装配 28 模块用 default config。"""
-    from emotion_spirit.plugin_factory import default_config
-    from emotion_spirit.registry import build
+    from emotion_spirit.core.plugin_factory import default_config
+    from emotion_spirit.core.registry import build
     return build(default_config(
         data_dir="/tmp/test_emotion_spirit_b6x",
         persona_id="INFP-A",
@@ -23,7 +23,7 @@ def _build_with_defaults():
 # ═══ 1. buffer_signals (1 参 pool) ═══
 def test_buffer_signals_param_name_pool_wired():
     """buffer_signals: param name 'pool' 跟 dep 'memory_pool' 不一致, 用 param_wire。"""
-    from emotion_spirit.buffer_signals import BufferSignals
+    from emotion_spirit.output.buffer_signals import BufferSignals
     instances = _build_with_defaults()
     bs = instances["buffer_signals"]
     assert isinstance(bs, BufferSignals)
@@ -33,7 +33,7 @@ def test_buffer_signals_param_name_pool_wired():
 # ═══ 2. counterfactual (1 参 pool) ═══
 def test_counterfactual_param_name_pool_wired():
     """counterfactual: param name 'pool' 跟 dep 'memory_pool' 不一致。"""
-    from emotion_spirit.counterfactual import Counterfactual
+    from emotion_spirit.regulation.counterfactual import Counterfactual
     instances = _build_with_defaults()
     cf = instances["counterfactual"]
     assert isinstance(cf, Counterfactual)
@@ -43,7 +43,7 @@ def test_counterfactual_param_name_pool_wired():
 # ═══ 3. pattern_extractor (1 参 pool) ═══
 def test_pattern_extractor_param_name_pool_wired():
     """pattern_extractor: param name 'pool' 跟 dep 'memory_pool' 不一致。"""
-    from emotion_spirit.pattern_extractor import PatternExtractor
+    from emotion_spirit.regulation.pattern_extractor import PatternExtractor
     instances = _build_with_defaults()
     pe = instances["pattern_extractor"]
     assert isinstance(pe, PatternExtractor)
@@ -53,7 +53,7 @@ def test_pattern_extractor_param_name_pool_wired():
 # ═══ 4. life_simulator (5 参) ═══
 def test_life_simulator_5_deps_wired():
     """life_simulator: 5 参 (consumer/pool/intimacy/signals/reservoir), 4 dep wire。"""
-    from emotion_spirit.life_simulator import LifeSimulator
+    from emotion_spirit.regulation.life_simulator import LifeSimulator
     instances = _build_with_defaults()
     ls = instances["life_simulator"]
     assert isinstance(ls, LifeSimulator)
@@ -67,7 +67,7 @@ def test_life_simulator_5_deps_wired():
 # ═══ 5. shadow_detector (3 参) ═══
 def test_shadow_detector_3_deps_wired():
     """shadow_detector: 3 参 pool/signals/patterns, 3 dep 全 wire。"""
-    from emotion_spirit.shadow_detector import ShadowDetector
+    from emotion_spirit.regulation.shadow_detector import ShadowDetector
     instances = _build_with_defaults()
     sd = instances["shadow_detector"]
     assert isinstance(sd, ShadowDetector)
@@ -79,7 +79,7 @@ def test_shadow_detector_3_deps_wired():
 # ═══ 6. predictive_sentinel (6 参) ═══
 def test_predictive_sentinel_6_deps_wired():
     """predictive_sentinel: 6 参, 含 superego 3 sub (alignment/conscience/ideal)。"""
-    from emotion_spirit.predictive_sentinel import PredictiveSentinel
+    from emotion_spirit.output.predictive_sentinel import PredictiveSentinel
     instances = _build_with_defaults()
     ps = instances["predictive_sentinel"]
     assert isinstance(ps, PredictiveSentinel)
@@ -94,7 +94,7 @@ def test_predictive_sentinel_6_deps_wired():
 # ═══ 7. prompt_injector (8 参, 含 superego 3 sub) ═══
 def test_prompt_injector_superego_sub_deps_wired():
     """prompt_injector: 8 参, 含 superego 3 sub。"""
-    from emotion_spirit.prompt_injector import PromptInjector
+    from emotion_spirit.output.prompt_injector import PromptInjector
     instances = _build_with_defaults()
     pi = instances["prompt_injector"]
     assert isinstance(pi, PromptInjector)
@@ -111,7 +111,7 @@ def test_prompt_injector_superego_sub_deps_wired():
 # ═══ 8. narrative_identity (5 参) ═══
 def test_narrative_identity_5_deps_wired():
     """narrative_identity: 5 参 pool/patterns/drift/signals/diary。"""
-    from emotion_spirit.narrative_identity import NarrativeIdentity
+    from emotion_spirit.output.narrative_identity import NarrativeIdentity
     instances = _build_with_defaults()
     ni = instances["narrative_identity"]
     assert isinstance(ni, NarrativeIdentity)
@@ -125,7 +125,7 @@ def test_narrative_identity_5_deps_wired():
 # ═══ 9. diary_writer (5 参, 含 superego 2 sub) ═══
 def test_diary_writer_5_deps_wired():
     """diary_writer: 5 参 pool/patterns/signals/alignment/conscience。"""
-    from emotion_spirit.diary_writer import DiaryWriter
+    from emotion_spirit.output.diary_writer import DiaryWriter
     instances = _build_with_defaults()
     dw = instances["diary_writer"]
     assert isinstance(dw, DiaryWriter)
@@ -139,7 +139,7 @@ def test_diary_writer_5_deps_wired():
 # ═══ 10. personality_drift (2 参) ═══
 def test_personality_drift_2_deps_wired():
     """personality_drift: 2 参 consumer/reservoir。"""
-    from emotion_spirit.personality_drift import PersonalityDrift
+    from emotion_spirit.regulation.personality_drift import PersonalityDrift
     instances = _build_with_defaults()
     pd = instances["personality_drift"]
     assert isinstance(pd, PersonalityDrift)
@@ -150,7 +150,7 @@ def test_personality_drift_2_deps_wired():
 # ═══ 11. persona_analyzer (config_keys: llm) ═══
 def test_persona_analyzer_llm_from_config():
     """persona_analyzer: llm/fallback 从 config["params"] 注入。"""
-    from emotion_spirit.persona_analyzer import PersonaAnalyzerWithFallback
+    from emotion_spirit.regulation.persona_analyzer import PersonaAnalyzerWithFallback
     instances = _build_with_defaults()
     pa = instances["persona_analyzer"]
     assert isinstance(pa, PersonaAnalyzerWithFallback)
@@ -169,7 +169,7 @@ def test_store_data_dir_from_config():
 # ═══ 13. superego (multi-instance 4 sub) ═══
 def test_superego_multi_instance_4_sub():
     """superego: 4 sub (alignment/conscience/resistance/ideal) 通过 provides_classes。"""
-    from emotion_spirit.superego import (
+    from emotion_spirit.regulation.superego import (
         ValueAlignment, ValueResistance, ConscienceTracker, IdealSelf,
     )
     instances = _build_with_defaults()
@@ -185,7 +185,7 @@ def test_superego_multi_instance_4_sub():
 # ═══ 14. superego_guard (3 dep 全 superego sub) ═══
 def test_superego_guard_3_sub_deps_wired():
     """superego_guard: conscience/alignment/ideal 来自 superego sub。"""
-    from emotion_spirit.superego_guard import SuperegoGuard
+    from emotion_spirit.regulation.superego_guard import SuperegoGuard
     instances = _build_with_defaults()
     sg = instances["superego_guard"]
     assert isinstance(sg, SuperegoGuard)
@@ -197,7 +197,7 @@ def test_superego_guard_3_sub_deps_wired():
 # ═══ 15. bot_decision (config_keys: gossip_tendency) ═══
 def test_bot_decision_config_keys_injected():
     """bot_decision: gossip_tendency 从 config["params"] 注入。"""
-    from emotion_spirit.bot_decision import BotDecisionMaker
+    from emotion_spirit.output.bot_decision import BotDecisionMaker
     instances = _build_with_defaults()
     bd = instances["bot_decision"]
     assert isinstance(bd, BotDecisionMaker)
@@ -209,7 +209,7 @@ def test_bot_decision_config_keys_injected():
 # ═══ 16. topic_privacy (无参, 删 extra dep) ═══
 def test_topic_privacy_no_extra_dep():
     """topic_privacy: 无参, 不应声明 social_graph 依赖。"""
-    from emotion_spirit.topic_privacy import TopicPrivacy
+    from emotion_spirit.memory.topic_privacy import TopicPrivacy
     instances = _build_with_defaults()
     tp = instances["topic_privacy"]
     assert isinstance(tp, TopicPrivacy)

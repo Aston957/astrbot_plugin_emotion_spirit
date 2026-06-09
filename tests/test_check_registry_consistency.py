@@ -34,7 +34,7 @@ def test_check_registry_consistency_covers_all_30_specs():
     直接在测试进程内验证 _check_module_consistency 不抛错。
     """
     import emotion_spirit  # noqa: F401
-    from emotion_spirit.registry import ModuleRegistry
+    from emotion_spirit.core.registry import ModuleRegistry
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from tools.check_registry_consistency import _check_module_consistency
 

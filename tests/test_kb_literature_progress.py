@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.persona_labels_db import (
     REQUIRED_DIMS,
     get_persona_labels_db,
     get_persona_entry,
@@ -81,7 +81,7 @@ def test_d_grade_percentage_warning():
     spec §8.5 + D3 决策: 大部分 entry 标 D (computed, no literature) 是
     honest disclosure, 不阻断 ship, 但应触发 warning 提醒持续文献化。
     """
-    from emotion_spirit.persona_labels_db import get_persona_labels_db
+    from emotion_spirit.core.persona_labels_db import get_persona_labels_db
     db = get_persona_labels_db()
     if not db:
         pytest.skip("KB empty, skip progress check")

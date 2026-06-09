@@ -28,10 +28,10 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.memory_pool import MemoryPool
-from emotion_spirit.buffer_signals import BufferSignals
-from emotion_spirit.pattern_extractor import PatternExtractor
-from emotion_spirit.counterfactual import Counterfactual
+from emotion_spirit.memory.memory_pool import MemoryPool
+from emotion_spirit.output.buffer_signals import BufferSignals
+from emotion_spirit.regulation.pattern_extractor import PatternExtractor
+from emotion_spirit.regulation.counterfactual import Counterfactual
 
 
 def test_resolve_user_id_returns_session_id():
@@ -49,7 +49,7 @@ def test_main_per_user_calls_use_per_user_api():
     main.py 的 _consume_surface 委托给 SurfaceHandler.consume。
     """
     import inspect
-    from emotion_spirit import surface_handler
+    from emotion_spirit.output import surface_handler
     # 这里 main.py / surface_handler.py 是 AstrBot 插件, 不容易直接实例化 — 用静态源码检查
     src = inspect.getsource(surface_handler)
     # 关键 API 调用应出现
@@ -95,7 +95,7 @@ def test_main_per_user_ghost_resonance_isolated():
     alice_entry = pool.warm_for("alice")[0] if pool.warm_for("alice") else None
     if alice_entry is None:
         # buffer 还没流转, 直接构造
-        from emotion_spirit.memory_pool import MemoryEntry
+        from emotion_spirit.memory.memory_pool import MemoryEntry
         alice_entry = MemoryEntry(
             id="test_alice", text="alice_test", emotional_weight=0.5,
             phi_at_creation=0.5, tags=["betrayal"], source_user="alice",

@@ -46,7 +46,7 @@ def test_5_persona_gossip_tendency_baselines_in_kb():
     当前 5 persona gossip_tendency 公式输出 (baseline 集中在 0.5 附近,
     因为 placeholder 标签区分度有限): 0.45-0.55 区间。
     """
-    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.core.knowledge import KnowledgeBase
     # 5 persona gossip_tendency 公式输出范围 (placeholder labels)
     # 实测: INFP-A 0.4975, ISTJ-S 0.4750, ENTP-AV 0.5350, ISFJ-D 0.5075, ESTP-A 0.5450
     # 留 ±0.10 tolerance 应对 fixture labels 未来微调
@@ -79,7 +79,7 @@ def test_simulator_reads_knowledge_base_for_persona_id():
     # gossip_tendency 应该是公式算的值 (INFP-A ≈ 0.4975), 不是 0
     assert baseline["gossip_tendency"] > 0
     # 跟 KB 公式一致
-    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.core.knowledge import KnowledgeBase
     kb_gt = KnowledgeBase.compute_baseline_from_labels(INFP_A_LABELS)["gossip_tendency"]
     assert baseline["gossip_tendency"] == kb_gt
 
@@ -209,7 +209,7 @@ def test_simulate_persona_neutral_scenario():
 def test_all_5_personas_gossip_tendency_via_simulator():
     """DriftSimulator(labels=X).get_initial_personality() 跟 KB 公式一致 (5 persona 全验证)。"""
     from verification.drift_simulator import DriftSimulator
-    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.core.knowledge import KnowledgeBase
     for persona_id, labels in ALL_5_FIXTURES:
         sim = DriftSimulator(labels=labels)
         sim_gt = sim.get_initial_personality()["gossip_tendency"]

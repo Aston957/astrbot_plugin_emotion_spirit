@@ -1,7 +1,7 @@
 """Phase 4 C1 — ConscienceTracker 滑动窗口 P95 归一化 (B2 算法)"""
 import pytest
 
-from emotion_spirit.superego import ConscienceTracker
+from emotion_spirit.regulation.superego import ConscienceTracker
 
 
 # 清除 env var 防止测试间污染

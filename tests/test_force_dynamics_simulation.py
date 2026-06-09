@@ -31,7 +31,7 @@ def test_5_fixture_force_state_at_baseline():
     验证 ForceDynamics.force_state_from_labels 集成路径: 5 标签 → KB
     compute_baseline_from_labels → 13 维 → ForceState (算法 H)。
     """
-    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.regulation.force_dynamics import ForceDynamics
     fd = ForceDynamics()
     for labels in ALL_5_FIXTURE_LABELS:
         fs = fd.force_state_from_labels(labels)
@@ -46,7 +46,7 @@ def test_5_fixture_social_weight_spread():
     expression_drive, gossip_tendency)。5 persona gossip_tendency baseline
     在 0.40-0.60 区间 (placeholder labels), 应反映在 social weight 差异。
     """
-    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.regulation.force_dynamics import ForceDynamics
     fd = ForceDynamics()
     socials = [fd.force_state_from_labels(labels).social for labels in ALL_5_FIXTURE_LABELS]
     spread = max(socials) - min(socials)
@@ -65,7 +65,7 @@ def test_gossip_topic_heavy_shifts_social():
     gossip_tendency 上升 → social 力 4 dim 加权 → social weight 升。
     选 ESTP-A (高 social baseline ~0.62) 跑 gossip_topic_heavy 20 步。
     """
-    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.regulation.force_dynamics import ForceDynamics
     from verification.simulation_runner import run_simulation
 
     fd = ForceDynamics()
@@ -153,7 +153,7 @@ def test_force_state_snapshot_varies_with_scenario():
 
 def test_force_state_snapshot_initial_step_matches_baseline():
     """force_trajectory[0] (initial step) 应跟 personality 初始 baseline ForceState 一致。"""
-    from emotion_spirit.force_dynamics import ForceDynamics
+    from emotion_spirit.regulation.force_dynamics import ForceDynamics
     from verification.simulation_runner import run_simulation
 
     fd = ForceDynamics()

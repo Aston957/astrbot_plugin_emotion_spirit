@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 import emotion_spirit  # noqa: F401  # 触发 30 模块 @register (Phase 3.0B Task 3: +body_state)
-from emotion_spirit.registry import ModuleRegistry, build
-from emotion_spirit.plugin_factory import default_config, build as factory_build
+from emotion_spirit.core.registry import ModuleRegistry, build
+from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
 def test_dry_run_30_modules_no_error():
@@ -59,8 +59,8 @@ def test_build_real_construct_25_instances():
 
     # 关键模块类型对得上
     from emotion_spirit.store import SpiritStore
-    from emotion_spirit.memory_pool import MemoryPool
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.memory_pool import MemoryPool
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     assert isinstance(instances["store"], SpiritStore)
     assert isinstance(instances["memory_pool"], MemoryPool)
     assert isinstance(instances["intimacy"], IntimacyTracker)
@@ -68,7 +68,7 @@ def test_build_real_construct_25_instances():
 
 def test_build_superego_multi_instance():
     """superego 走 multi-instance 分支, 返回 dict 含 4 sub。"""
-    from emotion_spirit.superego import (
+    from emotion_spirit.regulation.superego import (
         ValueAlignment, ValueResistance, ConscienceTracker, IdealSelf,
     )
     config = default_config(
@@ -88,7 +88,7 @@ def test_build_superego_multi_instance():
 
 def test_build_prompt_injector_superego_sub_deps_wired():
     """prompt_injector 拿 superego 3 sub (alignment/conscience/ideal)。"""
-    from emotion_spirit.prompt_injector import PromptInjector
+    from emotion_spirit.output.prompt_injector import PromptInjector
     config = default_config(
         data_dir="/tmp/test_pi",
         persona_id="INFP-A",
@@ -206,7 +206,7 @@ def test_cycle_detection_raises_runtime_error():
     用 2 个临时模块 A 跟 B 互依, 验证 _pending loop 检测到 no progress 时抛错。
     需手动 save/restore registry 避免污染 28 真实模块 (本文件无 autouse fixture)。
     """
-    from emotion_spirit.registry import register
+    from emotion_spirit.core.registry import register
     import pytest
     saved = dict(ModuleRegistry.get_all())
     try:

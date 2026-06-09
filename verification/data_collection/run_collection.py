@@ -33,12 +33,12 @@ _this_dir = Path(__file__).parent
 sys.path.insert(0, str(_this_dir.parent.parent))
 sys.path.insert(0, str(_this_dir.parent))
 
-from emotion_spirit.label_mapper import labels_to_personality
-from emotion_spirit.surface_consumer import SurfaceConsumer
-from emotion_spirit.superego import (
+from emotion_spirit.core.label_mapper import labels_to_personality
+from emotion_spirit.output.surface_consumer import SurfaceConsumer
+from emotion_spirit.regulation.superego import (
     ValueResistance, ValueAlignment, ConscienceTracker, IdealSelf,
 )
-from emotion_spirit.superego_guard import SuperegoGuard
+from emotion_spirit.regulation.superego_guard import SuperegoGuard
 from verification.surface_generator import (
     generate_bursty_scenario_sequence,
     SCENARIOS,

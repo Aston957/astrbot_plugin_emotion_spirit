@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 import emotion_spirit  # noqa: F401  # 触发 28 模块 @register
-from emotion_spirit.registry import ModuleRegistry
+from emotion_spirit.core.registry import ModuleRegistry
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def isolate_registry():
 
 def test_module_registry_register_decorator():
     """@register 装饰器把类注册到全局 registry。"""
-    from emotion_spirit.registry import ModuleRegistry, register
+    from emotion_spirit.core.registry import ModuleRegistry, register
 
     @register(name="test_mod", provides=["TestMod"], depends_on=[])
     class TestMod:
@@ -44,7 +44,7 @@ def test_module_registry_register_decorator():
 
 def test_build_resolves_simple_dependency():
     """build() 按依赖图 init 模块。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[])
     class A:
@@ -67,7 +67,7 @@ def test_build_resolves_simple_dependency():
 
 def test_build_disabled_module_skipped():
     """config.enabled=False 跳过该模块。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[])
     class A:
@@ -88,7 +88,7 @@ def test_build_disabled_module_skipped():
 
 def test_build_circular_dependency_raises():
     """循环依赖应抛 RuntimeError。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=["B"])
     class A:
@@ -106,7 +106,7 @@ def test_build_circular_dependency_raises():
 
 def test_build_dry_run_does_not_initialize():
     """dry_run=True 只检查依赖图, 不真正 init。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[])
     class A:
@@ -120,7 +120,7 @@ def test_build_dry_run_does_not_initialize():
 
 def test_build_with_param_wire():
     """param_wire 显式 mapping: dep name → __init__ 形参名。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[])
     class A:
@@ -140,7 +140,7 @@ def test_build_with_param_wire():
 
 def test_build_with_config_keys():
     """config_keys 从 config["params"] 注入, 不在 depends_on 列表。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[], config_keys={"data_dir", "name"})
     class A:
@@ -159,7 +159,7 @@ def test_build_with_config_keys():
 
 def test_build_multi_instance_superego():
     """provides_classes 触发 multi-instance 分支, 返回 dict[cls_name, instance]。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(
         name="superego",
@@ -182,7 +182,7 @@ def test_build_dry_run_28_modules():
     """dry_run 走 28 模块依赖图检查, 0 错误。完整 28 模块集成测试在 test_registry_build_dryrun.py。"""
     # 此处仅验证 dry_run 基础机制 (用单 module); 完整 28 模块 dry_run 在
     # tests/test_registry_build_dryrun.py::test_dry_run_28_modules_no_error。
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(name="a", provides=["A"], depends_on=[])
     class A:
@@ -195,7 +195,7 @@ def test_build_dry_run_28_modules():
 
 def test_build_superego_sub_dep_via_dot():
     """'superego.alignment' 这种 sub 引用从 instances['superego']['alignment'] 拿。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(
         name="superego",
@@ -232,7 +232,7 @@ def test_config_key_mismatch_raises_for_single_instance():
     不会报错, 但单 instance 会 TypeError 在最远点, 难定位。
     现在: 提前 RuntimeError + 明确 spec name + config_key, fail-fast。
     """
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(
         name="_test_cfg_mismatch",
@@ -254,7 +254,7 @@ def test_config_key_mismatch_raises_for_single_instance():
 
 def test_config_key_mismatch_raises_for_multi_instance():
     """multi-instance: config_key 不在任一 sub __init__ 形参时也 raise。"""
-    from emotion_spirit.registry import ModuleRegistry, register, build
+    from emotion_spirit.core.registry import ModuleRegistry, register, build
 
     @register(
         name="_test_cfg_mismatch_multi",

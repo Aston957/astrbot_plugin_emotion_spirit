@@ -147,7 +147,7 @@ def test_global_only_rejects_user_id_as_kwarg_only():
 
 def test_intimacy_get_intimacy_requires_user_id():
     """IntimacyTracker.get_intimacy (Layer 2) 强制 user_id。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     with pytest.raises(TypeError, match="requires user_id"):
         tracker.get_intimacy()
@@ -155,7 +155,7 @@ def test_intimacy_get_intimacy_requires_user_id():
 
 def test_intimacy_get_segment_requires_user_id():
     """IntimacyTracker.get_segment (Layer 2) 强制 user_id。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     with pytest.raises(TypeError, match="requires user_id"):
         tracker.get_segment()
@@ -163,7 +163,7 @@ def test_intimacy_get_segment_requires_user_id():
 
 def test_intimacy_get_relationship_tone_requires_user_id():
     """IntimacyTracker.get_relationship_tone (Layer 2) 强制 user_id。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     with pytest.raises(TypeError, match="requires user_id"):
         tracker.get_relationship_tone()
@@ -171,7 +171,7 @@ def test_intimacy_get_relationship_tone_requires_user_id():
 
 def test_intimacy_get_lifecycle_requires_user_id():
     """IntimacyTracker.get_lifecycle (Layer 2) 强制 user_id。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     with pytest.raises(TypeError, match="requires user_id"):
         tracker.get_lifecycle()
@@ -179,7 +179,7 @@ def test_intimacy_get_lifecycle_requires_user_id():
 
 def test_intimacy_get_intimacy_accepts_user_id():
     """get_intimacy(user_id) 正常工作 (向后兼容)。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     score = tracker.get_intimacy("alice")
     assert 0.0 <= score <= 1.0
@@ -189,7 +189,7 @@ def test_intimacy_get_intimacy_accepts_user_id():
 
 def test_conscience_get_pressure_breakdown_is_global():
     """ConscienceTracker.get_pressure_breakdown 是 global_only, 不接受 user_id。"""
-    from emotion_spirit.superego import ConscienceTracker
+    from emotion_spirit.regulation.superego import ConscienceTracker
     ct = ConscienceTracker()
     breakdown = ct.get_pressure_breakdown()
     assert "pressure" in breakdown
@@ -200,7 +200,7 @@ def test_conscience_get_pressure_breakdown_is_global():
 
 def test_personality_drift_update_is_global():
     """PersonalityDrift.update 是 global_only, 不接受 user_id。"""
-    from emotion_spirit.personality_drift import PersonalityDrift
+    from emotion_spirit.regulation.personality_drift import PersonalityDrift
 
     # 类定义已成功 (global_only 在 import 时检查)
     # update 方法签名确认无 user_id
@@ -225,7 +225,7 @@ def test_layer_2_has_no_layer_3_reference():
 
     架构层强制: Layer 2 不知道 Layer 3 内部状态。
     """
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     intimacy = IntimacyTracker()
     # 关键: 不允许 _conscience 字段
     assert not hasattr(intimacy, "_conscience")
@@ -240,7 +240,7 @@ def test_layer_2_has_no_layer_3_reference():
 
 def test_phase25_integration_caller_style():
     """现有 Phase 2.5 caller 风格 (位置参数) 仍工作。"""
-    from emotion_spirit.intimacy import IntimacyTracker
+    from emotion_spirit.memory.intimacy import IntimacyTracker
     tracker = IntimacyTracker()
     # 模拟 test_phase25_integration.py 的用法
     seg = tracker.get_segment("alice")

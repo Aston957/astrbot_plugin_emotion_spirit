@@ -22,7 +22,7 @@ from typing import Any
 
 from astrbot.api import logger
 
-from .registry import register
+from .core.registry import register
 
 
 _STORE_FILE = "spirit_data.json"

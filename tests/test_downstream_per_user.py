@@ -21,13 +21,13 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.memory_pool import MemoryPool
-from emotion_spirit.pattern_extractor import PatternExtractor
-from emotion_spirit.counterfactual import Counterfactual
-from emotion_spirit.life_simulator import LifeSimulator
-from emotion_spirit.diary_writer import DiaryWriter
-from emotion_spirit.narrative_identity import NarrativeIdentity
-from emotion_spirit.prompt_injector import PromptInjector
+from emotion_spirit.memory.memory_pool import MemoryPool
+from emotion_spirit.regulation.pattern_extractor import PatternExtractor
+from emotion_spirit.regulation.counterfactual import Counterfactual
+from emotion_spirit.regulation.life_simulator import LifeSimulator
+from emotion_spirit.output.diary_writer import DiaryWriter
+from emotion_spirit.output.narrative_identity import NarrativeIdentity
+from emotion_spirit.output.prompt_injector import PromptInjector
 
 
 # ═══ PatternExtractor ═══
@@ -123,8 +123,8 @@ def test_life_simulator_per_user_buffer_isolation():
 
     # 构造 LifeSimulator 需要 consumer/intimacy/signals/reservoir, 这里只测 pool 部分
     # 简化: 直接测试 pool.sample_for_mode_a 的 per-user 路径
-    from emotion_spirit.life_simulator import LifeSimulator
-    from emotion_spirit.buffer_signals import BufferSignals
+    from emotion_spirit.regulation.life_simulator import LifeSimulator
+    from emotion_spirit.output.buffer_signals import BufferSignals
     # mock consumer/intimacy/reservoir
     class _Stub:
         pass
@@ -152,7 +152,7 @@ def test_diary_writer_uses_user_id_in_pool_read():
     pool.confirm_check_for_user("bob")
 
     # 验证 DiaryWriter 内部使用 warm_for(user_id) (静态检查)
-    from emotion_spirit.diary_writer import DiaryWriter
+    from emotion_spirit.output.diary_writer import DiaryWriter
     import inspect
     src = inspect.getsource(DiaryWriter.build_diary_prompt)
     assert "warm_for" in src, "DiaryWriter.build_diary_prompt must use self._pool.warm_for(user_id)"
@@ -170,7 +170,7 @@ def test_diary_writer_uses_user_id_in_pool_read():
 
 def test_narrative_identity_uses_signals_with_user_id():
     """NarrativeIdentity 通过 signals (已 per-user from Step 2) 实现隔离。"""
-    from emotion_spirit.buffer_signals import BufferSignals
+    from emotion_spirit.output.buffer_signals import BufferSignals
     pool = MemoryPool()
     # alice 5 条, bob 5 条不同 weight
     for i in range(5):
@@ -204,7 +204,7 @@ def test_prompt_injector_uses_user_specific_warm():
 
     # 构造 PromptInjector 需要其他依赖, 这里只测 pool 读取路径
     # 验证 PromptInjector.build_context 中 self._pool.warm 已被替换为 warm_for(user_id)
-    from emotion_spirit.prompt_injector import PromptInjector
+    from emotion_spirit.output.prompt_injector import PromptInjector
     class _Stub:
         def get_lifecycle(self, *a, **kw): return "stranger"
         def get_intimacy(self, *a, **kw): return 0.0

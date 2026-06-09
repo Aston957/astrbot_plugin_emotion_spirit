@@ -1,8 +1,8 @@
 """SemanticSignals 扩展 + consume() 集成测试。"""
 
 import pytest
-from emotion_spirit.knowledge import KnowledgeBase
-from emotion_spirit.surface_consumer import SemanticSignals
+from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.output.surface_consumer import SemanticSignals
 
 # Phase B: 数据走 KnowledgeBase (单一数据源)
 CATEGORICAL_REGIONS = KnowledgeBase.CATEGORICAL_REGIONS
@@ -30,7 +30,7 @@ def test_semantic_signals_preserves_pad_label():
 
 def test_consume_populates_distribution():
     """consume() 后 signals.pad_distribution 非空且求和 ≈ 1.0。"""
-    from emotion_spirit.surface_consumer import SurfaceConsumer
+    from emotion_spirit.output.surface_consumer import SurfaceConsumer
     consumer = SurfaceConsumer()
     surface = {
         "state": {},
@@ -51,7 +51,7 @@ def test_consume_populates_distribution():
 
 def test_consume_populates_primary_secondary():
     """consume() 后 signals.pad_primary 是字符串，pad_secondary 可选。"""
-    from emotion_spirit.surface_consumer import SurfaceConsumer
+    from emotion_spirit.output.surface_consumer import SurfaceConsumer
     consumer = SurfaceConsumer()
     surface = {
         "state": {},
@@ -77,7 +77,7 @@ def test_get_emotion_state_lazy_description():
     import asyncio
     from main import EmotionSpiritPlugin
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
-    from emotion_spirit.surface_consumer import SemanticSignals
+    from emotion_spirit.output.surface_consumer import SemanticSignals
     signals = SemanticSignals(
         pad_valence=0.7, pad_arousal=0.5, pad_dominance=0.7,
         pad_distribution={"joy": 0.6, "neutral": 0.3, "anger": 0.1},
@@ -113,7 +113,7 @@ def test_get_emotion_state_includes_v12_ambiguity_velocity():
     """v1.2: get_emotion_state 增加 emotion_ambiguity + emotion_velocity 字段。"""
     import asyncio
     from main import EmotionSpiritPlugin
-    from emotion_spirit.surface_consumer import SemanticSignals
+    from emotion_spirit.output.surface_consumer import SemanticSignals
 
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
     signals = SemanticSignals(
@@ -138,7 +138,7 @@ def test_get_emotion_state_keeps_backward_compat_9_fields():
     """v1.2 兼容老消费者：9 个原字段仍在。"""
     import asyncio
     from main import EmotionSpiritPlugin
-    from emotion_spirit.surface_consumer import SemanticSignals
+    from emotion_spirit.output.surface_consumer import SemanticSignals
 
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
     signals = SemanticSignals(
@@ -169,7 +169,7 @@ def test_get_emotion_state_with_trajectory_includes_field():
     """v1.7.2 Phase A: include_trajectory=True 时返回 emotion_trajectory 字段。"""
     import asyncio
     from main import EmotionSpiritPlugin
-    from emotion_spirit.surface_consumer import SemanticSignals
+    from emotion_spirit.output.surface_consumer import SemanticSignals
 
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
     signals = SemanticSignals(
@@ -193,7 +193,7 @@ def test_get_emotion_state_without_trajectory_omits_field():
     """v1.7.2 Phase A: include_trajectory 默认 False, 不返回 emotion_trajectory 字段 (向后兼容)。"""
     import asyncio
     from main import EmotionSpiritPlugin
-    from emotion_spirit.surface_consumer import SemanticSignals
+    from emotion_spirit.output.surface_consumer import SemanticSignals
 
     plugin = EmotionSpiritPlugin.__new__(EmotionSpiritPlugin)
     signals = SemanticSignals(

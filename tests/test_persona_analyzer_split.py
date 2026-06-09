@@ -23,7 +23,7 @@ def _run(coro):
 
 def test_rule_based_analyzer_returns_labels_without_llm():
     """RuleBasedAnalyzer 能在没 LLM 时返回 labels (基于 system_prompt 模式匹配)。"""
-    from emotion_spirit.persona_analyzer import RuleBasedAnalyzer
+    from emotion_spirit.regulation.persona_analyzer import RuleBasedAnalyzer
     analyzer = RuleBasedAnalyzer()
     result = _run(analyzer.analyze("alice", "INFP 焦虑型 表达型 顺应型 活在当下"))
     assert result.persona_id == "alice"
@@ -34,7 +34,7 @@ def test_rule_based_analyzer_returns_labels_without_llm():
 
 def test_llm_analyzer_requires_llm_callable():
     """LLMAnalyzer 必须传 llm_callable, 不传抛错。"""
-    from emotion_spirit.persona_analyzer import LLMAnalyzer
+    from emotion_spirit.regulation.persona_analyzer import LLMAnalyzer
     try:
         LLMAnalyzer()
         assert False, "LLMAnalyzer() should raise TypeError"
@@ -44,7 +44,7 @@ def test_llm_analyzer_requires_llm_callable():
 
 def test_llm_analyzer_invokes_llm():
     """LLMAnalyzer.analyze 调用 llm 拿 labels。"""
-    from emotion_spirit.persona_analyzer import LLMAnalyzer
+    from emotion_spirit.regulation.persona_analyzer import LLMAnalyzer
 
     class MockLLM:
         async def __call__(self, system, prompt):
@@ -59,7 +59,7 @@ def test_llm_analyzer_invokes_llm():
 
 def test_fallback_analyzer_uses_rule_based_when_llm_fails():
     """PersonaAnalyzerWithFallback LLM 失败时 fallback 到 RuleBased。"""
-    from emotion_spirit.persona_analyzer import (
+    from emotion_spirit.regulation.persona_analyzer import (
         PersonaAnalyzerWithFallback, RuleBasedAnalyzer,
     )
 
@@ -77,7 +77,7 @@ def test_fallback_analyzer_uses_rule_based_when_llm_fails():
 
 def test_fallback_analyzer_uses_llm_when_works():
     """LLM 成功时优先用 LLM, source = 'llm'。"""
-    from emotion_spirit.persona_analyzer import (
+    from emotion_spirit.regulation.persona_analyzer import (
         PersonaAnalyzerWithFallback, RuleBasedAnalyzer,
     )
 
@@ -94,7 +94,7 @@ def test_fallback_analyzer_uses_llm_when_works():
 
 def test_fallback_analyzer_works_without_llm():
     """PersonaAnalyzerWithFallback(llm=None) 走 RuleBased。"""
-    from emotion_spirit.persona_analyzer import PersonaAnalyzerWithFallback
+    from emotion_spirit.regulation.persona_analyzer import PersonaAnalyzerWithFallback
 
     analyzer = PersonaAnalyzerWithFallback(llm=None)
     result = _run(analyzer.analyze("alice", "INFP 焦虑型 表达型 顺应型 活在当下"))
@@ -105,7 +105,7 @@ def test_fallback_analyzer_works_without_llm():
 
 def test_backward_compat_persona_analyzer_alias():
     """PersonaAnalyzer = PersonaAnalyzerWithFallback (向后兼容别名)。"""
-    from emotion_spirit.persona_analyzer import (
+    from emotion_spirit.regulation.persona_analyzer import (
         PersonaAnalyzer, PersonaAnalyzerWithFallback,
     )
     assert PersonaAnalyzer is PersonaAnalyzerWithFallback
@@ -129,7 +129,7 @@ def test_backward_compat_persona_analyzer_alias():
 
 def test_persona_analysis_result_has_labels_property():
     """PersonaAnalysisResult.has_labels: True 当 labels 非空。"""
-    from emotion_spirit.persona_analyzer import PersonaAnalysisResult
+    from emotion_spirit.regulation.persona_analyzer import PersonaAnalysisResult
 
     # 有 labels
     r1 = PersonaAnalysisResult(
@@ -155,7 +155,7 @@ def test_persona_analysis_result_has_labels_property():
 
 def test_persona_analysis_result_to_from_dict_roundtrip(tmp_path):
     """save_report / load_report round-trip 保留 5 字段。"""
-    from emotion_spirit.persona_analyzer import (
+    from emotion_spirit.regulation.persona_analyzer import (
         PersonaAnalysisResult, save_report, load_report,
     )
 
@@ -179,7 +179,7 @@ def test_persona_analysis_result_to_from_dict_roundtrip(tmp_path):
 
 def test_load_report_returns_none_when_missing(tmp_path):
     """load_report 在文件不存在时返回 None。"""
-    from emotion_spirit.persona_analyzer import load_report
+    from emotion_spirit.regulation.persona_analyzer import load_report
 
     result = load_report(tmp_path)
     assert result is None
@@ -192,7 +192,7 @@ def test_register_decorator_preserved():
     重新触发 @register 装饰器, 确保 persona_analyzer 在 registry 里。
     """
     import importlib
-    from emotion_spirit.registry import ModuleRegistry
+    from emotion_spirit.core.registry import ModuleRegistry
     from emotion_spirit import persona_analyzer
 
     # 重新加载触发 @register 装饰器 (即使前面 test reset 了 registry)

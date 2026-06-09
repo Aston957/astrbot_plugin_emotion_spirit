@@ -27,15 +27,15 @@ sys.path = [str(ROOT)] + [p for p in sys.path if p and "verification" not in p]
 
 from statistics import mean, variance
 
-from emotion_spirit.config import TRAJECTORY_WINDOW, PAD_SAVE_INTERVAL_SECONDS
-from emotion_spirit.emotion_classifier import (
+from emotion_spirit.core.config import TRAJECTORY_WINDOW, PAD_SAVE_INTERVAL_SECONDS
+from emotion_spirit.output.emotion_classifier import (
     build_emotion_payload,
     classify_distribution,
     classify_primary_secondary,
     compute_ambiguity,
     compute_velocity,
 )
-from emotion_spirit.surface_consumer import SurfaceConsumer
+from emotion_spirit.output.surface_consumer import SurfaceConsumer
 
 
 # ═══ 3 个合成场景（受控）═══

@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from emotion_spirit.knowledge import KnowledgeBase
-from emotion_spirit.force_dynamics import ForceDynamics
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.regulation.force_dynamics import ForceDynamics
+from emotion_spirit.core.persona_labels_db import (
     force_state_from_persona_id,
     force_state_from_persona_id_with_conscience,
     get_baseline_for_persona,
@@ -80,7 +80,7 @@ def test_force_state_with_conscience_still_works():
 
 def test_force_state_with_conscience_with_tracker():
     """3.0B API: 真 ConscienceTracker 实例不破坏。"""
-    from emotion_spirit.superego import ConscienceTracker
+    from emotion_spirit.regulation.superego import ConscienceTracker
     tracker = ConscienceTracker()
     personality = _make_baseline({"curiosity": 0.85})
     fs = ForceDynamics().force_state_with_conscience(
@@ -120,7 +120,7 @@ def test_5_fixture_labels_have_diverse_baselines():
 
 def test_3c_bridge_accepts_conscience_tracker():
     """3.0C 便捷方法接受 ConscienceTracker 实例, 不破坏 3.0B 既有类型。"""
-    from emotion_spirit.superego import ConscienceTracker
+    from emotion_spirit.regulation.superego import ConscienceTracker
     register_persona_baseline("INFP-AV-EX-CO-PR", _make_baseline())
     tracker = ConscienceTracker()
     fs = force_state_from_persona_id_with_conscience("INFP-AV-EX-CO-PR", tracker)
@@ -159,7 +159,7 @@ def test_force_state_27sum_fallback_matches_3a_when_kb_miss(tmp_path, monkeypatc
     from tests.fixture_labels import INFP_A_LABELS
     # 强制 KB 失效
     monkeypatch.setattr(
-        "emotion_spirit.persona_labels_db.DB_PATH",
+        "emotion_spirit.core.persona_labels_db.DB_PATH",
         tmp_path / "nope.json",
     )
     reset_cache()  # 重置以读到新 path

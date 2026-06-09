@@ -105,8 +105,8 @@ def verify_d4_differentiation_gain() -> dict:
 
 def verify_d5_topk_differentiation() -> dict:
     """D-5: Top-K 核心维度区分度。"""
-    from emotion_spirit.label_mapper import _BASELINE
-    from emotion_spirit.superego import ValueResistance
+    from emotion_spirit.core.label_mapper import _BASELINE
+    from emotion_spirit.regulation.superego import ValueResistance
 
     labels = {
         "mbti": "INFP", "attachment": "焦虑型",
@@ -271,7 +271,7 @@ def verify_d10_ema_convergence() -> dict:
 
 def verify_d11_tension_mapping() -> dict:
     """D-11: tension 分类映射。"""
-    from emotion_spirit.knowledge import KnowledgeBase
+    from emotion_spirit.core.knowledge import KnowledgeBase
 
     tension_map = KnowledgeBase.TENSION_INCLINATION
     checks = {
@@ -294,7 +294,7 @@ def verify_d11_tension_mapping() -> dict:
 
 def verify_d12_slope_direction() -> dict:
     """D-12: EMA slope 方向与趋势一致。"""
-    from emotion_spirit.trend_utils import TrendDetector
+    from emotion_spirit.output.trend_utils import TrendDetector
 
     td_inc = TrendDetector(0.1, 0.01)
     for v in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:

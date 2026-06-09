@@ -20,15 +20,15 @@ from astrbot.api.star import Context, Star
 from astrbot.api import logger
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-from .emotion_spirit.plugin_factory import build as build_modules
-from .emotion_spirit.command_router import CommandRouter
-from .emotion_spirit.public_api import PublicAPI
-from .emotion_spirit.commands import CommandImpl
-from .emotion_spirit.surface_handler import SurfaceHandler
+from .emotion_spirit.core.plugin_factory import build as build_modules
+from .emotion_spirit.output.command_router import CommandRouter
+from .emotion_spirit.output.public_api import PublicAPI
+from .emotion_spirit.output.commands import CommandImpl
+from .emotion_spirit.output.surface_handler import SurfaceHandler
 
 # 兼容层: 这些直接 import 不动, 减少 commands.py 的依赖耦合
-from .emotion_spirit.persona_analyzer import save_report, load_report
-from .emotion_spirit.persona_report_parser import parse_persona_report
+from .emotion_spirit.regulation.persona_analyzer import save_report, load_report
+from .emotion_spirit.regulation.persona_report_parser import parse_persona_report
 
 
 def _legacy_redirect(old_name: str, new_name: str, new_attr: str):
@@ -98,9 +98,9 @@ class EmotionSpiritPlugin(Star):
 
     def _setup_persona_state(self) -> None:
         """初始化 persona 状态 (在 _modules 装配后调用)。"""
-        from .emotion_spirit.persona_analyzer import PersonaAnalysisResult
-        from .emotion_spirit.superego import ValueAlignment, ConscienceTracker, IdealSelf, ValueResistance
-        from .emotion_spirit.superego_guard import SuperegoGuard
+        from .emotion_spirit.regulation.persona_analyzer import PersonaAnalysisResult
+        from .emotion_spirit.regulation.superego import ValueAlignment, ConscienceTracker, IdealSelf, ValueResistance
+        from .emotion_spirit.regulation.superego_guard import SuperegoGuard
 
         self._store = self._modules["store"]
 
@@ -225,7 +225,7 @@ class EmotionSpiritPlugin(Star):
         }
 
     def _update_baseline(self) -> None:
-        from .emotion_spirit.persona_profiles import get_personality_params
+        from .emotion_spirit.memory.persona_profiles import get_personality_params
         self._baseline_personality = get_personality_params(self._labels)
         self._interaction_count = 0
         logger.info("emotion_spirit: baseline personality updated from labels")
@@ -235,7 +235,7 @@ class EmotionSpiritPlugin(Star):
         if len(labels) != 5:
             return None
         mbti, attachment, emotion_style, conflict_style, time_focus = labels
-        from .emotion_spirit.label_mapper import LABEL_OPTIONS
+        from .emotion_spirit.core.label_mapper import LABEL_OPTIONS
         if mbti not in LABEL_OPTIONS["mbti"]:
             return None
         if attachment not in LABEL_OPTIONS["attachment"]:
@@ -383,8 +383,8 @@ class EmotionSpiritPlugin(Star):
             self._migrate_old_spirit_data()
 
     def _reset_superego_modules(self) -> None:
-        from .emotion_spirit.superego import ValueAlignment, IdealSelf, ValueResistance
-        from .emotion_spirit.superego_guard import SuperegoGuard
+        from .emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
+        from .emotion_spirit.regulation.superego_guard import SuperegoGuard
 
         self._conscience = ConscienceTracker()
         self._alignment = ValueAlignment(self._current_persona)
@@ -445,8 +445,8 @@ class EmotionSpiritPlugin(Star):
         self._load_persona_state()
         if self._persona_initialized:
             self._update_baseline()
-            from .emotion_spirit.superego import ValueAlignment, IdealSelf, ValueResistance
-            from .emotion_spirit.superego_guard import SuperegoGuard
+            from .emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
+            from .emotion_spirit.regulation.superego_guard import SuperegoGuard
             self._alignment = ValueAlignment(self._current_persona)
             self._value_resistance = ValueResistance(self._current_persona)
             self._ideal = IdealSelf(self._current_persona, self._labels)
@@ -615,17 +615,17 @@ class EmotionSpiritPlugin(Star):
     # ═══ 内部方法: 持久化 ═══
 
     def _load_persistent_data(self) -> None:
-        from .emotion_spirit.memory_pool import MemoryPool
-        from .emotion_spirit.buffer_signals import BufferSignals
-        from .emotion_spirit.pattern_extractor import PatternExtractor
-        from .emotion_spirit.shadow_detector import ShadowDetector
-        from .emotion_spirit.life_simulator import LifeSimulator
-        from .emotion_spirit.diary_writer import DiaryWriter
-        from .emotion_spirit.personality_drift import PersonalityDrift
-        from .emotion_spirit.predictive_sentinel import PredictiveSentinel
-        from .emotion_spirit.narrative_identity import NarrativeIdentity
-        from .emotion_spirit.counterfactual import Counterfactual
-        from .emotion_spirit.prompt_injector import PromptInjector
+        from .emotion_spirit.memory.memory_pool import MemoryPool
+        from .emotion_spirit.output.buffer_signals import BufferSignals
+        from .emotion_spirit.regulation.pattern_extractor import PatternExtractor
+        from .emotion_spirit.regulation.shadow_detector import ShadowDetector
+        from .emotion_spirit.regulation.life_simulator import LifeSimulator
+        from .emotion_spirit.output.diary_writer import DiaryWriter
+        from .emotion_spirit.regulation.personality_drift import PersonalityDrift
+        from .emotion_spirit.output.predictive_sentinel import PredictiveSentinel
+        from .emotion_spirit.output.narrative_identity import NarrativeIdentity
+        from .emotion_spirit.regulation.counterfactual import Counterfactual
+        from .emotion_spirit.output.prompt_injector import PromptInjector
 
         pool_data = self._store.get("memory_pool")
         if pool_data:
@@ -752,7 +752,7 @@ class EmotionSpiritPlugin(Star):
         self, session_key: str, include_trajectory: bool = False,
     ) -> dict | None:
         """统一情绪状态 API (v1.1.1 9 字段 + v1.2 +ambiguity +velocity = 11 字段)。"""
-        from .emotion_spirit.emotion_classifier import render_description
+        from .emotion_spirit.output.emotion_classifier import render_description
 
         signals = self._latest_signals.get(session_key)
         if signals is None:
@@ -805,6 +805,6 @@ class EmotionSpiritPlugin(Star):
 
 def build_modules_default_config(data_dir: str, config: dict | None) -> dict:
     """构造 plugin_factory.build() 的默认 config。"""
-    from .emotion_spirit.plugin_factory import default_config
+    from .emotion_spirit.core.plugin_factory import default_config
     persona_id = (config or {}).get("auto_source", "") or ""
     return default_config(data_dir=data_dir, persona_id=persona_id, labels={})

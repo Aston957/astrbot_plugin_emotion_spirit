@@ -128,7 +128,7 @@ def _check_module_consistency(
 def main() -> int:
     import emotion_spirit  # noqa: F401  # 触发 28 模块 @register
 
-    from emotion_spirit.registry import ModuleRegistry, ModuleSpec
+    from emotion_spirit.core.registry import ModuleRegistry, ModuleSpec
 
     errors: list[str] = []
 

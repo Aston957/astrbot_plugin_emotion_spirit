@@ -2,7 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-output/
 data/
 verification/output/
 *.bak
@@ -13,3 +12,11 @@ verification/output/
 *.egg-info/
 build/
 dist/
+
+# Phase 4 C4: emotion_spirit/output/ is now a source sub-package.
+# Repo-root `output/` (created at runtime by 3.0A property-test scripts) is
+# unrelated to the source layout and should remain ignored; the source
+# sub-package is whitelisted via the negation below.
+output/
+!emotion_spirit/output/
+!emotion_spirit/output/__init__.py

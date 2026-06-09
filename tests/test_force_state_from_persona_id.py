@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from emotion_spirit.persona_labels_db import (
+from emotion_spirit.core.persona_labels_db import (
     REQUIRED_DIMS,
     force_state_from_persona_id,
     parse_persona_id,
@@ -15,8 +15,8 @@ from emotion_spirit.persona_labels_db import (
     reset_cache,
     get_kb_stats,
 )
-from emotion_spirit.body_state import BodyState
-from emotion_spirit.force_dynamics import ForceDynamics, ForceState
+from emotion_spirit.regulation.body_state import BodyState
+from emotion_spirit.regulation.force_dynamics import ForceDynamics, ForceState
 
 
 # === Helpers ===
@@ -57,7 +57,7 @@ def test_force_state_fallback_to_27_sum(tmp_path, monkeypatch):
     此测试用 monkeypatch 改 DB_PATH 指向空 JSON, 强制 fallback 路径。
     """
     monkeypatch.setattr(
-        "emotion_spirit.persona_labels_db.DB_PATH", tmp_path / "empty.json"
+        "emotion_spirit.core.persona_labels_db.DB_PATH", tmp_path / "empty.json"
     )
     # 路径 B: 合法 persona_id, 但 KB 空 → 27-sum fallback
     fs = force_state_from_persona_id("INFP-AV-EX-CO-PR")
@@ -163,7 +163,7 @@ def test_force_state_kb_and_27sum_differ_for_same_persona():
     fs_kb = force_state_from_persona_id("INFP-AV-EX-CO-PR")
 
     # 临时清空 KB 缓存, 强制走 27-sum 路径
-    from emotion_spirit.persona_labels_db import (
+    from emotion_spirit.core.persona_labels_db import (
         get_baseline_for_persona,
     )
     kb_baseline = get_baseline_for_persona("INFP-AV-EX-CO-PR")

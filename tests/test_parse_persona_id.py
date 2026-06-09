@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from emotion_spirit.persona_labels_db import parse_persona_id
+from emotion_spirit.core.persona_labels_db import parse_persona_id
 
 
 # === 合法解析 ===

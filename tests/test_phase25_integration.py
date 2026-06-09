@@ -25,8 +25,8 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.relationship_personality import RelationshipPersonality, ALL_DIMS
-from emotion_spirit.intimacy import IntimacyTracker
+from emotion_spirit.memory.relationship_personality import RelationshipPersonality, ALL_DIMS
+from emotion_spirit.memory.intimacy import IntimacyTracker
 
 
 def test_e2e_segment_change_changes_tone():

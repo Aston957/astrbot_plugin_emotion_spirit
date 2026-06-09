@@ -18,7 +18,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
-from emotion_spirit.label_mapper import labels_to_personality, _BASELINE
+from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
 
 
 @dataclass
