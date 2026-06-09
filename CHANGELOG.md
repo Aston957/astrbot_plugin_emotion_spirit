@@ -121,7 +121,8 @@
 | C4 | `985bf3f` | refactor: 4-layer dir restructure (37 modules relocated) |
 | C5 | `95b0ddb` | docs(marketing): 厚 README + 3 受众文档 + 5 mockup + theory.md |
 | C5.5 | `b0123ab` | fix(import): replace double-prefix relative imports with absolute (debt cleanup) |
-| C6 | TBD | chore(release): CHANGELOG + tag v2.0.0v1 |
+| C6 | `e7b6146` | chore(release): CHANGELOG v2.0.0v1 section |
+| post-merge | `e1abf1a` | fix(command-ns): 命令 ns 化 + commands.py v2 path 修复 (v2.0.0v1 patch) |
 
 ### Out of Scope (推 Phase 3.5+ 或 v2.1+)
 - 3.0B 偏离 D (body_state 跟 personality 分离的 spec 化)
