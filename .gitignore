@@ -6,6 +6,9 @@ __pycache__/
 *.tmp
 .DS_Store
 
+# Local release zip (built for testing; CI builds the real one)
+*.zip
+
 # Python packaging build artifacts (Phase 4 C2)
 *.egg-info/
 build/
