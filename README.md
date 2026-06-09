@@ -67,7 +67,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 |--------|------|----------|
 | [chat-transcript-intimacy.html](docs/mockups/chat-transcript-intimacy.html) | 3 轮对话, 亲密度 0.5 → 0.73 | README §核心能力 记忆层 |
 | [chat-transcript-trauma.html](docs/mockups/chat-transcript-trauma.html) | 1 轮 trauma 触发幽灵消化 + ConscienceTracker B2 减压 | README §核心能力 演化层 |
-| [spirit-status-output.html](docs/mockups/spirit-status-output.html) | `/spirit_status` 完整输出 (含三元力学 + ConscienceTracker B2) | README §指令 |
+| [spirit-status-output.html](docs/mockups/spirit-status-output.html) | `/view_status` 完整输出 (含三元力学 + ConscienceTracker B2) | README §指令 |
 | [personality-timeline.html](docs/mockups/personality-timeline.html) | 6 个月 14 维人格漂移时间线 | README §核心能力 演化层 |
 | [architecture-diagram.html](docs/mockups/architecture-diagram.html) | v2.0 4 层架构图 (core/memory/regulation/output) | architecture.md §架构 + README §快速开始 |
 
