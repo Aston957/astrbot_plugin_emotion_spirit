@@ -97,6 +97,18 @@ python -c "import emotion_spirit; print(emotion_spirit.__version__)"
 2. 重启 AstrBot
 3. 插件会自动连接 SylannEngine（延迟 2 秒，等待 SylannEngine 初始化）
 
+### KB 数据 / KB Data (自动加载 / Auto-loaded, **v2.0 新**)
+
+**3072 组合人格基线 KB 跟 plugin 一起分发,无需额外下载或配置**:
+
+- **位置**: `emotion_spirit/core/kb/persona_labels_db.json` (2.74 MB, 3072 entries, **入 git**)
+- **加载**: 启动时第一次查询自动 lazy load (~32 ms),之后查询是 in-memory O(1) lookup
+- **覆盖**: 设环境变量 `EMOTION_SPIRIT_PERSONA_KB_PATH=/custom/path.json` 可指向其他位置(部署灵活)
+- **何时缺失**: 启动 log 出现 `persona_labels_db loaded: 3072 entries` 表示正常;如果出现 `not found, returning empty KB` 则 plugin 安装不完整(重新 `git clone` 或 `pip install -e .`)
+- **重生成** (维护者): 改了 `emotion_spirit/core/knowledge.py` 的 delta 字典后,跑 `python tools/regenerate_kb.py` 重写 JSON
+
+Confidence 分布:**A=0 / B=16 / C=160 / D=2896**(`B` 16-personalities literature 锚点,`C` literature 微调,`D` 算法计算 + 诚实标"computed, no literature",honest disclosure per spec §3.5 D3)
+
 ## 快速开始 / Quick Start
 
 ```python
@@ -227,6 +239,8 @@ emotion_spirit/
 │   ├── config.py              # 配置常量
 │   ├── knowledge.py           # 14 维人格知识库
 │   ├── persona_labels_db.py   # 3072 KB loader
+│   ├── kb/                    # KB 数据 (v2.0 新, 跟 plugin 一起分发)
+│   │   └── persona_labels_db.json  # 2.74 MB, 3072 entries (B=16, C=160, D=2896)
 │   ├── label_mapper.py        # 标签 → 参数双向映射
 │   └── plugin_factory.py      # 插件装配入口
 ├── memory/                    # L1: 状态 (7 modules)

@@ -1,0 +1,19 @@
+# Git attributes for emotion_spirit plugin
+# https://git-scm.com/docs/gitattributes
+
+# KB JSON: 2.74 MB / 87k lines, treat as binary-ish for git diff/merge.
+# Without this, every KB regeneration shows 87k-line diff which is unreadable
+# and pollutes git log/PR review. The file is still text (UTF-8 JSON), git
+# tracks it normally; only `-diff` skips the diff renderer.
+# Inspect changes via:  python -c "import json; print(len(json.load(open(...))))"
+# or:  python tools/regenerate_kb.py (regenerate locally, see if output matches)
+emotion_spirit/core/kb/persona_labels_db.json -diff
+
+# Python source: normalize line endings to LF in repo (Windows checkout still
+# shows CRLF if core.autocrlf=true, transparent to user).
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
