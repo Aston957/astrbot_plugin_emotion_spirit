@@ -30,10 +30,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/<user>/astrbot_plugin_emotion_spirit"
-Repository = "https://github.com/<user>/astrbot_plugin_emotion_spirit"
-Issues = "https://github.com/<user>/astrbot_plugin_emotion_spirit/issues"
-Changelog = "https://github.com/<user>/astrbot_plugin_emotion_spirit/blob/v2.0/CHANGELOG.md"
+Homepage = "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
+Repository = "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
+Issues = "https://github.com/Aston957/astrbot_plugin_emotion_spirit/issues"
+Changelog = "https://github.com/Aston957/astrbot_plugin_emotion_spirit/blob/v2.0/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

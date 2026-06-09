@@ -7,6 +7,137 @@
 
 ## [Unreleased]
 
+## [2.0.0v1] - 2026-06-09
+
+> **里程碑**: Phase 3 闭环 + Phase 4 Launch 收尾 (5 commits + 1 debt cleanup, 591→612 tests, 0 回归)
+> **PEP 440**: `2.0.0.post1` (per `emotion_spirit/_version.py`)
+> **Branch**: `phase-4-launch` (基于 `30c-task2` @ `823be4f`)
+
+### Added (Phase 4 C1-C5 + C5.5)
+
+#### C1: ConscienceTracker B2 滑动窗口 P95 归一化 (commit 525b191)
+- `self._pressure` → `self._raw_pressure` (raw 累加器, 无上限, 累加器是真相源)
+- 加 `self._window: deque[float]`, 默认 200 帧 (env var `EMOTION_SPIRIT_PRESSURE_WINDOW` 可调)
+- `get_pressure()` 实施 P95 分位归一化, 冷启动 (< 10 帧) 返回 raw (degraded)
+- 修 3.0B 偏离 E (conscience_pressure 范围)
+- **8 新 tests** (591→599), 0 回归
+
+#### C2: Plugin Packaging (commit 26f3aaa)
+- `pyproject.toml`: setuptools >=80, python >=3.11, 0 第三方依赖 (除 astrbot)
+- `requirements.txt` + `dev-requirements.txt`
+- `metadata.yaml`: version 1.0.2v3 → 2.0.0v1, 新增 repo URL
+- 新增 `LICENSE` (MIT) + `emotion_spirit/py.typed` (PEP 561 marker)
+- `emotion_spirit/_version.py` (PEP 440 真相源, `__version__ = "2.0.0.post1"`)
+- `emotion_spirit/__init__.py` 暴露 `__version__` (Python 惯例)
+- `.gitignore` 加 `*.egg-info/` / `build/` / `dist/`
+- **3 新 tests** (599→602), 0 回归
+- **PEP 440 偏离** (per spec §12.2 C2 偏离 #1): `version = "2.0.0v1"` 字面被 pip 拒绝, 实施 `dynamic = ["version"]` + `attr = "emotion_spirit._version.__version__"` 绕过
+
+#### C3: Public API Markers (commit 27d4daa)
+- 38 modules 加 `__all__` (AST-aligned 实际 class/def 名, per spec §12.2 C3 偏离 #2)
+- `public_api_stable.md` (中英双栏 stable/internal/deprecated 三表)
+- `emotion_spirit/_v1_compat.py` 兼容垫片 (含 `DeprecationWarning`)
+- `emotion_spirit/__init__.py` 加 `_DeprecatedImportFinder` hook (C3 阶段 REDIRECTS 空, C4 填)
+- `pyproject.toml` `filterwarnings` 配 `ignore::DeprecationWarning:emotion_spirit`
+- **6 新 tests** (602→608), 0 回归
+- **Module count 偏离** (per spec §12.2 C3 偏离 #1): 39 → 38 (排除 `_version.py` C2 + `_v1_compat.py` C3)
+
+#### C4: 4-Layer Dir Restructure (commit 985bf3f)
+- 37 modules `git mv` 到 `emotion_spirit/{core|memory|regulation|output}/` (`store.py` 留根)
+- 29 test files `git mv` 到 `tests/{core|memory|regulation|output}/`
+- 4 sub-package `__init__.py` 含 `__all__` (L0=6, L1=7, L2=11, L3=13)
+- `tools/migrate_v1_imports_to_v2.py` 全局替换 import path (4 categories: from-form + import-form + module-internal `from .X` + string literal)
+- `pyproject.toml` `packages` list 扩展到 5
+- `_DeprecatedImportFinder.REDIRECTS` 填 37 mapping (C3 留空 → C4 填)
+- `emotion_spirit/core/persona_labels_db.py` KB path 修复 (4→5 levels up after migration)
+- `.gitignore` 调 `!emotion_spirit/output/`
+- **3 新 tests** (608→611), 0 回归
+- **依赖方向严格单向**: `L0 ← L1 ← L2 ← L3` (test_layer_dependency_no_reverse enforce)
+- **spec 偏离** (per spec §12.2 C4 偏离): 37 modules vs spec 38; 30 test files vs spec 39; migration 4 categories 扩展; AST test 替代 substring; KB path fix
+
+#### C5: Marketing Materials (commit 95b0ddb)
+- 厚 `README.md` (283 行中英双段, v2.0 视角重写, 5 mockup 引用, 4 sub-package 路径, 14 维人格, 12 命令表)
+- `docs/theory.md` (218 行, 8 章节理论依据, 23 篇参考文献)
+- `public_api_stable.md` 完善 (163 行, 7 stable + 12 internal + 37 deprecated redirect mapping + 维护协议)
+- `docs/mockups/5 HTML` (chat-transcript-intimacy / chat-transcript-trauma / spirit-status-output / personality-timeline / architecture-diagram)
+- 0 新 tests (612 不变, 内容生产)
+
+#### C5.5: Pre-existing Tech Debt Cleanup (commit b0123ab)
+- `main.py` 29 处 `from .emotion_spirit.X` 双重 prefix 相对导入 → `from emotion_spirit.X` 绝对导入
+- `conftest.py` 删 `_ensure_main_module()` 合成包 hack (`_emotion_spirit_plugin_for_tests`), 简化为 4 行 docstring
+- 0 新 tests, 0 回归 (612/612)
+- 修复: emotion_spirit 是已 installed package (per C2 packaging), 绝对导入在 production + test 双 work, 无需 hack
+- **spec 偏离** (per spec §12.2 C4 偏离 #6): C4 spec review 发现, 推到 C6 前清理, user 2026-06-09 选 "C5 inline 一起修" 提前清理
+
+### Changed
+
+#### v1.x ConscienceTracker 语义变更 (per Phase 4 C1)
+- **v1.x**: `ConscienceTracker.get_pressure()` 返回 `min(1.0, max(0.0, raw))` (hard-clip)
+- **v2.0**: 返回 `min(1.0, raw / P95(sliding_window))` (滑动窗口 P95 分位归一化)
+- **契约保持**: 返回值仍 ∈ [0, 1] (ForceDynamics 消费契约不变)
+- **语义变化**: "持续 50 次小冲突" 跟 "持续 1 次大冲突" 现在有差异 (v1.x 完全 clip 后无差异)
+- **稳定性**: 跨会话可比, 极端事件不主导归一化
+
+#### v1.x Import Path 自动 Redirect (per Phase 4 C3+C4)
+- `emotion_spirit.{module}` → `emotion_spirit.{layer}.{module}` (37 mappings, C4 实施)
+- 触发 `DeprecationWarning` (codebase 内部卫生, 不视为用户过渡, v1 无外部用户)
+- `_v1_compat.py` 提供 v1 字段 shim (`_conscience_pressure_old` 同样 DeprecationWarning)
+
+#### 4 层目录重构 (per Phase 4 C4)
+- 38 modules 从平铺结构迁到 4 sub-packages: `core` (L0 基础) / `memory` (L1 状态) / `regulation` (L2 调控) / `output` (L3 输出)
+- 依赖方向严格单向, 跟"基础-状态-调控-输出"4 层 mental model 对应
+- `test_layer_dependency_no_reverse` enforce
+
+### Compatibility
+
+- **0 破坏性 API 变更** (PublicAPI 7 stable API 跨 minor 稳定)
+- `__version__` 暴露: `python -c "import emotion_spirit; print(emotion_spirit.__version__)"` 返回 `2.0.0.post1`
+- `pip install -e .[dev]` 干净 (per C2 pyproject + LICENSE)
+- `python -c "import emotion_spirit; from emotion_spirit.regulation.superego import ConscienceTracker; print(ConscienceTracker().get_pressure())"` 正常返回 [0, 1]
+- 内部迁移工具: `python tools/migrate_v1_imports_to_v2.py` (一次性, 留在 tools/)
+- 旧 import path 仍可导入 (自动 redirect + DeprecationWarning)
+- AstrBot 4.9.2+ 兼容 (跟 v1.x 相同)
+
+### Tests
+- **总测试数**: 591 (Phase 3 闭环) → **612** (v2.0.0v1) (+21: C1 +8, C2 +3, C3 +6, C4 +3, C5 +0, C5.5 +0)
+- **回归**: 0 (all phases)
+- **新增覆盖**: 滑动窗口 P95 归一化, modern packaging, `__all__` markers, 4 层依赖方向, 真实 quantile 数学
+- **新测试文件**: `tests/regulation/test_conscience_tracker_quantile.py` (C1, 9 tests), `tests/test_packaging.py` (C2, 3 tests), `tests/test_public_api_markers.py` (C3, 6 tests), `tests/test_dir_structure.py` (C4, 3 tests)
+
+### Spec Deviations
+完整 16 条 spec 偏离记录在 [`docs/superpowers/specs/2026-06-08-phase-4-launch-design.md` §12.2](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md).
+
+- C2 偏离 3 条 (PEP 440 / test 扩展 / packages 暂列 1)
+- C3 偏离 5 条 (module count / `__all__` AST-aligned / version test / `_v1_compat` skip / test rearrange)
+- C4 偏离 6 条 (37 vs 38 modules / 30 vs 39 tests / migration 4 categories / AST test / KB path fix / pre-existing debt 推迟)
+- 3 关闭: 3.0B 偏离 E (conscience_pressure 范围, per C1)
+
+### Phase 4 Launch Commit Chain
+
+| Commit | SHA (first 7) | 描述 |
+|--------|--------------|------|
+| C1 | `525b191` | feat(conscience_tracker): quantile-normalized pressure |
+| C2 | `26f3aaa` | chore(packaging): pyproject.toml + requirements + metadata v2.0 |
+| C3 | `27d4daa` | feat(public_api): `__all__` markers + public_api_stable.md + v1 deprecation warnings |
+| C4 | `985bf3f` | refactor: 4-layer dir restructure (37 modules relocated) |
+| C5 | `95b0ddb` | docs(marketing): 厚 README + 3 受众文档 + 5 mockup + theory.md |
+| C5.5 | `b0123ab` | fix(import): replace double-prefix relative imports with absolute (debt cleanup) |
+| C6 | TBD | chore(release): CHANGELOG + tag v2.0.0v1 |
+
+### Out of Scope (推 Phase 3.5+ 或 v2.1+)
+- 3.0B 偏离 D (body_state 跟 personality 分离的 spec 化)
+- 3.0B 偏离 F (DriftSimulator Part E 跳过)
+- 3.0C 偏离 D (30→30 而非 31)
+- 3.0C 偏离 G (D 等级 94.3% 提升)
+- 3.0C 偏离 H (M8 spec deviation)
+- 力学河流 (multi-timestep ForceState snapshot)
+- 内心独白 (multi-force simultaneous voice)
+- Steppenwolf 漂移叙事
+- GUI 调参 / override baseline 持久化
+- **PyPI 发布** (本 spec 仅 AstrBot-native)
+- **i18n framework** (中英双段已够)
+- **数据持久化路径迁移** (AstrBot handbook §8 推荐 `data/plugin_data/<name>/`, emotion_spirit 继续自管 JSON, 推 Phase 3.5+ 评估)
+
 ## [1.3.0] - 2026-06-05
 
 ### Changed
