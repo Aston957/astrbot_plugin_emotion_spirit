@@ -6,4 +6,5 @@ __all__ = [
     "persona_profiles", "memory_pool", "intimacy",
     "relationship_personality", "social_graph", "topic_privacy",
     "meaning_reservoir", "decay_model", "unified_entry",
+    "cascade_engine", "unified_memory",
 ]
