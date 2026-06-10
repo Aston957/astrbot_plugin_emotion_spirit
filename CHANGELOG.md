@@ -89,7 +89,7 @@
 - **spec 偏离** (per spec §12.2 C4 偏离): 37 modules vs spec 38; 30 test files vs spec 39; migration 4 categories 扩展; AST test 替代 substring; KB path fix
 
 #### C5: Marketing Materials (commit 95b0ddb)
-- 厚 `README.md` (283 行中英双段, v2.0 视角重写, 5 mockup 引用, 4 sub-package 路径, 14 维人格, 12 命令表)
+- 厚 `README.md` (283 行中英双段, v2.0 视角重写, 5 mockup 引用, 4 sub-package 路径, 13 维人格, 12 命令表)
 - `docs/theory.md` (218 行, 8 章节理论依据, 23 篇参考文献)
 - `public_api_stable.md` 完善 (163 行, 7 stable + 12 internal + 37 deprecated redirect mapping + 维护协议)
 - `docs/mockups/5 HTML` (chat-transcript-intimacy / chat-transcript-trauma / spirit-status-output / personality-timeline / architecture-diagram)

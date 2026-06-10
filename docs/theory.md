@@ -31,7 +31,9 @@ emotion_spirit 整体架构的隐喻来源。SylannEngine 处理 Id (即时情�
 
 ### 1.4 大五人格 (OCEAN)
 
-`KnowledgeBase` 14 维人格参数的设计来源。Phase 1.5 引入 11 维 (5 深层 Embodiment Five: warmth / stability / curiosity / creativity / self_reflect + 6 表层 Sylanne Six: social_anxiety / expression_needs / connection_circulation / emotional_depth / repair_heat). Phase 3 增 3 维 (perception_acuity / boundary_clarity / autonomy_strength). v1.7 拆 autonomy_strength → autonomy_strength + exploration_openness (ISTJ 跟 ENTP 区分更细).
+`KnowledgeBase` 13 维人格参数的设计来源。Phase 1.5 引入 11 维 (5 深层 Embodiment Five: warmth / stability / curiosity / creativity / self_reflect + 6 表层 Sylanne Six: social_anxiety / expression_needs / connection_circulation / emotional_depth / repair_heat). Phase 3 增 2 维 (perception_acuity + directness). v1.7 拆 autonomy_strength → autonomy_strength + exploration_openness (ISTJ 跟 ENTP 区分更细). v1.7.2 +gossip_tendency (HEXACO H + E 维度支撑).
+
+**当前 13 维 (代码真值)** = 5 deep (expression_drive, perception_acuity, boundary_permeability, inner_coherence, relational_gravity) + 8 surface (warmth_bias, directness, curiosity, patience, intimacy_pull, relational_autonomy, exploration_openness, gossip_tendency).
 
 **Sources**:
 - McCrae, R. R., & Costa, P. T. (1992). *Revised NEO Personality Inventory (NEO-PI-R)*. Psychological Assessment Resources.

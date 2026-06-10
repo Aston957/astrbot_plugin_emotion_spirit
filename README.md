@@ -66,7 +66,7 @@ pip install -e .[dev]
 
 ## 这是什么 / What is this
 
-emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=14 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
+emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=13 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
 
 emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=14-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
 
@@ -87,7 +87,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 - **关系人格微调** (Phase 2.5): 每个关系独立的人格参数
 
 ### 演化层 / Evolution Layer (Phase 1.5 + Phase 3)
-- **14 维人格漂移检测** (双 EMA): 11 维 (Phase 1.5) + 3 维 (Phase 3) + v1.7 拆分 2 维
+- **13 维人格漂移检测** (双 EMA): 11 维 (Phase 1.5) + 3 维 (Phase 3) + v1.7 拆分 2 维
 - **月度叙事弧**: 上升 / 下降 / 停滞 / 循环型
 - **阴影检测** (荣格式): 回声模式、回避模式、确认偏差
 - **反事实模拟**: 为无法消化的创伤提供替代视角
@@ -120,7 +120,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 | [chat-transcript-intimacy.html](docs/mockups/chat-transcript-intimacy.html) | 3 轮对话, 亲密度 0.5 → 0.73 | README §核心能力 记忆层 |
 | [chat-transcript-trauma.html](docs/mockups/chat-transcript-trauma.html) | 1 轮 trauma 触发幽灵消化 + ConscienceTracker B2 减压 | README §核心能力 演化层 |
 | [spirit-status-output.html](docs/mockups/spirit-status-output.html) | `/view_status` 完整输出 (含三元力学 + ConscienceTracker B2) | README §指令 |
-| [personality-timeline.html](docs/mockups/personality-timeline.html) | 6 个月 14 维人格漂移时间线 | README §核心能力 演化层 |
+| [personality-timeline.html](docs/mockups/personality-timeline.html) | 6 个月 13 维人格漂移时间线 | README §核心能力 演化层 |
 | [architecture-diagram.html](docs/mockups/architecture-diagram.html) | v2.0 4 层架构图 (core/memory/regulation/output) | architecture.md §架构 + README §快速开始 |
 
 ## 安装 / Installation
@@ -199,7 +199,7 @@ pressure = tracker.get_pressure()
 | 命令 | 说明 |
 |------|------|
 | `/view_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2 输出) |
-| `/reflect_drift` | 查看 14 维人格漂移状态 |
+| `/reflect_drift` | 查看 13 维人格漂移状态 |
 | `/reflect_diary` | 手动触发日记写入 |
 
 ## 配置 / Configuration
@@ -298,14 +298,14 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 | 命令 | 说明 | 依赖模块 |
 |------|------|----------|
 | `/view_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2) | PublicAPI (L3) |
-| `/view_detail` | 查看 14 维参数详情 | PersonaProfile (L1) |
+| `/view_detail` | 查看 13 维参数详情 | PersonaProfile (L1) |
 | `/view_whoami` | 查看 5 轴人格标签 | PersonaProfile (L1) |
 
 ### `reflect_*` ns (5 命令) — 内省
 
 | 命令 | 说明 | 依赖模块 |
 |------|------|----------|
-| `/reflect_drift` | 查看 14 维人格漂移状态 | PersonalityDrift (L2) |
+| `/reflect_drift` | 查看 13 维人格漂移状态 | PersonalityDrift (L2) |
 | `/reflect_sentinel` | 查看 13 信号预警状态 | PredictiveSentinel (L3) |
 | `/reflect_shadows` | 查看阴影检测 | ShadowDetector (L2) |
 | `/reflect_diary` | 手动触发日记写入 | DiaryWriter (L3) |
@@ -335,7 +335,7 @@ emotion_spirit/
 ├── core/                      # L0: 基础 (6 modules)
 │   ├── registry.py            # @register_module 装饰器
 │   ├── config.py              # 配置常量
-│   ├── knowledge.py           # 14 维人格知识库
+│   ├── knowledge.py           # 13 维人格知识库
 │   ├── persona_labels_db.py   # 3072 KB loader
 │   ├── kb/                    # KB 数据 (v2.0 新, 跟 plugin 一起分发)
 │   │   └── persona_labels_db.json  # 2.74 MB, 3072 entries (B=16, C=160, D=2896)
@@ -354,7 +354,7 @@ emotion_spirit/
 │   ├── superego_guard.py      # 守门人
 │   ├── body_state.py          # 身体状态
 │   ├── force_dynamics.py      # 三元力学 (Phase 3 算法 H)
-│   ├── personality_drift.py   # 14 维漂移
+│   ├── personality_drift.py   # 13 维漂移
 │   ├── shadow_detector.py     # 阴影检测
 │   ├── pattern_extractor.py   # 行为模式
 │   ├── life_simulator.py      # 生活模拟
@@ -387,7 +387,7 @@ emotion_spirit/
 | `ConscienceTracker.get_pressure() ∈ [0, 1]` | 同样 ∈ [0, 1] | **语义改**: P95 归一化, 区分"持续冲突"vs"极端事件" |
 | `emotion_spirit.regulation.superego.ConscienceTracker` | `emotion_spirit.superego.ConscienceTracker` | 路径改, v1.x 兼容垫片 redirect |
 | `emotion_spirit.output.public_api.PublicAPI` | `emotion_spirit.public_api.PublicAPI` | 路径改, v1.x 兼容垫片 redirect |
-| 14 维人格 (11+3+2 拆分) | 11 维 (Phase 1.5) | Phase 3 增 3 维, v1.7 拆 2 维 |
+| 13 维人格 (5 deep + 8 surface) | 11 维 (Phase 1.5) | Phase 3 +2 (perception_acuity, directness), v1.7 拆 autonomy_guard → 2 维 (+1), v1.7.2 +gossip_tendency |
 
 ## License & Composition / 许可与组合
 
