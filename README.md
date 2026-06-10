@@ -217,6 +217,52 @@ pressure = tracker.get_pressure()
 
 v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `DeprecationWarning`. v1.x 旧 import path (`emotion_spirit.public_api` 等 38 mapping) 自动 redirect 到 v2.0 路径 (`emotion_spirit.output.public_api`) 同样触发 `DeprecationWarning`.
 
+## 安全 / Security
+
+> **⚠️ `data/cmd_config.json` 含 AstrBot dashboard 凭证 — 必须修改后才能上线使用**
+
+### 当前情况
+
+本插件 `data/cmd_config.json` 内含 AstrBot dashboard admin 配置, **必须视为模板**而非可用凭证。安装后请立即：
+
+1. 启动 AstrBot, 访问 dashboard
+2. 首次登录会要求改密码 (因为 `password_change_required: true`)
+3. 设置自己的强密码
+
+或者手动编辑 `data/cmd_config.json` 修改 `dashboard.password` 字段。
+
+### 开发者：如何避免泄漏凭证
+
+仓库自带 pre-commit secret 检查（v2.0.0v2 起）。**首次 clone 后跑一次**：
+
+```bash
+./scripts/install_hooks.sh
+```
+
+这会安装 `scripts/hooks/pre-commit` 到 `.git/hooks/pre-commit`，**任何 commit 前自动扫描**：
+
+| 检查模式 | 例子 |
+|----------|------|
+| pbkdf2 密码哈希 (AstrBot 格式) | `pbkdf2_sha256$600000$...` |
+| OpenAI / Anthropic API key | `sk-...`, `sk-ant-...`, `gsk_...` |
+| GitHub PAT | `ghp_...`, `gho_...`, `ghs_...`, `github_pat_...` |
+| AWS access key | `AKIA[0-9A-Z]{16}` |
+| PEM 私钥块 | `-----BEGIN ... PRIVATE KEY-----` |
+| URL 嵌入凭证 | `https://<user>:<pass>@<host>` |
+
+**误报处理**：把路径加到 `.secrets-allowlist`（fnmatch glob 格式）。
+
+**真实泄漏处理**：
+1. **立即 rotate** 凭证
+2. 用 `git filter-repo --replace-text replacements.txt` 重写历史
+3. Force-push
+
+详见 [[emotion-spirit-secret-leak]] memory 或 commit `2ef828b` 的 diff。
+
+### 2026-06-09 事件教训
+
+`data/cmd_config.json` 曾含真实 AstrBot admin 凭证（md5 + pbkdf2），被 force-pushed 清洗。**所有使用过该凭证的 AstrBot 实例必须修改密码**——即使 git history 已清洗，**凭证视为已暴露**。
+
 ## 命令 / Commands
 
 3 个 namespace, 12 个命令 (Phase 4 post-merge ns 化, v1.x 旧 `/spirit_*` 入口已删).

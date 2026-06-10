@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# pre-commit hook: scan staged changes for accidentally-committed secrets.
+# Installed by scripts/install_hooks.sh.
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Find a Python interpreter
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
+elif command -v python >/dev/null 2>&1; then
+    PYTHON=python
+else
+    echo "pre-commit: Python not found, skipping secret check" >&2
+    exit 0
+fi
+
+CHECK_SECRETS="$REPO_ROOT/scripts/check_secrets.py"
+
+if [ ! -f "$CHECK_SECRETS" ]; then
+    echo "pre-commit: $CHECK_SECRETS not found, skipping secret check" >&2
+    exit 0
+fi
+
+# Run the check (no args = scan staged changes)
+"$PYTHON" "$CHECK_SECRETS"
+exit $?
