@@ -7,6 +7,7 @@ __all__ = [
     "EMA_ALPHA",
     "BUFFER_POOL_CONFIG",
     "MEMORY_POOL_CONFIG",
+    "UNIFIED_MEMORY_CONFIG",
     "INTIMACY_CONFIG",
     "LIFE_SIM_CONFIG",
     "DIARY_CONFIG",
@@ -53,6 +54,27 @@ MEMORY_POOL_CONFIG: dict[str, int | float] = {
     "cold_to_expire_ttl_hours": 720,
     "recall_boost": 0.05,
     "ebbinghaus_base_stability": 24.0,
+}
+
+
+# ═══ 统一记忆系统 ═══
+UNIFIED_MEMORY_CONFIG: dict[str, int | float] = {
+    "buffer_max": 30,
+    "warm_max": 100,
+    "cold_max": 500,
+    "ghost_max": 50,
+    "buffer_to_warm_temp": 0.5,
+    "buffer_max_age_hours": 48,
+    "warm_to_cold_temp": 0.2,
+    "warm_ttl_hours": 72,
+    "cold_weight_threshold": 0.05,
+    "noise_threshold": 0.05,
+    "ghost_temp_threshold": 0.9,
+    "ghost_weight_threshold": 0.8,
+    "ghost_ticks_required": 10,
+    "cascade_relevance_threshold": 0.2,
+    "cascade_hot_threshold": 0.7,
+    "cascade_activation_count": 3,
 }
 
 
