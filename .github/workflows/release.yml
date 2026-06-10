@@ -33,6 +33,36 @@ jobs:
           echo "Version: ${VERSION}"
           echo "Zip: ${ZIP_NAME}"
 
+      - name: Verify version consistency (tag == metadata.yaml == _version.py)
+        run: |
+          # Tag version (refs/tags/v2.0.0 -> 2.0.0)
+          TAG="${GITHUB_REF#refs/tags/}"
+          TAG_VERSION="${TAG#v}"
+
+          # metadata.yaml version
+          META_VERSION=$(grep '^version:' metadata.yaml | sed -E 's/^version:[[:space:]]*"([^"]+)".*/\1/')
+
+          # _version.py version (PEP 440, may have .postN suffix)
+          PY_VERSION=$(grep -E '^__version__[[:space:]]*=' emotion_spirit/_version.py | sed -E 's/^__version__[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+          PY_BASE=$(echo "${PY_VERSION}" | sed -E 's/\.post[0-9]+$//')
+
+          echo "Tag:           ${TAG_VERSION}"
+          echo "metadata.yaml: ${META_VERSION}"
+          echo "_version.py:   ${PY_VERSION} (base: ${PY_BASE})"
+          echo ""
+
+          if [ "${TAG_VERSION}" != "${META_VERSION}" ]; then
+            echo "::error file=metadata.yaml::version '${META_VERSION}' does not match git tag '${TAG_VERSION}'"
+            exit 1
+          fi
+
+          if [ "${TAG_VERSION}" != "${PY_BASE}" ]; then
+            echo "::error file=emotion_spirit/_version.py::__version__ '${PY_VERSION}' (base '${PY_BASE}') does not match git tag '${TAG_VERSION}'"
+            exit 1
+          fi
+
+          echo "✓ All three version sources consistent: ${TAG_VERSION}"
+
       - name: Build release zip via git archive
         run: |
           # --prefix=astrbot_plugin_emotion_spirit/ → zip 内顶层是 astrbot_plugin_emotion_spirit/ 文件夹
