@@ -6,7 +6,7 @@
 [![Tests](https://img.shields.io/badge/tests-612%20passed-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
 [![AstrBot](https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange)]()
-[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v2.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
 
@@ -387,9 +387,22 @@ emotion_spirit/
 | `emotion_spirit.output.public_api.PublicAPI` | `emotion_spirit.public_api.PublicAPI` | 路径改, v1.x 兼容垫片 redirect |
 | 14 维人格 (11+3+2 拆分) | 11 维 (Phase 1.5) | Phase 3 增 3 维, v1.7 拆 2 维 |
 
-## 许可 / License
+## License & Composition / 许可与组合
 
-MIT — 详见 [LICENSE](LICENSE)
+**本插件源代码**以 **MIT License** 发布(见 [LICENSE](LICENSE) 文件)。
+
+**但是** — 本插件运行时依赖 **[SylannEngine](https://github.com/Ayleovelle/SylannEngine)**(`sylanne_core` Python 包),该上游库以 **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)** 授权。根据 GNU 官方对 AGPL 的解释,**动态链接 AGPL-3.0 库的组合作品**(combined work)在分发时受 AGPL-3.0 条款约束,且 AGPL 进一步要求:**通过网络提供服务时,服务端用户也必须能获得 AGPL 源码**(这是 AGPL vs GPL 的核心差异)。
+
+**对你的影响 / Your obligations**:
+
+- ✅ **个人使用 / 不分发**:无需担心(任何 license 都允许)
+- ⚠️ **公开部署 / 提供 bot 服务给第三方用户**:你必须向这些用户提供 emotion_spirit + SylannEngine 的**完整对应源码** + 保留所有版权声明
+- ⚠️ **二次开发 + 分发**:你的衍生作品也必须以 AGPL-3.0 发布(链式传染 / copyleft)
+- 🛡 **避免 AGPL 约束的唯一方法**:用自研引擎替换 SylannEngine 依赖(放弃 emotion_spirit 的三元力学集成)
+
+**详细法律解读**:[GNU AGPL vs GPL 区别](https://www.gnu.org/licenses/why-affero-gpl.html) / [FSF 官方 FAQ](https://www.gnu.org/licenses/gpl-faq.html)
+
+> **当前决定**:emotion_spirit 保留 MIT 声明(更灵活),通过本节显著告知 AGPL 兼容陷阱。**待 SylannEngine 作者反馈后**,可能改为 emotion_spirit 自声明 AGPL-3.0(消除歧义)。
 
 ## 引用 / Citations
 
