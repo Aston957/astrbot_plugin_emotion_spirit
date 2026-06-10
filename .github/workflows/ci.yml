@@ -1,0 +1,54 @@
+name: CI
+
+# Trigger: every push to main + every pull request to main
+# Purpose: run the full 612-test suite across Python 3.11/3.12/3.13
+# This is the PR-time test gate that the v2.0.0 release previously lacked.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read  # read-only access for checkout
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # run all matrix versions even if one fails
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history (KB regen scripts may need it)
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install package + dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          pytest --tb=short
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: |
+            .pytest_cache/
+            **/test-*.xml
+          if-no-files-found: ignore
+          retention-days: 7
