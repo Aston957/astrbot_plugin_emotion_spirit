@@ -1,7 +1,7 @@
 name: Build Release Zip
 
 # 触发: 推送 v* 标签 (如 v2.0.0v1) → 自动 build slim zip → attach 到 GitHub Release
-# 配合 .gitattributes 的 export-ignore, 16.7 MB 全量仓库缩水到 ~5 MB 用户包
+# 配合 .gitattributes 的 export-ignore, 16.7 MB 全量仓库缩水到 ~250 KB 用户包
 
 on:
   push:
@@ -35,11 +35,11 @@ jobs:
 
       - name: Build release zip via git archive
         run: |
-          # --prefix=emotion_spirit/ → zip 内顶层是 emotion_spirit/ 文件夹
+          # --prefix=astrbot_plugin_emotion_spirit/ → zip 内顶层是 astrbot_plugin_emotion_spirit/ 文件夹
           # --format=zip → 直接生成 zip
           # export-ignore 规则由 .gitattributes 提供
           git archive \
-            --prefix=emotion_spirit/ \
+            --prefix=astrbot_plugin_emotion_spirit/ \
             --format=zip \
             -o "${{ steps.version.outputs.ZIP_NAME }}" \
             HEAD
@@ -49,7 +49,7 @@ jobs:
 
       - name: Verify zip contents
         run: |
-          echo "=== Top-level entries (should start with emotion_spirit/) ==="
+          echo "=== Top-level entries (should start with astrbot_plugin_emotion_spirit/) ==="
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | head -10
           echo "..."
           echo ""
@@ -58,15 +58,15 @@ jobs:
           echo ""
           echo "=== Sanity checks ==="
           # 必须包含的文件
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/main.py" && echo "  ✓ main.py present" || (echo "  ✗ main.py MISSING" && exit 1)
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/metadata.yaml" && echo "  ✓ metadata.yaml present" || (echo "  ✗ metadata.yaml MISSING" && exit 1)
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/emotion_spirit/__init__.py" && echo "  ✓ emotion_spirit package present" || (echo "  ✗ emotion_spirit package MISSING" && exit 1)
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/data/cmd_config.json" && echo "  ✓ data/cmd_config.json present" || (echo "  ✗ data/cmd_config.json MISSING" && exit 1)
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/main.py" && echo "  ✓ main.py present" || (echo "  ✗ main.py MISSING" && exit 1)
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/metadata.yaml" && echo "  ✓ metadata.yaml present" || (echo "  ✗ metadata.yaml MISSING" && exit 1)
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/astrbot_plugin_emotion_spirit/__init__.py" && echo "  ✓ emotion_spirit package present" || (echo "  ✗ emotion_spirit package MISSING" && exit 1)
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/data/cmd_config.json" && echo "  ✓ data/cmd_config.json present" || (echo "  ✗ data/cmd_config.json MISSING" && exit 1)
           # 不应包含的文件
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/tests/" && (echo "  ✗ tests/ should be excluded" && exit 1) || echo "  ✓ tests/ excluded"
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/verification/" && (echo "  ✗ verification/ should be excluded" && exit 1) || echo "  ✓ verification/ excluded"
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/tools/" && (echo "  ✗ tools/ should be excluded" && exit 1) || echo "  ✓ tools/ excluded"
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "emotion_spirit/docs/" && (echo "  ✗ docs/ should be excluded" && exit 1) || echo "  ✓ docs/ excluded"
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/tests/" && (echo "  ✗ tests/ should be excluded" && exit 1) || echo "  ✓ tests/ excluded"
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/verification/" && (echo "  ✗ verification/ should be excluded" && exit 1) || echo "  ✓ verification/ excluded"
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/tools/" && (echo "  ✗ tools/ should be excluded" && exit 1) || echo "  ✓ tools/ excluded"
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/docs/" && (echo "  ✗ docs/ should be excluded" && exit 1) || echo "  ✓ docs/ excluded"
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "narrative_backtest" && (echo "  ✗ narrative_backtest JSON should be excluded" && exit 1) || echo "  ✓ narrative_backtest JSON excluded"
 
       - name: Create GitHub Release
