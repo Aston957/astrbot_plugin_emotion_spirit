@@ -60,7 +60,7 @@ jobs:
           # 必须包含的文件
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/main.py" && echo "  ✓ main.py present" || (echo "  ✗ main.py MISSING" && exit 1)
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/metadata.yaml" && echo "  ✓ metadata.yaml present" || (echo "  ✗ metadata.yaml MISSING" && exit 1)
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/astrbot_plugin_emotion_spirit/__init__.py" && echo "  ✓ emotion_spirit package present" || (echo "  ✗ emotion_spirit package MISSING" && exit 1)
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/emotion_spirit/__init__.py" && echo "  ✓ emotion_spirit package present" || (echo "  ✗ emotion_spirit package MISSING" && exit 1)
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/data/cmd_config.json" && echo "  ✓ data/cmd_config.json present" || (echo "  ✗ data/cmd_config.json MISSING" && exit 1)
           # 不应包含的文件
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/tests/" && (echo "  ✗ tests/ should be excluded" && exit 1) || echo "  ✓ tests/ excluded"
