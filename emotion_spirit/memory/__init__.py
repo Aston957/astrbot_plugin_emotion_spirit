@@ -7,4 +7,5 @@ __all__ = [
     "relationship_personality", "social_graph", "topic_privacy",
     "meaning_reservoir", "decay_model", "unified_entry",
     "cascade_engine", "unified_memory", "suppression",
+    "memory_sampler",
 ]
