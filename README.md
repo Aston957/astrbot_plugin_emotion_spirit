@@ -1,4 +1,4 @@
-# emotion_spirit v2.0.0v1
+# emotion_spirit v2.0.0
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
@@ -6,21 +6,36 @@
 [![Tests](https://img.shields.io/badge/tests-612%20passed-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
 [![AstrBot](https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v2.0.0v1 (PEP 440: 2.0.0.post1)](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v2.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+
+---
+
+## 前置依赖 / Prerequisites (必读)
+
+本插件**必须先安装** [SylannEngine](https://github.com/Ayleovelle/SylannEngine) >= 2.0:
+
+**安装步骤**:
+1. AstrBot WebUI → 插件管理 → 从 Git 仓库安装
+2. 填入 `https://github.com/Ayleovelle/SylannEngine.git`
+3. **重启 AstrBot**(让 SylannEngine 先注册 `engine.on()` listener)
+
+**启动顺序**:SylannEngine → emotion_spirit。本插件有 3 次退避重试机制(SylannEngine 没启时会重试 5/10/15 秒),但建议先装 SylannEngine 避免重试日志噪音。
+
+**⚠️ 强烈建议开启 SylannEngine `diagnostics` 配置**(默认 False):emotion_spirit 的 `phi_smoothed` / `chi_smoothed` / `sync_order_smoothed` 共振场字段都依赖 `surface["debug"]`,关闭时这些字段退化为 0(不报错,沉默退化)。在 SylannEngine config 里设置 `diagnostics: true` 即可。
 
 ---
 
 ## 下载 / Download
 
-### ⭐ 方式 1: GitHub Release slim zip (推荐, **v2.0.0v1 起**)
+### ⭐ 方式 1: GitHub Release slim zip (推荐)
 
-GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~5 MB), 跳过测试/仿真/开发工具.
+GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~250 KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-2.0.0v1.zip`
-3. 解压得到 `emotion_spirit/` 文件夹
+2. 下载 `astrbot-plugin-emotion-spirit-2.0.0.zip`
+3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. 复制到 AstrBot 的 `data/plugins/` 目录
 5. 重启 AstrBot → 插件自动加载
 
