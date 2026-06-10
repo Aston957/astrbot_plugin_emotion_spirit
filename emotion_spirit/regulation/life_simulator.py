@@ -13,32 +13,43 @@ from ..core.config import LIFE_SIM_CONFIG
 from ..output.surface_consumer import SemanticSignals
 
 if TYPE_CHECKING:
-    from ..memory.memory_pool import MemoryPool, BufferEntry
+    from ..memory.unified_memory import UnifiedMemory
     from ..memory.intimacy import IntimacyTracker
     from ..output.buffer_signals import BufferSignals
     from ..memory.meaning_reservoir import MeaningReservoir
     from ..output.surface_consumer import SurfaceConsumer
 
 from ..output.emotion_classifier import build_emotion_payload  # v1.1.2: 共享层
+from ..memory.memory_sampler import MemorySampler, SampledMemory
 
 
 from ..core.registry import register
-
 
 
 __all__ = [
     "LifeSimulator",
 ]
 
+# Neutral baseline personality for sampling when none is provided.
+_DEFAULT_PERSONALITY: dict[str, float] = {
+    "openness": 0.5,
+    "extraversion": 0.5,
+    "agreeableness": 0.5,
+    "neuroticism": 0.5,
+    "conscientiousness": 0.5,
+    "emotional_stability": 0.5,
+}
+
+
 @register(
     name="life_simulator",
     provides=["LifeSimulator"],
     depends_on=[
-        "surface_consumer", "memory_pool", "intimacy",
+        "surface_consumer", "unified_memory", "intimacy",
         "buffer_signals", "meaning_reservoir",
     ],
     param_wire={
-        "memory_pool": "pool",
+        "unified_memory": "memory",
         "buffer_signals": "signals",
         "surface_consumer": "consumer",
         "meaning_reservoir": "reservoir",
@@ -50,13 +61,14 @@ class LifeSimulator:
     def __init__(
         self,
         consumer: SurfaceConsumer,
-        pool: MemoryPool,
+        memory: UnifiedMemory,
         intimacy: IntimacyTracker,
         signals: BufferSignals,
         reservoir: MeaningReservoir,
     ) -> None:
         self._consumer = consumer
-        self._pool = pool
+        self._memory = memory
+        self._sampler = MemorySampler(memory)
         self._intimacy = intimacy
         self._signals = signals
         self._reservoir = reservoir
@@ -71,19 +83,38 @@ class LifeSimulator:
         self._last_interaction = time.time()
         self._mode_b_cooldown = LIFE_SIM_CONFIG["mode_b_cooldown_after_trigger_minutes"] * 60
 
-    def check_mode_a(self, signals: SemanticSignals) -> dict[str, Any] | None:
+    def check_mode_a(
+        self,
+        signals: SemanticSignals,
+        personality: dict[str, float] | None = None,
+    ) -> dict[str, Any] | None:
         """检查 Mode A 触发条件。返回事件或 None。"""
         idle_seconds = time.time() - self._last_interaction
         max_turns = int(LIFE_SIM_CONFIG["mode_a_max_turns"])
 
         if idle_seconds >= LIFE_SIM_CONFIG["mode_a_idle_seconds"] or self._turn_count >= max_turns:
             self._turn_count = 0
-            recent = self._pool.sample_for_mode_a(minutes=5)
-            if recent:
+            p = personality if personality is not None else _DEFAULT_PERSONALITY
+            samples = self._sampler.sample(p, k=3)
+            if samples:
                 return {
                     "type": "mode_a",
                     "trigger": "idle" if idle_seconds >= LIFE_SIM_CONFIG["mode_a_idle_seconds"] else "turn_limit",
-                    "entries": [e.text for e in recent[-3:]],
+                    "memories": [
+                        {
+                            "text": s.entry.text,
+                            "layer": s.layer,
+                            "temperature": round(s.entry.temperature, 3),
+                            "emotional_weight": round(s.entry.emotional_weight, 3),
+                            "tags": s.entry.tags,
+                        }
+                        for s in samples
+                    ],
+                    "state_narrative": self._generate_state_narrative(
+                        mean_temp=self._memory.mean_temperature(),
+                        cascade_active=self._memory.cascade_active(),
+                        ghost_count=len(self._memory.get_layer("ghost")),
+                    ),
                     "signals": {
                         "rhythm_beat": signals.rhythm_beat,
                         "valence_warmth": signals.valence_warmth,
@@ -105,7 +136,11 @@ class LifeSimulator:
                 }
         return None
 
-    def check_mode_b(self, signals: SemanticSignals, persona: str = "default") -> dict[str, Any] | None:
+    def check_mode_b(
+        self,
+        signals: SemanticSignals,
+        personality: dict[str, float] | None = None,
+    ) -> dict[str, Any] | None:
         """检查 Mode B 触发条件。返回事件或 None。"""
         now = time.time()
 
@@ -114,7 +149,7 @@ class LifeSimulator:
             return None
 
         # 间隔检查
-        min_interval = self._mode_b_interval(persona, self._interaction_density())
+        min_interval = self._mode_b_interval(self._interaction_density())
         if now - self._last_interaction < min_interval:
             return None
 
@@ -125,19 +160,20 @@ class LifeSimulator:
         self._last_mode_b = now
         self._mode_b_cooldown = LIFE_SIM_CONFIG["mode_b_cooldown_after_trigger_minutes"] * 60
 
-        entries = self._pool.sample_for_mode_b(k=3)
+        p = personality if personality is not None else _DEFAULT_PERSONALITY
+        samples = self._sampler.sample(p, k=3)
         reservoir_level = self._reservoir.level
         phi = signals.phi_smoothed
 
         # v1.1.2: 从共享 emotion_classifier.build_emotion_payload 获取
         emotion_payload = build_emotion_payload(signals)
 
-        if entries and reservoir_level > 0.3:
+        if samples and reservoir_level > 0.3:
             return self._generate_life_event(
-                entries, phi, self._signals.mode_b_strategy(), emotion_payload
+                samples, phi, self._signals.mode_b_strategy(), emotion_payload
             )
-        elif entries:
-            return self._generate_reflection(entries, phi, emotion_payload)
+        elif samples:
+            return self._generate_reflection(samples, phi, emotion_payload)
         else:
             return self._generate_soliloquy(phi, emotion_payload)
 
@@ -154,7 +190,7 @@ class LifeSimulator:
             and signals.body_criticality < 0.5
         )
 
-    def _mode_b_interval(self, persona: str, density: float) -> float:
+    def _mode_b_interval(self, density: float) -> float:
         """Mode B 触发间隔 (秒)。"""
         base = LIFE_SIM_CONFIG["mode_b_min_hours"] * 3600
         # 根据交互密度动态调整: 密度越高，间隔越短
@@ -169,7 +205,7 @@ class LifeSimulator:
 
     def _generate_life_event(
         self,
-        entries: list[BufferEntry],
+        samples: list[SampledMemory],
         phi: float,
         strategy: str,
         emotion_payload: dict[str, Any] | None = None,
@@ -180,9 +216,23 @@ class LifeSimulator:
             "type": "mode_b",
             "subtype": "life_event",
             "strategy": strategy,
-            "entries": [e.text for e in entries],
+            "memories": [
+                {
+                    "text": s.entry.text,
+                    "layer": s.layer,
+                    "temperature": round(s.entry.temperature, 3),
+                    "emotional_weight": round(s.entry.emotional_weight, 3),
+                    "tags": s.entry.tags,
+                }
+                for s in samples
+            ],
             "phi": phi,
             "reservoir_used": 0.1,
+            "state_narrative": self._generate_state_narrative(
+                mean_temp=self._memory.mean_temperature(),
+                cascade_active=self._memory.cascade_active(),
+                ghost_count=len(self._memory.get_layer("ghost")),
+            ),
         }
         if emotion_payload is not None:
             result["emotion"] = emotion_payload  # v1.1.1
@@ -190,7 +240,7 @@ class LifeSimulator:
 
     def _generate_reflection(
         self,
-        entries: list[BufferEntry],
+        samples: list[SampledMemory],
         phi: float,
         emotion_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -198,8 +248,22 @@ class LifeSimulator:
         result: dict[str, Any] = {
             "type": "mode_b",
             "subtype": "reflection",
-            "entries": [e.text for e in entries],
+            "memories": [
+                {
+                    "text": s.entry.text,
+                    "layer": s.layer,
+                    "temperature": round(s.entry.temperature, 3),
+                    "emotional_weight": round(s.entry.emotional_weight, 3),
+                    "tags": s.entry.tags,
+                }
+                for s in samples
+            ],
             "phi": phi,
+            "state_narrative": self._generate_state_narrative(
+                mean_temp=self._memory.mean_temperature(),
+                cascade_active=self._memory.cascade_active(),
+                ghost_count=len(self._memory.get_layer("ghost")),
+            ),
         }
         if emotion_payload is not None:
             result["emotion"] = emotion_payload  # v1.1.1
@@ -214,12 +278,38 @@ class LifeSimulator:
         result: dict[str, Any] = {
             "type": "mode_b",
             "subtype": "soliloquy",
-            "entries": [],
+            "memories": [],
             "phi": phi,
+            "state_narrative": self._generate_state_narrative(
+                mean_temp=self._memory.mean_temperature(),
+                cascade_active=self._memory.cascade_active(),
+                ghost_count=len(self._memory.get_layer("ghost")),
+            ),
         }
         if emotion_payload is not None:
             result["emotion"] = emotion_payload  # v1.1.1
         return result
+
+    @staticmethod
+    def _generate_state_narrative(
+        mean_temp: float,
+        cascade_active: bool,
+        ghost_count: int,
+        body: dict[str, float] | None = None,
+    ) -> str:
+        """Rule-based state narrative describing the bot's current internal state."""
+        parts: list[str] = []
+        if mean_temp > 0.7:
+            parts.append("你现在内心很不平静，很多情绪在翻涌")
+        elif mean_temp > 0.4:
+            parts.append("你现在有些心绪不宁")
+        else:
+            parts.append("你现在相对平静")
+        if cascade_active:
+            parts.append("一个念头牵出另一个念头，思绪在连锁反应")
+        if ghost_count > 0:
+            parts.append(f"有 {ghost_count} 个很久以前的画面一直在脑海里挥之不去")
+        return "，".join(parts) + "。"
 
     def to_dict(self) -> dict[str, Any]:
         return {
