@@ -1,16 +1,42 @@
-# emotion_spirit v3.0.0
+![emotion_spirit](https://socialify.git.ci/Aston957/astrbot_plugin_emotion_spirit/image?custom_description=%E8%81%8A%E5%A4%A9%E6%9C%BA%E5%99%A8%E4%BA%BA%E7%9A%84%E2%80%9C%E7%81%B5%E9%AD%82%E5%86%85%E6%A0%B8%E2%80%9D%20%E2%80%94%20%E9%95%BF%E6%9C%9F%E8%AE%B0%E5%BF%86+%E4%BA%BA%E6%A0%BC%E6%BC%94%E5%8C%96+%E8%B6%85%E6%88%91%E8%B0%83%E6%8E%A7+LLM%E7%94%9F%E6%B4%BB%E6%A8%A1%E6%8B%9F&description=1&font=Inter&forks=1&issues=1&language=1&name=1&owner=1&pattern=Formal+Invitation&pulls=1&stargazers=1&theme=Auto)
 
-> [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
-> [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
+<p align="center">
+  <a href="https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases"><img src="https://img.shields.io/badge/version-3.0.0-red.svg" alt="version 3.0.0"></a>
+  <a href="https://github.com/Aston957/astrbot_plugin_emotion_spirit/stargazers"><img src="https://img.shields.io/github/stars/Aston957/astrbot_plugin_emotion_spirit?style=flat&color=orange" alt="GitHub Stars"></a>
+  <a href="https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml"><img src="https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/tests-856%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/python-%3E%3D3.11-blue" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange" alt="AstrBot >=4.9.2">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License MIT"></a>
+  <a href="https://github.com/Aston957/astrbot_plugin_emotion_spirit/commits"><img src="https://img.shields.io/github/last-commit/Aston957/astrbot_plugin_emotion_spirit?color=purple" alt="Last Commit"></a>
+</p>
 
-[![Tests](https://img.shields.io/badge/tests-856%20passed-brightgreen)]()
-[![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-[![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
-[![AstrBot](https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange)]()
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<p align="center">
+  <a href="https://github.com/Aston957/astrbot_plugin_emotion_spirit"><img src="https://count.getloli.com/get/@astrbot_plugin_emotion_spirit?theme=moebooru" alt="Moe Counter"></a>
+</p>
 
-[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v3.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+> **emotion_spirit** — 让聊天机器人拥有"灵魂内核"的情感计算框架。不只是回答问题，而是拥有记忆、人格、良心、创伤和成长能力，像一个有内心世界的人一样与用户互动。
+
+---
+
+## 📑 快速导航
+
+<div align="center">
+
+| 功能 | 文档 | 功能 | 文档 |
+| :--- | :--- | :--- | :--- |
+| 🧠 核心能力 | [核心能力](#-核心能力--key-features) | 📦 安装 | [安装](#-安装--installation) |
+| 🏗️ 架构说明 | [架构](#-架构说明--architecture) | 🚀 快速开始 | [快速开始](#-快速开始--quick-start) |
+| 🎯 这是什么 | [介绍](#-这是什么--what-is-this) | ⚙️ 配置 | [配置](#-配置--configuration) |
+| 📸 截图 | [截图](#-截图--screenshots) | 🔒 安全 | [安全](#-安全--security) |
+| 📋 命令 | [命令](#-命令--commands) | 📚 文档导航 | [文档](#-文档导航--documentation) |
+| 🗂️ 目录结构 | [目录](#v30-目录结构--v30-directory-structure) | 📜 许可证 | [License](#license--attribution) |
+
+</div>
+
+---
+
+[架构图](docs/mockups/architecture-diagram.html) | [API 文档](public_api_stable.md) | [CHANGELOG](CHANGELOG.md) | [理论依据](docs/theory.md)
 
 ---
 
@@ -407,6 +433,10 @@ emotion_spirit/
 | LLM LifeSimulator | stub | 无 | v3.0 LLM 生活模拟 |
 | on_llm_response | 无 | 无 | v3.0 bot 回复记忆 |
 | 13 维人格 | 12 维 | 11 维 | v1.7 +gossip_tendency |
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Aston957/astrbot_plugin_emotion_spirit&type=Date)](https://star-history.com/#Aston957/astrbot_plugin_emotion_spirit&Date)
 
 ## License & Attribution / 许可与致谢
 
