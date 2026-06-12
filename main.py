@@ -601,19 +601,21 @@ class EmotionSpiritPlugin(Star):
         # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
         if self._life_sim is not None:
             try:
-                signals = self._consumer.consume({})
-                personality_dict = {
-                    **(signals.personality_deep or {}),
-                    **(signals.personality_surface or {}),
-                }
-                event_a = self._life_sim.check_mode_a(signals, personality_dict)
-                event_b = event_a or self._life_sim.check_mode_b(signals, personality_dict)
-                if event_b:
-                    await self._life_sim.generate_life_prose(
-                        event_b,
-                        persona_desc=self._current_persona.get("label", "") if self._current_persona else "",
-                        personality=personality_dict,
-                    )
+                # 读取当前会话的缓存 signals (由 SurfaceHandler.consume 写入)
+                signals = self._latest_signals.get(user_id)
+                if signals is not None:
+                    personality_dict = {
+                        **(signals.personality_deep or {}),
+                        **(signals.personality_surface or {}),
+                    }
+                    event_a = self._life_sim.check_mode_a(signals, personality_dict)
+                    event_b = event_a or self._life_sim.check_mode_b(signals, personality_dict)
+                    if event_b:
+                        await self._life_sim.generate_life_prose(
+                            event_b,
+                            persona_desc=self._current_persona.get("label", "") if self._current_persona else "",
+                            personality=personality_dict,
+                        )
             except Exception:
                 logger.debug("emotion_spirit: life_sim tick error", exc_info=True)
 
