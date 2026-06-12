@@ -271,6 +271,11 @@ class PersonaAnalyzerWithFallback:
         self._llm: LLMAnalyzer | None = LLMAnalyzer(llm) if llm is not None else None
         self._fallback: RuleBasedAnalyzer = fallback or RuleBasedAnalyzer()
 
+    def configure(self, llm: LLMCallable | None = None) -> None:
+        """Post-build LLM 注入。由 main.py 在 context ready 后调用。"""
+        if llm is not None:
+            self._llm = LLMAnalyzer(llm)
+
     async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
         """先试 LLM, 失败 (异常或无 labels) fallback 到 RuleBased。"""
         if self._llm is not None:

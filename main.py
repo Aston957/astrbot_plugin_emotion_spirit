@@ -670,6 +670,74 @@ class EmotionSpiritPlugin(Star):
             else:
                 req.system_prompt = context
 
+    # ═══ LLM 回复处理 ═══
+
+    @filter.on_llm_response(desc="处理 LLM 回复，更新记忆和亲密度")
+    async def on_llm_response(self, event: AstrMessageEvent, response: Any) -> None:
+        """Bot 回复后: 写入 MemoryPool + 更新 IntimacyTracker。"""
+        try:
+            bot_text = getattr(response, "completion_text", "") or ""
+            if not bot_text:
+                return
+
+            user_id = event.get_sender_id()
+
+            # 1. 规则提取情绪
+            tone, weight = self._extract_bot_emotion(bot_text)
+
+            # 2. 写入 MemoryPool (source_user="bot", tags=["bot_reply", tone])
+            self._pool.add_for_user(
+                user_id=user_id,
+                text=bot_text[:500],  # 截断避免过长
+                raw_weight=weight,
+                phi=0.4,  # bot 回复 phi 中等
+                tags=["bot_reply", tone],
+                source_user="bot",
+            )
+
+            # 3. 更新 IntimacyTracker (interaction_freq)
+            self._intimacy.update(
+                user_id,
+                interval_seconds=0,  # bot 回复不改变间隔
+                vulnerability_delta=0.05 if tone == "warm" else 0.0,
+            )
+
+            logger.debug(
+                "emotion_spirit on_llm_response: user=%s tone=%s weight=%.2f len=%d",
+                user_id[:8], tone, weight, len(bot_text),
+            )
+        except Exception:
+            logger.debug("emotion_spirit: on_llm_response error", exc_info=True)
+
+    @staticmethod
+    def _extract_bot_emotion(text: str) -> tuple[str, float]:
+        """从 bot 回复文本规则提取情绪标签和权重。
+
+        Returns:
+            (tone, weight) 元组。
+        """
+        text_lower = text.lower()
+
+        # 温暖类
+        warm_words = ["哈哈", "笑", "开心", "高兴", "❤", "🥰", "😊", "喜欢", "棒", "好的呀"]
+        if any(w in text_lower for w in warm_words):
+            return "warm", 0.5
+
+        # 抱歉类
+        apologetic_words = ["抱歉", "不好意思", "对不起", "sorry", "遗憾"]
+        if any(w in text_lower for w in apologetic_words):
+            return "apologetic", 0.3
+
+        # 好奇类
+        if "？" in text or "?" in text:
+            return "curious", 0.3
+
+        # 详细回复
+        if len(text) > 200:
+            return "detailed", 0.5
+
+        return "neutral", 0.3
+
     async def _flush_inject_queue(self) -> None:
         if not self._inject_queue:
             return

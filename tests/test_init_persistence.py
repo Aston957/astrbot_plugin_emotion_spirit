@@ -33,6 +33,8 @@ astrbot_mock.api = astrbot_api_mock
 astrbot_api_event_mock = types.ModuleType("astrbot.api.event")
 astrbot_api_event_mock.filter = types.SimpleNamespace(
     on_llm_request=lambda: lambda f: f,
+    on_llm_response=lambda **kw: lambda f: f,
+    on_decorating_result=lambda **kw: lambda f: f,
     command=lambda *args, **kwargs: lambda f: f,
 )
 astrbot_api_event_mock.AstrMessageEvent = type("AstrMessageEvent", (), {})
