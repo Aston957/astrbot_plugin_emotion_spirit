@@ -1,19 +1,19 @@
-<h2>/spirit_status 命令输出 (v2.0)</h2>
+<h2>/spirit_status 命令输出 (v3.0)</h2>
 <p class="subtitle">包含三元力学权重 (Phase 3 新增) + 滑动窗口 P95 压力归一化 (Phase 4 C1)</p>
 
 <div class="mockup">
-  <div class="mockup-header">QQ Chat /view_status 命令 (v2.0 ns 化后)</div>
+  <div class="mockup-header">QQ Chat /view_status 命令 (v3.0 ns 化后)</div>
   <div class="mockup-body">
     <pre style="background: #1a1a1a; color: #e0e0e0; padding: 12px; font-family: monospace;">
-📊 emotion_spirit 状态 (v2.0.0v1)
+📊 emotion_spirit 状态 (v3.0.0v1)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 人格模式: auto
 当前人格: 小芙
 SylannEngine: 已连接
 人格标签: INFP-AP (5 轴)
-v2.0.0v1 (PEP 440: 2.0.0.post1)
+v3.0.0
 
-— 三元力学权重 (Phase 3 算法 H, v2.0 新) —
+— 三元力学权重 (Phase 3 算法 H, v3.0 新) —
 🌿 natural:    0.18
 👥 social:     0.32
 🧠 individual: 0.50
@@ -44,18 +44,18 @@ v2.0.0v1 (PEP 440: 2.0.0.post1)
 无漂移告警
 13 信号预警: 全部 GREEN
 
-— v2.0 4 层架构 —
+— v3.0 5 层架构 —
 core ← memory ← regulation ← output
 public_api_stable.md: 7 stable, 3 internal, 2 deprecated
-__all__ 标记: 38 modules (Phase 4 C3)</pre>
+__all__ 标记: 104 modules (Phase 4 C3)</pre>
   </div>
 </div>
 
 <div class="mockup">
-  <div class="mockup-header">Phase 4 v2.0 增强说明</div>
+  <div class="mockup-header">Phase 4 v3.0 增强说明</div>
   <div class="mockup-body">
     <p><strong>Phase 4 C1 (ConscienceTracker B2):</strong> 良心压力从 hard-clip [0,1] 改为 raw 累加器 + 滑动窗口 P95 分位归一化。"持续 50 次冲突" 跟 "持续 1 次大冲突" 现在在压力信号上有差异, 三元力学能更准确反映慢性 vs 急性压力。</p>
     <p><strong>Phase 4 C3 (Public API markers):</strong> 38 模块加 <code>__all__</code>, public_api_stable.md 列出 7 stable + 3 internal + 2 deprecated API, 跟 v1.x 兼容垫片 <code>_v1_compat.py</code> + <code>_DeprecatedImportFinder</code> hook 配套。</p>
-    <p><strong>Phase 4 C4 (4-layer dir):</strong> 38 modules 迁到 <code>emotion_spirit/{core|memory|regulation|output}/</code>, 依赖方向严格单向 <code>L0 ← L1 ← L2 ← L3</code>, 跟 4 层架构 mental model 对应。</p>
+    <p><strong>Phase 4 C4 (4-layer dir):</strong> 104 modules 迁到 <code>emotion_spirit/{core|memory|regulation|output}/</code>, 依赖方向严格单向 <code>L0 ← L1 ← L2 ← L3</code>, 跟 5 层架构 mental model 对应。</p>
   </div>
 </div>
