@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from .decay_model import DecayModel
 
@@ -49,14 +49,26 @@ class UnifiedEntry:
     last_recalled: float
     peak_temperature: float
 
+    # -- Social associations --
+    participants: set[str] = field(default_factory=set)  # 记忆归属者 (说话人+群组)
+    mentioned: set[str] = field(default_factory=set)     # 被提及的人
+
+    # -- Memory compression --
+    impression: str | None = field(default=None)  # 压缩印象 (warm→cold 时生成)
+    compression: float = field(default=0.0)       # 压缩程度 [0, 1]
+
     # -- Reconsolidation state --
     _is_labile: bool = field(default=False)
     _lability_deadline: float = field(default=0.0)
+
+    # -- Vector space (PAD 三维) --
+    vector: tuple[float, float, float] = field(default=(0.0, 0.0, 0.0))
 
     # -- Cascade tracking --
     cascade_generation: int = field(default=0)
 
     # -- Ghost tracking --
+    ghost_sensitivity_shift: float = field(default=0.0)  # Counterfactual ghost sensitivity
     _ticks_above_ghost_threshold: int = field(default=0)
 
     def on_recall(self, personality: dict[str, float]) -> None:
@@ -101,6 +113,9 @@ class UnifiedEntry:
         self.emotional_weight = _clamp(self.emotional_weight + shift, 0, 1)
         self._is_labile = False  # Reconsolidated
 
+        # Reconsolidation changes emotional weight → update vector (dominance)
+        self.recompute_vector()
+
     def on_inject(self, signal_type: str, intensity: float) -> None:
         """External signal: adjust temperature based on signal type."""
         effects = {
@@ -113,6 +128,128 @@ class UnifiedEntry:
         delta = effects.get(signal_type, 0) * intensity
         self.temperature = _clamp(self.temperature + delta, 0, 1)
         self.peak_temperature = max(self.peak_temperature, self.temperature)
+
+    # Privacy → numeric normalization (class-level, not a dataclass field)
+    _PRIVACY_NORM: ClassVar[dict[str, float]] = {"private": 0.0, "circle": 0.5, "public": 1.0}
+
+    @staticmethod
+    def compute_vector(
+        valence: float,
+        arousal: float,
+        emotional_weight: float,
+        mass: float = 0.0,
+        privacy: str = "private",
+    ) -> tuple[float, float, float]:
+        """Compute PAD vector from existing fields.
+
+        Dominance = emotional_weight (direct measure of control/salience).
+        mass and privacy kept for API compatibility but not used in dominance.
+
+        Args:
+            valence: Upstream pad_valence [-1, 1], mapped to [0, 1].
+            arousal: Entry arousal [0, 1].
+            emotional_weight: Emotional weight [0, 1].
+
+        Returns:
+            (valence, arousal, dominance) in [0, 1]^3.
+        """
+        v = _clamp((valence + 1.0) / 2.0, 0.0, 1.0)
+        a = _clamp(arousal, 0.0, 1.0)
+        d = _clamp(emotional_weight, 0.0, 1.0)
+        return (v, a, d)
+
+    def recompute_vector(self) -> None:
+        """Recompute dominance from current emotional_weight.
+
+        Called after reconsolidation and decay when weight changes.
+        Valence and arousal are preserved (not re-derived).
+        """
+        v, a, _ = self.vector
+        self.vector = (v, a, _clamp(self.emotional_weight, 0.0, 1.0))
+
+    def compute_decay_factor(
+        self,
+        partner_intimacy: float = 0.0,
+        personality: dict[str, float] | None = None,
+    ) -> float:
+        """情境衰减因子 — 人格 + 关系 + 情感权重联合调制衰减速度。
+
+        文献支撑:
+        - neuroticism=0.30 (Gross & John 2003): 放大负面, 加速正面遗忘
+        - openness=0.15 (Schiller et al. 2010): 更容易释怀
+        - conscientiousness=0.10: 记忆更系统化
+        - extraversion=0.10: 正面记忆社交强化
+        - agreeableness=0.10: 更容易原谅
+        - partner_intimacy (Mikulincer & Shaver 2007): 亲密关系减缓遗忘
+
+        Returns:
+            factor ∈ [0.3, 2.0]: <1 减缓衰减, >1 加速衰减
+        """
+        if personality is None:
+            personality = {}
+
+        # 情感权重: 高情感 → 慢衰减
+        factor_emotion = 1.0 - 0.5 * self.emotional_weight
+
+        # 神经质-效价交互: valence 从 vector[0] 获取
+        valence = self.vector[0]  # [0,1], 0.5=neutral
+        neuroticism = personality.get("neuroticism", 0.5)
+        openness = personality.get("openness", 0.5)
+        # 负面记忆(valence<0.5): neuroticism 减缓衰减
+        # 正面记忆(valence>0.5): neuroticism 加速衰减
+        valence_neuro = 1.0 + 0.3 * neuroticism * (0.5 - valence) * 2
+        valence_open = 1.0 - 0.15 * openness * abs(valence - 0.5) * 2
+        factor_valence = valence_neuro * valence_open
+
+        # 亲密关系: 减缓衰减
+        factor_partner = 1.0 - 0.3 * partner_intimacy
+
+        # 人格因子
+        c = personality.get("conscientiousness", 0.5)
+        e = personality.get("extraversion", 0.5)
+        a = personality.get("agreeableness", 0.5)
+        factor_personality = 1.0 - 0.1 * (c + e + a - 1.5)  # 中性=1.0
+
+        factor = factor_emotion * factor_valence * factor_partner * factor_personality
+        return _clamp(factor, 0.3, 2.0)
+
+    # -- Memory compression --
+
+    @staticmethod
+    def generate_impression(entry: "UnifiedEntry") -> str:
+        """Generate a compressed impression from tags + entities + valence.
+
+        Used when warm → cold transition: important details preserved as impression.
+        Ghost entries never get compressed.
+        """
+        emotion = entry.tags[0] if entry.tags else "某件事"
+        people = ", ".join(entry.entities.get("person", []))
+        valence_word = "正面" if entry.vector[0] > 0.5 else "负面"
+
+        if people:
+            return f"关于{people}的{emotion}，感觉{valence_word}"
+        return f"{emotion}，感觉{valence_word}"
+
+    def compress_to_impression(self) -> None:
+        """Compress this entry: generate impression, set compression=1.0.
+
+        Called during warm → cold transition. Ghost entries are never compressed.
+        """
+        if self.is_ghost:
+            return
+        self.impression = self.generate_impression(self)
+        self.compression = 1.0
+
+    def get_display_text(self) -> str:
+        """Return the appropriate text based on compression level.
+
+        - compression < 0.5: full text
+        - compression >= 0.5: impression (if available)
+        - ghost: always full text
+        """
+        if self.is_ghost or self.compression < 0.5:
+            return self.text
+        return self.impression if self.impression else self.text
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for persistence."""
@@ -132,10 +269,25 @@ class UnifiedEntry:
             "recall_count": self.recall_count,
             "last_recalled": self.last_recalled,
             "peak_temperature": round(self.peak_temperature, 6),
+            "vector": [round(v, 6) for v in self.vector],
             "cascade_generation": self.cascade_generation,
+            "ghost_sensitivity_shift": round(self.ghost_sensitivity_shift, 6),
+            "participants": list(self.participants),
+            "mentioned": list(self.mentioned),
+            "impression": self.impression,
+            "compression": round(self.compression, 6),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> UnifiedEntry:
         """Deserialize from dict."""
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        filtered = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
+        # JSON stores vector as list; convert to tuple
+        if "vector" in filtered and isinstance(filtered["vector"], list):
+            filtered["vector"] = tuple(filtered["vector"])
+        # JSON stores sets as lists; convert back
+        if "participants" in filtered and isinstance(filtered["participants"], list):
+            filtered["participants"] = set(filtered["participants"])
+        if "mentioned" in filtered and isinstance(filtered["mentioned"], list):
+            filtered["mentioned"] = set(filtered["mentioned"])
+        return cls(**filtered)

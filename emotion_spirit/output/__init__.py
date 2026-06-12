@@ -7,5 +7,5 @@ __all__ = [
     "surface_consumer", "surface_handler", "diary_writer",
     "command_router", "commands", "narrative_identity",
     "predictive_sentinel", "public_api", "buffer_signals",
-    "trend_utils",
+    "trend_utils", "realtime_dispatch", "rhythm_learner",
 ]

@@ -17,7 +17,6 @@ sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
 from emotion_spirit.output.surface_consumer import SurfaceConsumer, SemanticSignals
-from emotion_spirit.memory.unified_memory import UnifiedMemory
 from emotion_spirit.memory.memory_pool import MemoryPool
 from emotion_spirit.memory.intimacy import IntimacyTracker
 from emotion_spirit.output.buffer_signals import BufferSignals
@@ -42,22 +41,21 @@ def _make_signals(**overrides) -> SemanticSignals:
 
 
 def _make_sim():
-    """Helper: create a LifeSimulator with UnifiedMemory + BufferSignals(MemoryPool)."""
+    """Helper: create a LifeSimulator with MemoryPool + BufferSignals."""
     consumer = SurfaceConsumer()
-    memory = UnifiedMemory()
     pool = MemoryPool()
     intimacy = IntimacyTracker()
     signals = BufferSignals(pool)
     reservoir = MeaningReservoir()
-    sim = LifeSimulator(consumer, memory, intimacy, signals, reservoir)
-    return sim, memory
+    sim = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
+    return sim, pool
 
 
 def test_mode_a_trigger():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     # Add some entries
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
 
     # Force idle time
     sim._last_interaction = time.time() - 120  # 2 minutes ago
@@ -68,9 +66,9 @@ def test_mode_a_trigger():
 
 
 def test_mode_b_trigger():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
     sim._reservoir.level = 0.5
     sim._last_interaction = time.time() - 5 * 3600  # 5 hours ago
     sim._last_mode_b = time.time() - 10 * 3600
@@ -89,7 +87,7 @@ def test_mode_b_trigger():
 
 
 def test_mode_b_blocked_cascade():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -105,7 +103,7 @@ def test_mode_b_blocked_cascade():
 
 
 def test_mode_b_blocked_exhaustion():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -121,7 +119,7 @@ def test_mode_b_blocked_exhaustion():
 
 
 def test_mode_b_interval():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     interval_low = sim._mode_b_interval(0.1)
     interval_high = sim._mode_b_interval(0.9)
@@ -129,14 +127,14 @@ def test_mode_b_interval():
 
 
 def test_serialization():
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
     data = sim.to_dict()
     consumer = SurfaceConsumer()
     pool = MemoryPool()
     intimacy = IntimacyTracker()
     signals = BufferSignals(pool)
     reservoir = MeaningReservoir()
-    sim2 = LifeSimulator(consumer, memory, intimacy, signals, reservoir)
+    sim2 = LifeSimulator(consumer, pool, intimacy, signals, reservoir)
     sim2.from_dict(data)
     assert sim2._turn_count == sim._turn_count
 
@@ -145,9 +143,9 @@ def test_serialization():
 
 def test_mode_a_payload_includes_emotion():
     """Mode A payload signals block includes pad / emotion_distribution / emotion_primary etc."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
     sim._last_interaction = time.time() - 120  # 2 minutes ago
 
     sig = _make_signals(
@@ -175,9 +173,9 @@ def test_mode_a_payload_includes_emotion():
 
 def test_mode_a_payload_includes_memories():
     """Mode A payload includes memories with layer/temperature/weight metadata."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test entry", tags=["mood"], entities={}, source_user="user1", arousal=0.6, raw_weight=0.4)
+    pool.add("test entry", 0.4, 0.5, ["mood"], "user1")
     sim._last_interaction = time.time() - 120
 
     result = sim.check_mode_a(_make_signals())
@@ -195,9 +193,9 @@ def test_mode_a_payload_includes_memories():
 
 def test_mode_a_payload_includes_state_narrative():
     """Mode A payload includes state_narrative."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
     sim._last_interaction = time.time() - 120
 
     result = sim.check_mode_a(_make_signals())
@@ -209,9 +207,9 @@ def test_mode_a_payload_includes_state_narrative():
 
 def test_mode_b_life_event_payload_includes_emotion():
     """Mode B life_event payload includes emotion block."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
     sim._reservoir.level = 0.5
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -240,9 +238,9 @@ def test_mode_b_life_event_payload_includes_emotion():
 
 def test_mode_b_reflection_payload_includes_emotion():
     """Mode B reflection payload includes emotion block."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="test", tags=["test"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.5)
+    pool.add("test", 0.5, 0.5, ["test"], "user1")
     # reservoir.level stays 0 -> triggers reflection branch
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -268,7 +266,7 @@ def test_mode_b_reflection_payload_includes_emotion():
 
 def test_mode_b_soliloquy_payload_includes_emotion():
     """Mode B soliloquy payload includes emotion block."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     # empty memory -> triggers soliloquy
     sim._last_interaction = time.time() - 5 * 3600
@@ -295,9 +293,9 @@ def test_mode_b_soliloquy_payload_includes_emotion():
 
 def test_mode_b_payload_includes_memories_with_metadata():
     """Mode B payload includes memories with layer/temperature/weight metadata."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
-    memory.add(text="a memory", tags=["warm"], entities={}, source_user="user1", arousal=0.5, raw_weight=0.6)
+    pool.add("a memory", 0.6, 0.5, ["warm"], "user1")
     sim._reservoir.level = 0.5
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -326,7 +324,7 @@ def test_mode_b_payload_includes_memories_with_metadata():
 
 def test_mode_b_payload_includes_state_narrative():
     """Mode B payload includes state_narrative."""
-    sim, memory = _make_sim()
+    sim, pool = _make_sim()
 
     sim._last_interaction = time.time() - 5 * 3600
     sim._last_mode_b = time.time() - 10 * 3600
@@ -380,9 +378,9 @@ def test_life_simulator_mode_b_payload_includes_v12_dynamics():
     class FakeIntimacy:
         pass
 
-    memory = UnifiedMemory()
+    pool = MemoryPool()
     sim = LifeSimulator(
-        consumer=consumer, memory=memory, intimacy=FakeIntimacy(),
+        consumer=consumer, memory=pool, intimacy=FakeIntimacy(),
         signals=FakeSignals(), reservoir=FakeReservoir(),
     )
     # Force trigger: bypass time checks

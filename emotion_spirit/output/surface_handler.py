@@ -53,7 +53,6 @@ class SurfaceHandler:
         user_id = session_id  # _resolve_user_id 是 no-op
 
         # Phase 1: 基础更新 (per-user)
-        self._p._pool.update_phi_for_user(user_id, signals.phi_smoothed)
         raw_weight = signals.damage_open + signals.valence_volatility + signals.cascade_intensity
         self._p._pool.add_for_user(
             user_id=user_id,
@@ -93,6 +92,12 @@ class SurfaceHandler:
             "deep": signals.personality_deep or {},
             "surface": signals.personality_surface or {},
         }
+        # PersonalityBridge: 5D Embodiment → 12D 映射 (如果 SylannEngine 提供 5D)
+        if hasattr(self._p, '_personality_bridge') and self._p._personality_bridge:
+            deep_5d = current_personality.get("deep", {})
+            if deep_5d and len(deep_5d) <= 6:  # 5D 格式 (expression_drive 等)
+                mapped_12d = self._p._personality_bridge.map_5d_to_12d(deep_5d)
+                current_personality["deep"] = mapped_12d
         self._p._interaction_count += 1
         self._p._value_resistance._baseline_personality = self._p._baseline_personality
         self._p._value_resistance._interaction_count = self._p._interaction_count
@@ -126,6 +131,23 @@ class SurfaceHandler:
             self._p._conscience.record_cascade(signals.cascade_intensity)
 
         self._p._conscience.record_collapse(signals.collapse_count)
+
+        # ═══ 压抑系统 (SuppressionState) ═══
+        from emotion_spirit.memory.suppression import SuppressionState
+        if not hasattr(self._p, '_suppression'):
+            self._p._suppression = SuppressionState()
+        intimacy = self._p._intimacy.get_intimacy(session_id, self._p._current_persona) if session_id else 0.5
+        conscience_pressure = self._p._conscience.get_pressure()
+        suppression_context = {
+            "authority_present": 0,
+            "social_audience": 0,
+        }
+        self._p._suppression_level = self._p._suppression.compute(
+            personality=current_personality.get("deep", {}),
+            context=suppression_context,
+            conscience_pressure=conscience_pressure,
+            relationship_intimacy=intimacy,
+        )
 
         # Phase 2: 演化层更新
         self._p._reservoir.accumulate(signals.phi_smoothed, raw_weight)
@@ -243,5 +265,15 @@ class SurfaceHandler:
                 )
             except Exception:
                 logger.debug("emotion_spirit: surface log failed", exc_info=True)
+
+        # MemoryPool decay tick (Phase D: 统一到 MemoryPool, 情境衰减)
+        intimacy = self._p._intimacy.get_intimacy(session_id, self._p._current_persona) if session_id else 0.0
+        self._p._pool.tick(
+            personality=current_personality.get("deep", {}),
+            partner_intimacy=intimacy,
+        )
+
+        # 记忆崩溃检测 (Phase D+ CollapseArchetype 集成)
+        self._p._pool.check_collapse(personality=current_personality.get("deep", {}))
 
         self._p._save_if_dirty()

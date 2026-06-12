@@ -58,7 +58,7 @@ def test_life_simulator_5_deps_wired():
     ls = instances["life_simulator"]
     assert isinstance(ls, LifeSimulator)
     assert ls._consumer is instances["surface_consumer"]
-    assert ls._pool is instances["memory_pool"]
+    assert ls._memory is instances["memory_pool"]
     assert ls._intimacy is instances["intimacy"]
     assert ls._signals is instances["buffer_signals"]
     assert ls._reservoir is instances["meaning_reservoir"]

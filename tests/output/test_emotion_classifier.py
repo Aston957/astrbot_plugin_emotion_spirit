@@ -294,7 +294,7 @@ def test_compute_velocity_decrease_arousal():
 
 def test_compute_velocity_returns_dict_with_four_keys():
     """velocity 总是返回 4 键 dict。"""
-    now = time.time()
+    now = time.time() - 1.0  # 确保 dt > 0
     last = (0.0, 0.0, 0.0, now)
     current = (0.1, 0.1, 0.1)
     v = compute_velocity(current, last)

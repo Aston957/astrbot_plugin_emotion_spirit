@@ -11,12 +11,25 @@ import re
 import sys
 import inspect
 import importlib
+import types
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 EMOTION_SPIRIT_DIR = ROOT / "emotion_spirit"
 sys.path.insert(0, str(ROOT))
+
+# Mock astrbot for standalone execution (无 AstrBot 宿主环境)
+if "astrbot" not in sys.modules:
+    _astrbot = types.ModuleType("astrbot")
+    _api = types.ModuleType("astrbot.api")
+    _api.logger = types.ModuleType("logger")
+    _api.logger.warning = lambda *a, **kw: None
+    _api.logger.info = lambda *a, **kw: None
+    _api.logger.debug = lambda *a, **kw: None
+    sys.modules["astrbot"] = _astrbot
+    sys.modules["astrbot.api"] = _api
+    _astrbot.api = _api
 
 
 def _find_register_decorators(source: str) -> list[tuple[int, str, dict[str, Any]]]:

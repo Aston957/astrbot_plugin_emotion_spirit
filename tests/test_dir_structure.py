@@ -35,6 +35,11 @@ V2_PATHS = [
     "emotion_spirit.output.narrative_identity", "emotion_spirit.output.predictive_sentinel",
     "emotion_spirit.output.public_api", "emotion_spirit.output.buffer_signals",
     "emotion_spirit.output.trend_utils",
+    # bridge 层
+    "emotion_spirit.bridge.engine_manager", "emotion_spirit.bridge.hotpool_forwarder",
+    "emotion_spirit.bridge.personality_bridge",
+    # sylanne_core (内嵌引擎)
+    "emotion_spirit.sylanne_core",
     # 根层 (留根)
     "emotion_spirit.layer",
 ]
@@ -61,13 +66,15 @@ def test_no_v1_import_paths_remain():
     #         emotion_spirit.layer / emotion_spirit._version / emotion_spirit._v1_compat
     #         emotion_spirit.store (root helper)
     v2_layer_prefixes = ("emotion_spirit.core.", "emotion_spirit.memory.",
-                         "emotion_spirit.regulation.", "emotion_spirit.output.")
+                         "emotion_spirit.regulation.", "emotion_spirit.output.",
+                         "emotion_spirit.bridge.", "emotion_spirit.sylanne_core.")
     v2_root_modules = {"emotion_spirit", "emotion_spirit.layer",
                        "emotion_spirit._version", "emotion_spirit._v1_compat",
                        "emotion_spirit.store",
                        # sub-package roots 本身也是 v2 合法路径 (from X.layer import Y)
                        "emotion_spirit.core", "emotion_spirit.memory",
-                       "emotion_spirit.regulation", "emotion_spirit.output"}
+                       "emotion_spirit.regulation", "emotion_spirit.output",
+                       "emotion_spirit.bridge", "emotion_spirit.sylanne_core"}
 
     def is_v2_path(s: str) -> bool:
         if s in v2_root_modules:

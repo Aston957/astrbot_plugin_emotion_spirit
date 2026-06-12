@@ -43,23 +43,19 @@ def test_resolve_user_id_returns_session_id():
 
 
 def test_main_per_user_calls_use_per_user_api():
-    """静态验证: surface_handler.py 中 consume() 调用 per-user API (B6.10 拆分后)。
+    """静态验证: surface_handler.py 中 consume() 调用 per-user API。
 
-    B6 后 _consume_surface 从 main.py 拆到 emotion_spirit/surface_handler.py。
-    main.py 的 _consume_surface 委托给 SurfaceHandler.consume。
+    Phase D: update_phi_for_user 和 confirm_check_for_user 已移除 (Φ 门控去掉)。
+    surface_handler 应使用 add_for_user + UnifiedMemory tick。
     """
     import inspect
     from emotion_spirit.output import surface_handler
-    # 这里 main.py / surface_handler.py 是 AstrBot 插件, 不容易直接实例化 — 用静态源码检查
     src = inspect.getsource(surface_handler)
     # 关键 API 调用应出现
     assert "add_for_user" in src, "surface_handler.py must use add_for_user"
-    assert "update_phi_for_user" in src, "surface_handler.py must use update_phi_for_user"
-    assert "confirm_check_for_user" in src, "surface_handler.py must use confirm_check_for_user"
     # 旧 API 不应在 consume() 出现
     consume_src = src[src.find("def consume"):src.find("def consume") + 5000]
     assert "self._p._pool.add(" not in consume_src, "consume() must not use old pool.add()"
-    assert "self._p._pool.update_phi(" not in consume_src, "consume() must not use old update_phi()"
 
 
 def test_main_per_user_pattern_extraction_isolated():
@@ -84,6 +80,7 @@ def test_main_per_user_pattern_extraction_isolated():
 
 def test_main_per_user_ghost_resonance_isolated():
     """main.py 第 856 行的 ghost_resonance(entry, user_id) 隔离。"""
+    from emotion_spirit.memory.unified_entry import UnifiedEntry
     pool = MemoryPool()
     # alice: 1 ghost
     pool.add_for_user("alice", "alice_ghost", 0.95, 0.5, ["betrayal"], "alice")
@@ -95,17 +92,22 @@ def test_main_per_user_ghost_resonance_isolated():
     alice_entry = pool.warm_for("alice")[0] if pool.warm_for("alice") else None
     if alice_entry is None:
         # buffer 还没流转, 直接构造
-        from emotion_spirit.memory.memory_pool import MemoryEntry
-        alice_entry = MemoryEntry(
-            id="test_alice", text="alice_test", emotional_weight=0.5,
-            phi_at_creation=0.5, tags=["betrayal"], source_user="alice",
+        alice_entry = UnifiedEntry(
+            id="test_alice", text="alice_test", tags=["betrayal"], entities={},
+            source_user="alice", privacy="private", created_at=time.time(),
+            temperature=0.5, emotional_weight=0.5, mass=0.5,
+            tier="warm", is_ghost=False, recall_count=0,
+            last_recalled=0.0, peak_temperature=0.5,
         )
     # alice 视角: 应看到 alice_ghost 共振
     alice_boost = cf.ghost_resonance(alice_entry, user_id="alice")
     # bob 视角: 应看到 bob_ghost 共振
-    bob_entry = type(alice_entry)(
-        id="test_bob", text="bob_test", emotional_weight=0.5,
-        phi_at_creation=0.5, tags=["betrayal"], source_user="bob",
+    bob_entry = UnifiedEntry(
+        id="test_bob", text="bob_test", tags=["betrayal"], entities={},
+        source_user="bob", privacy="private", created_at=time.time(),
+        temperature=0.5, emotional_weight=0.5, mass=0.5,
+        tier="warm", is_ghost=False, recall_count=0,
+        last_recalled=0.0, peak_temperature=0.5,
     )
     bob_boost = cf.ghost_resonance(bob_entry, user_id="bob")
     # 两个共振都 > 0 (因为都有自己的 ghost)

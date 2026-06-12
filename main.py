@@ -169,6 +169,23 @@ class EmotionSpiritPlugin(Star):
         self._topic_privacy = self._modules["topic_privacy"]
         self._decision = self._modules["bot_decision"]
 
+        # Phase F: Bridge 层 (SylannEngine ↔ emotion_spirit)
+        from emotion_spirit.bridge.engine_manager import EngineManager
+        from emotion_spirit.bridge.hotpool_forwarder import HotPoolForwarder
+        from emotion_spirit.bridge.personality_bridge import PersonalityBridge
+        self._engine_manager = EngineManager()
+        self._hotpool_forwarder = HotPoolForwarder(memory_pool=self._pool)
+        self._personality_bridge = PersonalityBridge()
+        self._engine_manager.set_forwarder(self._hotpool_forwarder)
+        # configure bot_decision proactive deps
+        self._decision.configure_proactive_deps(memory_pool=self._pool)
+
+        # Phase B: RealtimeDispatch + RhythmLearner
+        from emotion_spirit.output.realtime_dispatch import RealtimeDispatch
+        from emotion_spirit.output.rhythm_learner import RhythmLearner
+        self._realtime_dispatch = RealtimeDispatch()
+        self._rhythm_learner = RhythmLearner()
+
         # Phase 2.5: 关系人格
         self._relationship_personality = self._modules["relationship_personality"]
 
@@ -472,26 +489,55 @@ class EmotionSpiritPlugin(Star):
             logger.warning("emotion_spirit: [LLM验证] 调用失败 — %s: %s", type(e).__name__, e)
 
     def _connect_engine_sync(self) -> None:
+        """尝试连接 SylannEngine（使用 shared() 共享实例模式）。"""
         try:
-            from sylanne_core import get_engine
-            self._engine = get_engine()
-            self._engine.on(self._on_surface)
-            logger.info("emotion_spirit: SylannEngine 连接成功, 监听器已注册")
+            llm = self._get_llm_callable()
+            if llm is None:
+                self._retry_count = getattr(self, '_retry_count', 0) + 1
+                if self._retry_count < 3:
+                    logger.info("emotion_spirit: LLM provider 不可用, %d 秒后重试...", 5 * self._retry_count)
+                    asyncio.get_event_loop().call_later(5.0 * self._retry_count, self._connect_engine_sync)
+                else:
+                    logger.warning("emotion_spirit: LLM provider 不可用, SylannEngine 降级")
+                    self._engine = None
+                return
+
+            # 使用 SylanneEngine.shared() 获取或创建共享实例
+            asyncio.ensure_future(self._start_engine_shared(llm))
+
         except (ImportError, RuntimeError) as e:
-            if not hasattr(self, '_retry_count'):
-                self._retry_count = 0
-            self._retry_count += 1
-            if self._retry_count < 3:
-                logger.info("emotion_spirit: SylannEngine 尚未就绪, %d 秒后重试...", 5 * self._retry_count)
-                asyncio.get_event_loop().call_later(5.0 * self._retry_count, self._connect_engine_sync)
-            else:
-                logger.warning("emotion_spirit: SylannEngine 不可用 (%s)", e)
-                self._engine = None
+            logger.warning("emotion_spirit: SylannEngine 初始化失败 (%s)", e)
+            self._engine = None
+
+    async def _start_engine_shared(self, llm) -> None:
+        """通过 SylanneEngine.shared() 获取共享引擎并注册监听器。"""
+        try:
+            from emotion_spirit.sylanne_core import SylanneEngine, SylanneConfig
+
+            data_dir = str(Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit" / "sylanne_sessions")
+            config = SylanneConfig(mode="lite")
+            engine = await SylanneEngine.shared(data_dir=data_dir, llm=llm, config=config)
+
+            self._engine = engine
+            self._engine.on(self._on_surface)
+            # 接通 bridge 层
+            self._engine_manager.start()
+            logger.info("emotion_spirit: SylannEngine 共享实例就绪, 监听器已注册")
+        except Exception as e:
+            logger.warning("emotion_spirit: SylannEngine.shared() 失败 (%s)", e)
+            self._engine = None
 
     async def terminate(self) -> None:
         if self._engine is not None:
             try:
                 self._engine.off(self._on_surface)
+            except Exception:
+                pass
+            # 释放共享实例（flush 落盘 + 关闭）
+            try:
+                from emotion_spirit.sylanne_core import SylanneEngine
+                data_dir = str(Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit" / "sylanne_sessions")
+                await SylanneEngine.release_shared(data_dir)
             except Exception:
                 pass
         self._save_all()
@@ -520,19 +566,27 @@ class EmotionSpiritPlugin(Star):
         user_id = event.get_sender_id()
         text = event.message_str
 
+        # RhythmLearner: 观察用户消息节奏
+        if hasattr(self, '_rhythm_learner') and self._rhythm_learner:
+            try:
+                import time as _time
+                intimacy = self._intimacy.get_intimacy(user_id, self._current_persona)
+                self._rhythm_learner.observe_user_message(user_id, text, _time.time(), intimacy)
+            except Exception:
+                pass
+
         self._last_texts[user_id] = text
         if len(self._last_texts) > 100:
             oldest = list(self._last_texts.keys())[:50]
             for k in oldest:
                 del self._last_texts[k]
 
-        if self._engine is not None:
-            try:
-                session_key = event.unified_msg_origin
-                surface = await self._engine.process(session_key, text)
-                self._consume_surface(user_id, surface)
-            except Exception:
-                logger.warning("emotion_spirit: engine.process 失败", exc_info=True)
+        # 通过 EngineManager 处理 (优雅降级: 无引擎时返回 None)
+        surface = await self._engine_manager.process_async(
+            event.unified_msg_origin, text,
+        )
+        if surface is not None:
+            self._consume_surface(user_id, surface)
 
         await self._flush_inject_queue()
 
@@ -573,17 +627,17 @@ class EmotionSpiritPlugin(Star):
                 req.system_prompt = context
 
     async def _flush_inject_queue(self) -> None:
-        if not self._engine or not self._inject_queue:
+        if not self._inject_queue:
             return
         while self._inject_queue:
             session_id, influence_type, intensity, target = self._inject_queue.pop(0)
             try:
-                await self._engine.inject(
+                # 通过 EngineManager 注入 (同时转发到 HotPoolForwarder → MemoryPool)
+                self._engine_manager.inject(
                     session_id=session_id,
                     source="emotion_spirit",
-                    influence_type=influence_type,
+                    signal_type=influence_type,
                     intensity=intensity,
-                    target_dimension=target,
                 )
             except Exception:
                 logger.warning("emotion_spirit: engine.inject 失败", exc_info=True)
@@ -626,6 +680,7 @@ class EmotionSpiritPlugin(Star):
         pool_data = self._store.get("memory_pool")
         if pool_data:
             self._pool = MemoryPool.from_dict(pool_data)
+
         intimacy_data = self._store.get("intimacy")
         if intimacy_data:
             self._intimacy.from_dict(intimacy_data)

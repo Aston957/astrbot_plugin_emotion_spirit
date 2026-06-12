@@ -10,8 +10,6 @@ support_platforms:
   - qq_official
 astrbot_version: ">=4.9.2,<5"
 
-# 必须先安装的 AstrBot 插件依赖 (ADAPTATION_REPORT #8)
-requires_plugins:
-  - name: astrbot_plugin_sylannengine
-    version: ">=2.0.0,<3.0.0"
-    reason: "Surface dict (state/personality/decision/dynamics) 消费"
+# SylannEngine 已内嵌到 emotion_spirit/sylanne_core/，不再需要外部插件依赖
+# (v3.0.0 Phase F: SylannEngine.shared() 单例模式, 46 模块内嵌)
+# requires_plugins 已移除 — 原因: 会导致 AstrBot 强制要求安装已不需要的外部插件

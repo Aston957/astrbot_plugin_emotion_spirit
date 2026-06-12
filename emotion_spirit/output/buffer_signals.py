@@ -20,7 +20,7 @@ from ..memory.memory_pool import GLOBAL_USER_ID
 from ..core.registry import register
 
 if TYPE_CHECKING:
-    from ..memory.memory_pool import MemoryPool, BufferEntry
+    from ..memory.memory_pool import MemoryPool
 
 
 
@@ -84,8 +84,8 @@ class BufferSignals:
 
         sorted_entries = sorted(buffer, key=lambda e: e.created_at)
         mid = len(sorted_entries) // 2
-        early_avg = sum(e.raw_weight for e in sorted_entries[:mid]) / mid
-        late_avg = sum(e.raw_weight for e in sorted_entries[mid:]) / (len(sorted_entries) - mid)
+        early_avg = sum(e.emotional_weight for e in sorted_entries[:mid]) / mid
+        late_avg = sum(e.emotional_weight for e in sorted_entries[mid:]) / (len(sorted_entries) - mid)
 
         if early_avg < 0.01:
             direction = "stable"
@@ -103,7 +103,7 @@ class BufferSignals:
         return {
             "direction": direction,
             "strength": round(strength, 4),
-            "avg_weight": round(sum(e.raw_weight for e in sorted_entries) / len(sorted_entries), 4),
+            "avg_weight": round(sum(e.emotional_weight for e in sorted_entries) / len(sorted_entries), 4),
         }
 
     def confirmation_velocity(self) -> float:
@@ -130,7 +130,7 @@ class BufferSignals:
         if not buffer:
             return 0.0
 
-        total_intensity = sum(e.raw_weight for e in buffer)
+        total_intensity = sum(e.emotional_weight for e in buffer)
         capacity_pressure = len(buffer) / max(1, 30)  # max=30
 
         return round(min(1.0, total_intensity * 0.5 + capacity_pressure * 0.5), 4)
@@ -214,7 +214,7 @@ class BufferSignals:
         all_buffer = pool.all_buffer()
         if not all_buffer:
             return 0.0
-        total_intensity = sum(e.raw_weight for e in all_buffer)
+        total_intensity = sum(e.emotional_weight for e in all_buffer)
         capacity_pressure = len(all_buffer) / max(1, 30)  # 全局容量 30
         return round(min(1.0, total_intensity * 0.5 + capacity_pressure * 0.5), 4)
 

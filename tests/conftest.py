@@ -10,9 +10,27 @@
 from __future__ import annotations
 
 import sys
+import types
 from pathlib import Path
 
 import pytest
+
+# Mock astrbot before any emotion_spirit import (测试环境无 AstrBot 宿主)
+astrbot_mock = types.ModuleType("astrbot")
+astrbot_api_mock = types.ModuleType("astrbot.api")
+astrbot_api_mock.logger = types.ModuleType("logger")
+astrbot_api_mock.logger.warning = lambda *a, **kw: None
+astrbot_api_mock.logger.info = lambda *a, **kw: None
+astrbot_api_mock.logger.debug = lambda *a, **kw: None
+astrbot_api_mock.logger.error = lambda *a, **kw: None
+# Mock astrbot.api.event (commands.py imports from it)
+astrbot_api_event_mock = types.ModuleType("astrbot.api.event")
+astrbot_api_event_mock.AstrMessageEvent = type("AstrMessageEvent", (), {})
+astrbot_api_mock.event = astrbot_api_event_mock
+sys.modules.setdefault("astrbot", astrbot_mock)
+sys.modules.setdefault("astrbot.api", astrbot_api_mock)
+sys.modules.setdefault("astrbot.api.event", astrbot_api_event_mock)
+astrbot_mock.api = astrbot_api_mock
 
 # 让 verification/ 模块能 import
 _ROOT = Path(__file__).resolve().parent.parent

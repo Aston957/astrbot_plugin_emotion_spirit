@@ -1,4 +1,4 @@
-"""Tests for memory_pool.py"""
+"""Tests for memory_pool.py (Phase D: UnifiedEntry 统一架构)"""
 
 import sys
 import os
@@ -25,25 +25,7 @@ def test_add_to_buffer():
     entry = pool.add(text="今天很开心", raw_weight=0.7, phi=0.5, tags=["positive"], source_user="user1")
     assert entry is not None
     assert len(pool.buffer) == 1
-    assert entry.raw_weight == 0.7
-
-
-def test_phi_gate_confirm():
-    pool = MemoryPool()
-    pool.add(text="test", raw_weight=0.5, phi=0.6, tags=["test"], source_user="user1")
-    confirmed = pool.confirm_check()
-    assert len(confirmed) == 1  # phi=0.6 > threshold=0.4
-    assert len(pool.warm) == 1
-    assert len(pool.buffer) == 0
-
-
-def test_phi_gate_reject():
-    pool = MemoryPool()
-    pool.add(text="test", raw_weight=0.01, phi=0.1, tags=["test"], source_user="user1")
-    # Low phi AND low weight -> below noise threshold
-    confirmed = pool.confirm_check()
-    # phi_avg=0.1, meaning_gate=0.3+0.7*0.1=0.37, confirmed_weight=0.01*0.37=0.0037 < 0.05
-    assert len(confirmed) == 0
+    assert entry.emotional_weight == 0.7
 
 
 def test_bypass_ghost():
@@ -57,7 +39,11 @@ def test_recall_by_keyword():
     pool = MemoryPool()
     pool.add(text="今天很开心", raw_weight=0.5, phi=0.6, tags=["positive"], source_user="user1")
     pool.add(text="实验报告好难", raw_weight=0.6, phi=0.6, tags=["stress"], source_user="user1")
-    pool.confirm_check()  # Move to warm
+    # Phase D: confirm_check uses temperature-based gating
+    # Set temperature high enough for promotion
+    for e in pool.buffer:
+        e.temperature = 0.6
+    pool.confirm_check()
     results = pool.recall("开心")
     assert len(results) == 1
     assert "开心" in results[0].text
@@ -88,13 +74,45 @@ def test_serialization():
     assert pool2.buffer[0].text == "test"
 
 
+def test_confirm_check_temperature_gating():
+    """Phase D: confirm_check 使用温度判定，不用 Φ 门控。"""
+    pool = MemoryPool()
+    # 高温度条目 → 提升到 warm
+    pool.add(text="hot", raw_weight=0.8, phi=0.5, tags=["test"], source_user="user1")
+    # 低温度条目 → 保留 buffer
+    pool.add(text="cold", raw_weight=0.1, phi=0.5, tags=["test"], source_user="user1")
+    # 手动设置温度
+    pool.buffer[0].temperature = 0.6  # >= 0.5 → promote
+    pool.buffer[1].temperature = 0.3  # < 0.5 → stay buffer
+
+    promoted = pool.confirm_check()
+    assert len(promoted) == 1
+    assert promoted[0].text == "hot"
+    assert len(pool.warm) == 1
+    assert len(pool.buffer) == 1
+    assert pool.buffer[0].text == "cold"
+
+
+def test_entry_is_unified_entry():
+    """Phase D: 所有 entry 都是 UnifiedEntry 实例。"""
+    from emotion_spirit.memory.unified_entry import UnifiedEntry
+    pool = MemoryPool()
+    entry = pool.add("test", 0.5, 0.5, ["tag"], "user1")
+    assert isinstance(entry, UnifiedEntry)
+    # 通过 confirm_check 到 warm 的也是 UnifiedEntry
+    entry.temperature = 0.6
+    promoted = pool.confirm_check()
+    assert len(promoted) == 1
+    assert isinstance(promoted[0], UnifiedEntry)
+
+
 if __name__ == "__main__":
     test_add_to_buffer()
-    test_phi_gate_confirm()
-    test_phi_gate_reject()
     test_bypass_ghost()
     test_recall_by_keyword()
     test_buffer_max_size()
     test_sample_for_mode_b()
     test_serialization()
+    test_confirm_check_temperature_gating()
+    test_entry_is_unified_entry()
     print("All memory_pool tests passed!")

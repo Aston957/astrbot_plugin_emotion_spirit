@@ -1,9 +1,9 @@
-# emotion_spirit v2.0.0
+# emotion_spirit v3.0.0
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-612%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-818%20passed-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
@@ -14,18 +14,11 @@
 
 ---
 
-## 前置依赖 / Prerequisites (必读)
+## 架构说明 / Architecture
 
-本插件**必须先安装** [SylannEngine](https://github.com/Ayleovelle/SylannEngine) >= 2.0:
+v3.0.0 起，**SylannEngine 计算核心 (`sylanne_core`) 已内嵌到本插件**，无需单独安装外部插件。引擎在插件初始化时自动创建（需要 LLM provider 可用），无 LLM 时优雅降级为纯 emotion_spirit 模式。
 
-**安装步骤**:
-1. AstrBot WebUI → 插件管理 → 从 Git 仓库安装
-2. 填入 `https://github.com/Ayleovelle/SylannEngine.git`
-3. **重启 AstrBot**(让 SylannEngine 先注册 `engine.on()` listener)
-
-**启动顺序**:SylannEngine → emotion_spirit。本插件有 3 次退避重试机制(SylannEngine 没启时会重试 5/10/15 秒),但建议先装 SylannEngine 避免重试日志噪音。
-
-**⚠️ 强烈建议开启 SylannEngine `diagnostics` 配置**(默认 False):emotion_spirit 的 `phi_smoothed` / `chi_smoothed` / `sync_order_smoothed` 共振场字段都依赖 `surface["debug"]`,关闭时这些字段退化为 0(不报错,沉默退化)。在 SylannEngine config 里设置 `diagnostics: true` 即可。
+`sylanne_core` 包含 7 层计算脊柱（HDC → 预测编码 → 伤痕-空洞 → 关系层论 → HGT → 自创生 → 相变），源码来自 [SylannEngine](https://github.com/Ayleovelle/SylannEngine)，经作者授权以 MIT 许可使用。
 
 ---
 
@@ -36,7 +29,7 @@
 GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~250 KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-2.0.0.zip`
+2. 下载 `astrbot-plugin-emotion-spirit-3.0.0.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. 复制到 AstrBot 的 `data/plugins/` 目录
 5. 重启 AstrBot → 插件自动加载
@@ -68,7 +61,7 @@ pip install -e .[dev]
 
 emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=13 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
 
-emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=14-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
+emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=13-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
 
 ```
 弗洛伊德           实现                  时间尺度
@@ -129,7 +122,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 
 - AstrBot v4.9.2+
 - Python >= 3.11
-- SylannEngine v1.0.0rc1+ 插件
+- ~~SylannEngine v1.0.0rc1+ 插件~~ (v3.0.0 起 sylanne_core 已内嵌，无需安装)
 
 ### 通过 pip (推荐, **v2.0 新**)
 
@@ -210,7 +203,7 @@ pressure = tracker.get_pressure()
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `persona_mode` | select | `auto` | auto / manual / disabled |
+| `persona_mode` | select | `disabled` | auto / disabled |
 | `auto_source` | select_persona | - | AstrBot 人格 (auto 模式 LLM 自动解析) |
 | `manual_personas` | template_list | - | 手动配置列表 (每项 5 轴标签) |
 
@@ -332,6 +325,7 @@ emotion_spirit/
 ├── layer.py                   # 抽象基类 (留根)
 ├── _version.py                # PEP 440 version 真相源 (2.0.0.post1)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
+├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)
 │   ├── registry.py            # @register_module 装饰器
 │   ├── config.py              # 配置常量
@@ -341,15 +335,20 @@ emotion_spirit/
 │   │   └── persona_labels_db.json  # 2.74 MB, 3072 entries (B=16, C=160, D=2896)
 │   ├── label_mapper.py        # 标签 → 参数双向映射
 │   └── plugin_factory.py      # 插件装配入口
-├── memory/                    # L1: 状态 (7 modules)
-│   ├── memory_pool.py         # 4 层记忆池
+├── memory/                    # L1: 状态 (10 modules)
+│   ├── memory_pool.py         # 4 层记忆池 (flat 存储, Phase D 重构)
+│   ├── unified_entry.py       # 统一记忆条目 (情境衰减)
+│   ├── decay_model.py         # Ebbinghaus 衰减模型
+│   ├── cascade_engine.py      # 级联引擎
+│   ├── memory_sampler.py      # 记忆采样器
 │   ├── intimacy.py            # 6 维亲密度
 │   ├── relationship_personality.py  # 关系人格
 │   ├── social_graph.py        # 社交图
 │   ├── topic_privacy.py       # 话题隐私
 │   ├── meaning_reservoir.py   # 意义蓄水池
-│   └── persona_profiles.py    # 人格档案
-├── regulation/                # L2: 调控 (11 modules)
+│   ├── persona_profiles.py    # 人格档案
+│   └── suppression.py         # 压制状态 (SuppressionState)
+├── regulation/                # L2: 调控 (12 modules)
 │   ├── superego.py            # 价值对齐 + ConscienceTracker (Phase 4 C1 B2)
 │   ├── superego_guard.py      # 守门人
 │   ├── body_state.py          # 身体状态
@@ -360,21 +359,33 @@ emotion_spirit/
 │   ├── life_simulator.py      # 生活模拟
 │   ├── persona_analyzer.py    # 人格分析器
 │   ├── persona_report_parser.py  # 报告解析器
-│   └── counterfactual.py      # 反事实模拟
-└── output/                    # L3: 输出 (13 modules)
-    ├── public_api.py          # 公开 API 入口 (PublicAPI)
-    ├── bot_decision.py        # Bot 决策
-    ├── emotion_classifier.py  # 情绪分类
-    ├── prompt_injector.py     # Prompt 组装
-    ├── surface_consumer.py    # Surface 消费
-    ├── surface_handler.py     # Surface 处理
-    ├── diary_writer.py        # 日记
-    ├── command_router.py      # 命令路由
-    ├── commands.py            # 命令实现
-    ├── narrative_identity.py  # 叙事身份
-    ├── predictive_sentinel.py # 预警
-    ├── buffer_signals.py      # 缓冲池信号
-    └── trend_utils.py         # EMA 工具
+│   ├── counterfactual.py      # 反事实模拟
+│   └── collapse_archetype.py  # 记忆崩溃原型
+├── output/                    # L3: 输出 (15 modules)
+│   ├── public_api.py          # 公开 API 入口 (PublicAPI)
+│   ├── bot_decision.py        # Bot 决策 (含 proactive 适配)
+│   ├── emotion_classifier.py  # 情绪分类
+│   ├── prompt_injector.py     # Prompt 组装
+│   ├── surface_consumer.py    # Surface 消费
+│   ├── surface_handler.py     # Surface 处理
+│   ├── diary_writer.py        # 日记
+│   ├── command_router.py      # 命令路由
+│   ├── commands.py            # 命令实现
+│   ├── narrative_identity.py  # 叙事身份
+│   ├── predictive_sentinel.py # 预警
+│   ├── buffer_signals.py      # 缓冲池信号
+│   ├── trend_utils.py         # EMA 工具
+│   ├── realtime_dispatch.py   # 实时调度 (v3.0 新)
+│   └── rhythm_learner.py      # 节奏学习 (v3.0 新)
+├── bridge/                    # v3.0 新: SylannEngine 桥接层 (3 modules)
+│   ├── engine_manager.py      # 引擎管理器 (inject/process_async)
+│   ├── personality_bridge.py  # 5D→12D 人格映射
+│   └── hotpool_forwarder.py   # 热池转发器
+└── sylanne_core/              # v3.0 新: SylannEngine 计算核心内嵌 (46 modules)
+    ├── adapter.py             # 引擎适配器
+    ├── algebra.py             # 代数运算
+    ├── compute/               # 7 层计算脊柱 (HDC→预测编码→伤痕-空洞→关系层论→HGT→自创生→相变)
+    └── ...                    # (详见 SylannEngine 源码)
 ```
 
 **依赖方向**: `L0 ← L1 ← L2 ← L3` (严格单向, `test_layer_dependency_no_reverse` enforce)
@@ -383,28 +394,17 @@ emotion_spirit/
 
 | v2.0 (2026-06) | v1.x (历史) | 变化 |
 |----------------|------------|------|
-| 38 modules 在 4 sub-packages | 38 modules 平铺 | 重构, 不影响 behavior |
+| 104 modules (58 core + 46 sylanne_core) 在 5 sub-packages | 38 modules 平铺 | v2.0 重构 + v3.0 sylanne_core 内嵌 |
 | `ConscienceTracker.get_pressure() ∈ [0, 1]` | 同样 ∈ [0, 1] | **语义改**: P95 归一化, 区分"持续冲突"vs"极端事件" |
 | `emotion_spirit.regulation.superego.ConscienceTracker` | `emotion_spirit.superego.ConscienceTracker` | 路径改, v1.x 兼容垫片 redirect |
 | `emotion_spirit.output.public_api.PublicAPI` | `emotion_spirit.public_api.PublicAPI` | 路径改, v1.x 兼容垫片 redirect |
 | 13 维人格 (5 deep + 8 surface) | 11 维 (Phase 1.5) | Phase 3 +2 (perception_acuity, directness), v1.7 拆 autonomy_guard → 2 维 (+1), v1.7.2 +gossip_tendency |
 
-## License & Composition / 许可与组合
+## License & Attribution / 许可与致谢
 
-**本插件源代码**以 **MIT License** 发布(见 [LICENSE](LICENSE) 文件)。
+**本插件全部源代码**以 **MIT License** 发布(见 [LICENSE](LICENSE) 文件)。
 
-**但是** — 本插件运行时依赖 **[SylannEngine](https://github.com/Ayleovelle/SylannEngine)**(`sylanne_core` Python 包),该上游库以 **[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)** 授权。根据 GNU 官方对 AGPL 的解释,**动态链接 AGPL-3.0 库的组合作品**(combined work)在分发时受 AGPL-3.0 条款约束,且 AGPL 进一步要求:**通过网络提供服务时,服务端用户也必须能获得 AGPL 源码**(这是 AGPL vs GPL 的核心差异)。
-
-**对你的影响 / Your obligations**:
-
-- ✅ **个人使用 / 不分发**:无需担心(任何 license 都允许)
-- ⚠️ **公开部署 / 提供 bot 服务给第三方用户**:你必须向这些用户提供 emotion_spirit + SylannEngine 的**完整对应源码** + 保留所有版权声明
-- ⚠️ **二次开发 + 分发**:你的衍生作品也必须以 AGPL-3.0 发布(链式传染 / copyleft)
-- 🛡 **避免 AGPL 约束的唯一方法**:用自研引擎替换 SylannEngine 依赖(放弃 emotion_spirit 的三元力学集成)
-
-**详细法律解读**:[GNU AGPL vs GPL 区别](https://www.gnu.org/licenses/why-affero-gpl.html) / [FSF 官方 FAQ](https://www.gnu.org/licenses/gpl-faq.html)
-
-> **当前决定**:emotion_spirit 保留 MIT 声明(更灵活),通过本节显著告知 AGPL 兼容陷阱。**待 SylannEngine 作者反馈后**,可能改为 emotion_spirit 自声明 AGPL-3.0(消除歧义)。
+`sylanne_core/` 目录包含 [SylannEngine](https://github.com/Ayleovelle/SylannEngine) v2 计算核心，经原作者授权以 MIT 许可使用。感谢 SylannEngine 作者的开源贡献。
 
 ## 引用 / Citations
 

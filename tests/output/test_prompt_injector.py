@@ -20,6 +20,10 @@ def _make_injector():
 
     pool = MagicMock()
     pool.warm_for.return_value = []  # 空列表 → 跳过 [印象] 块
+    pool.all_entries.return_value = []
+    pool.get_layer.return_value = []
+    pool.mean_temperature.return_value = 0.0
+    pool.search_by_vector.return_value = []
 
     intimacy = MagicMock()
     intimacy.get_lifecycle.return_value = "stranger"
@@ -84,6 +88,10 @@ def test_global_state_block_renders_aggregate_temperature():
     # 复用 _make_injector 的 mock 设置
     pool = MagicMock()
     pool.warm_for.return_value = []
+    pool.all_entries.return_value = []
+    pool.get_layer.return_value = []
+    pool.mean_temperature.return_value = 0.0
+    pool.search_by_vector.return_value = []
     intimacy = MagicMock()
     intimacy.get_lifecycle.return_value = "stranger"
     intimacy.get_intimacy.return_value = 0.1

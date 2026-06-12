@@ -129,12 +129,14 @@ def test_consume_first_frame_velocity_is_none():
 
 def test_consume_second_frame_computes_velocity():
     """第二帧 → emotion_velocity 含 4 键。"""
+    import time as _time
     from emotion_spirit.output.surface_consumer import SurfaceConsumer
 
     consumer = SurfaceConsumer()
     consumer.consume(
         {"pad": {"valence": 0.3, "arousal": 0.4, "dominance": 0.5}}, session_id="s1"
     )
+    _time.sleep(0.01)  # 确保 dt > 0
     s2 = consumer.consume(
         {"pad": {"valence": 0.5, "arousal": 0.6, "dominance": 0.7}}, session_id="s1"
     )
@@ -176,6 +178,7 @@ def test_consume_trajectory_keeps_last_n_frames():
 
 def test_consume_per_session_isolation():
     """不同 session 互不干扰。"""
+    import time as _time
     from emotion_spirit.output.surface_consumer import SurfaceConsumer
 
     consumer = SurfaceConsumer()
@@ -183,11 +186,13 @@ def test_consume_per_session_isolation():
     consumer.consume(
         {"pad": {"valence": 0.0, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"
     )
+    _time.sleep(0.01)
     # s2 第一帧（不应影响 s1）
     s2_first = consumer.consume(
         {"pad": {"valence": 0.5, "arousal": 0.5, "dominance": 0.5}}, session_id="s2"
     )
     assert s2_first.emotion_velocity is None  # s2 首帧
+    _time.sleep(0.01)
     # s1 第二帧（应该是 s1 的差分，不是 s1→s2）
     s1_again = consumer.consume(
         {"pad": {"valence": 0.1, "arousal": 0.5, "dominance": 0.5}}, session_id="s1"

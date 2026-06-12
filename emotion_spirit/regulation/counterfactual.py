@@ -11,7 +11,8 @@ import time
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..memory.memory_pool import MemoryPool, MemoryEntry
+    from ..memory.memory_pool import MemoryPool
+    from ..memory.unified_entry import UnifiedEntry
 
 
 _PERSPECTIVES = {
@@ -42,7 +43,7 @@ class Counterfactual:
         self._pool = pool
         self._processed_ghosts: list[dict[str, Any]] = []
 
-    def get_eligible_ghosts(self, user_id: str = "<global>") -> list[MemoryEntry]:
+    def get_eligible_ghosts(self, user_id: str = "<global>") -> list[UnifiedEntry]:
         """获取可以进行反事实模拟的幽灵。
 
         Args:
@@ -59,7 +60,7 @@ class Counterfactual:
 
         return eligible
 
-    def build_counterfactual_prompt(self, ghost: MemoryEntry) -> str:
+    def build_counterfactual_prompt(self, ghost: UnifiedEntry) -> str:
         """构建反事实 prompt。"""
         parts = [
             f"关于这件事: {ghost.text}",
@@ -91,23 +92,19 @@ class Counterfactual:
         return result
 
     def check_ghost_decay(self, repair_count: int, user_id: str = "<global>") -> list[dict[str, Any]]:
-        """检查幽灵消化。修复经验可以消化幽灵。
-
-        Args:
-            user_id: Phase 2.0, 哪个 user 的 ghosts/cold 池
-        """
+        """检查幽灵消化。修复经验可以消化幽灵。"""
         digested: list[dict[str, Any]] = []
 
-        ghosts = self._pool.ghosts_for(user_id)
-        cold = self._pool.cold_for(user_id)
-        for ghost in list(ghosts):
+        # 直接操作 pool.ghosts (mutable), 用 participant 过滤判断
+        for ghost in list(self._pool.ghosts):
+            if user_id not in ghost.participants:
+                continue
             ghost.ghost_sensitivity_shift *= (1 - repair_count * 0.1)
             if ghost.ghost_sensitivity_shift < 0.05:
-                # 幽灵安息: 降级为冷池记忆
                 ghost.is_ghost = False
                 ghost.tier = "cold"
-                ghosts.remove(ghost)
-                cold.append(ghost)
+                self._pool.ghosts.remove(ghost)
+                self._pool.cold.append(ghost)
                 digested.append({
                     "ghost_id": ghost.id,
                     "text": ghost.text,
@@ -116,7 +113,7 @@ class Counterfactual:
 
         return digested
 
-    def ghost_resonance(self, new_entry: MemoryEntry, user_id: str = "<global>") -> float:
+    def ghost_resonance(self, new_entry: UnifiedEntry, user_id: str = "<global>") -> float:
         """幽灵共振: 新记忆和幽灵匹配 → 权重放大。
 
         Args:

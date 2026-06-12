@@ -18,11 +18,14 @@ Phase 4 扩展:
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..memory.social_graph import SocialGraph
     from ..memory.topic_privacy import TopicPrivacy
+    from ..memory.memory_pool import MemoryPool
+    from .surface_consumer import SurfaceConsumer
 
 
 from ..core.registry import register
@@ -146,3 +149,145 @@ class BotDecisionMaker:
     def get_recent_decisions(self, n: int = 20) -> list[dict[str, Any]]:
         """获取最近 N 条决策日志。"""
         return self._decisions[-n:]
+
+    # ═══ proactive_chat 适配接口 ═══
+    # emotion_spirit 不直接发消息, 只提供上下文。
+    # proactive_chat 在生成主动消息时调用这些方法获取情绪上下文。
+
+    def configure_proactive_deps(
+        self,
+        memory_pool: "MemoryPool | None" = None,
+        surface_consumer: SurfaceConsumer | None = None,
+    ) -> None:
+        """注入 proactive 上下文所需的依赖。"""
+        self._memory_pool = memory_pool
+        self._surface_consumer = surface_consumer
+
+    def get_proactive_context(self, session_id: str) -> str:
+        """返回 emotion_spirit 的内部状态作为 proactive_chat 的上下文。
+
+        proactive_chat 在生成主动消息时, 将此上下文注入到 system prompt,
+        让 LLM 知道 bot 当前的情绪状态, 从而生成更自然的主动消息。
+
+        Args:
+            session_id: 会话标识。
+
+        Returns:
+            上下文字符串, 可直接注入 prompt。无数据时返回空字符串。
+        """
+        parts: list[str] = []
+
+        # 1. 记忆温度状态
+        memory = getattr(self, "_memory_pool", None)
+        if memory is not None:
+            try:
+                mean_temp = memory.mean_temperature()
+                hot_count = memory.count_hot(threshold=0.7)
+                ghost_count = len(memory.get_layer("ghost"))
+                cascade_active = memory.cascade_active()
+
+                if mean_temp > 0.7:
+                    parts.append("你现在内心很不平静，很多情绪在翻涌")
+                elif mean_temp > 0.4:
+                    parts.append("你现在有些心绪不宁")
+                else:
+                    parts.append("你现在相对平静")
+
+                if cascade_active:
+                    parts.append("一个念头牵出另一个念头，思绪在连锁反应")
+                if ghost_count > 0:
+                    parts.append(f"有 {ghost_count} 个很久以前的画面一直在脑海里挥不去")
+            except Exception:
+                pass
+
+        # 2. 情绪状态
+        consumer = getattr(self, "_surface_consumer", None)
+        if consumer is not None:
+            try:
+                signals = consumer.consume_for_session(session_id)
+                if signals is not None:
+                    if signals.pad_primary and signals.pad_primary != "neutral":
+                        parts.append(f"当前情绪: {signals.pad_primary}")
+                    if signals.pad_intensity > 0.6:
+                        parts.append("情绪强度较高")
+            except Exception:
+                pass
+
+        if not parts:
+            return ""
+        return "[emotion_spirit 内在状态]\n" + "，".join(parts) + "。"
+
+    def get_life_event_context(self, session_id: str) -> str:
+        """返回最近的生活事件作为 proactive_chat 的上下文。
+
+        Args:
+            session_id: 会话标识。
+
+        Returns:
+            生活事件上下文字符串。无数据时返回空字符串。
+        """
+        memory = getattr(self, "_memory_pool", None)
+        if memory is None:
+            return ""
+
+        try:
+            # 从 buffer 层取最近的记忆作为"生活事件"
+            buffer_entries = memory.get_layer("buffer")
+            if not buffer_entries:
+                return ""
+
+            # 按创建时间倒序, 取最近 3 条
+            recent = sorted(buffer_entries, key=lambda e: e.created_at, reverse=True)[:3]
+            if not recent:
+                return ""
+
+            lines = ["[最近的记忆片段]"]
+            for entry in recent:
+                text = entry.text[:100] if len(entry.text) > 100 else entry.text
+                lines.append(f"- {text}")
+            return "\n".join(lines)
+        except Exception:
+            return ""
+
+    def should_suppress_proactive(self, session_id: str) -> tuple[bool, str]:
+        """检查 bot 是否应该保持沉默 (不主动发言)。
+
+        基于 Sylanne 的 DeliberateSilence 逻辑:
+          - 受伤 (tension 高 + valence 负) → 沉默
+          - 在消化 (cascade 活跃) → 沉默
+          - 崩溃中 → 沉默
+
+        Args:
+            session_id: 会话标识。
+
+        Returns:
+            (是否应沉默, 原因) 元组。
+        """
+        consumer = getattr(self, "_surface_consumer", None)
+        if consumer is None:
+            return False, ""
+
+        try:
+            signals = consumer.consume_for_session(session_id)
+            if signals is None:
+                return False, ""
+
+            # 受伤
+            if signals.pad_valence < -0.3 and signals.pad_arousal > 0.7:
+                return True, "hurt"
+
+            # 在消化 (cascade 活跃)
+            if signals.cascade_active and signals.pad_valence > 0:
+                return True, "digesting"
+
+            # 崩溃中
+            if signals.collapse_count > 0:
+                return True, "collapsed"
+
+            # 恢复中
+            if signals.in_recovery:
+                return True, "recovering"
+
+            return False, ""
+        except Exception:
+            return False, ""

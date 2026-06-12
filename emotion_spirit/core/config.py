@@ -17,6 +17,8 @@ __all__ = [
     "TRAJECTORY_WINDOW",
     "PAD_SAVE_INTERVAL_SECONDS",
     "VELOCITY_BURST_THRESHOLD",
+    "RHYTHM_LEARNER_CONFIG",
+    "REALTIME_DISPATCH_CONFIG",
 ]
 
 
@@ -198,3 +200,22 @@ SAFETY_CONFIG: dict[str, float | int | bool | dict] = {
 TRAJECTORY_WINDOW: int = 8                 # trajectory 环形缓冲大小（最近 N 帧）
 PAD_SAVE_INTERVAL_SECONDS: int = 300       # pad_history/trajectory 持久化间隔（5 min）
 VELOCITY_BURST_THRESHOLD: float = 0.05     # 情绪突变阈值（|Δvalence| 或 |Δarousal| > 此值记为 burst）
+
+
+# ═══ 节律学习器 ═══
+RHYTHM_LEARNER_CONFIG: dict[str, float] = {
+    "intimacy_threshold": 0.6,           # 开始学习的亲密度阈值
+    "default_blend": 0.6,                # 默认混合比例
+    "default_max_part_chars": 48,        # 默认单段最大字符数
+    "default_chars_per_second": 7.5,     # 默认打字速度
+    "max_profiles": 200,                 # 最大 profile 数量
+}
+
+
+# ═══ 即时分段回复 ═══
+REALTIME_DISPATCH_CONFIG: dict[str, float | int] = {
+    "max_part_chars": 48,                # 单段最大字符数
+    "chars_per_second": 7.5,             # 打字速度 (字符/秒)
+    "resumption_gap_hours": 2,           # 对话恢复间隔 (小时)
+    "max_breakpoints_per_session": 10,   # 每 session 最大断点数
+}

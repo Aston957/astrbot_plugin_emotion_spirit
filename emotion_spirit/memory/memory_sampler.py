@@ -1,6 +1,6 @@
 """MemorySampler -- personality-weighted multi-layer memory sampling.
 
-Reads from UnifiedMemory's 4 layers (buffer/warm/cold/ghost) using
+Reads from MemoryPool's 4 layers (buffer/warm/cold/ghost) using
 personality-dependent weights and weighted random selection.
 
 Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md section 5.2
@@ -12,11 +12,14 @@ import math
 import random
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-from .unified_memory import UnifiedMemory
 from .unified_entry import UnifiedEntry
 from .decay_model import DecayModel
+from .cascade_engine import CascadeEngine
+
+if TYPE_CHECKING:
+    from .memory_pool import MemoryPool
 
 _clamp = DecayModel.clamp
 
@@ -34,15 +37,23 @@ class SampledMemory:
 class MemorySampler:
     """Personality-weighted multi-layer memory sampler."""
 
-    def __init__(self, memory: UnifiedMemory) -> None:
+    def __init__(self, memory: "MemoryPool") -> None:
+        """Phase D: memory is now MemoryPool (was UnifiedMemory)."""
         self._memory = memory
 
     def sample(
         self,
         personality: dict[str, float],
         k: int = 5,
+        mood_vec: tuple[float, float, float] | None = None,
     ) -> list[SampledMemory]:
-        """Sample k memories from 4 layers using personality-weighted random selection."""
+        """Sample k memories from 4 layers using personality-weighted random selection.
+
+        Args:
+            personality: Personality dimensions for layer weighting.
+            k: Number of memories to sample.
+            mood_vec: Optional mood vector for vector-based mood-congruent recall.
+        """
         weights = self._compute_layer_weights(personality)
         hot_temp = self._memory.mean_temperature()
 
@@ -58,7 +69,7 @@ class MemorySampler:
         for layer, w in weights.items():
             entries = self._memory.get_layer(layer)
             for entry in entries:
-                score = self._composite_score(entry, layer, w, hot_temp)
+                score = self._composite_score(entry, layer, w, hot_temp, mood_vec)
                 candidates.append((entry, layer, score))
 
         if not candidates:
@@ -91,19 +102,57 @@ class MemorySampler:
         }
 
     def _composite_score(
-        self, entry: UnifiedEntry, layer: str, layer_weight: float, hot_temp: float,
+        self,
+        entry: UnifiedEntry,
+        layer: str,
+        layer_weight: float,
+        hot_temp: float,
+        mood_vec: tuple[float, float, float] | None = None,
     ) -> float:
-        """Composite recall score for a memory."""
+        """Composite recall score for a memory.
+
+        Args:
+            entry: The memory entry.
+            layer: Layer name.
+            layer_weight: Personality-derived layer weight.
+            hot_temp: Mean temperature of the memory pool.
+            mood_vec: Optional mood vector for vector-based mood-congruent recall.
+        """
         age_hours = (time.time() - entry.created_at) / 3600
         tau = {"buffer": 0.5, "warm": 24, "cold": 168, "ghost": 8760}[layer]
         recency = math.exp(-age_hours / tau) if tau > 0 else 1.0
         emotional = entry.emotional_weight
 
-        # Mood-congruent recall (Bower 1981)
-        mood_match = 1 - abs(entry.emotional_weight - hot_temp)
+        # Mood-congruent recall (Bower 1981) — vector-enhanced
+        if mood_vec is not None:
+            mood_match = CascadeEngine.vector_distance(entry.vector, mood_vec)
+        else:
+            mood_match = 1 - abs(entry.emotional_weight - hot_temp)
         resonance = 0.5 + 0.5 * mood_match
 
         return layer_weight * recency * emotional * resonance
+
+    def search_similar(
+        self,
+        query_vec: tuple[float, float, float],
+        k: int = 5,
+    ) -> list[SampledMemory]:
+        """Find k memories most similar to query_vec.
+
+        Uses MemoryPool.search_by_vector for fast vector retrieval,
+        then wraps results as SampledMemory.
+        """
+        raw = self._memory.search_by_vector(query_vec, top_k=k)
+        results: list[SampledMemory] = []
+        for entry_id, dist in raw:
+            entry = self._memory._entries.get(entry_id)
+            if entry is not None:
+                results.append(SampledMemory(
+                    entry=entry,
+                    layer=entry.tier,
+                    score=1.0 - dist / 1.732,  # normalize dist to similarity
+                ))
+        return results
 
     def _weighted_random_sample(
         self, candidates: list[tuple[UnifiedEntry, str, float]], k: int,

@@ -13,7 +13,7 @@ from ..core.config import LIFE_SIM_CONFIG
 from ..output.surface_consumer import SemanticSignals
 
 if TYPE_CHECKING:
-    from ..memory.unified_memory import UnifiedMemory
+    from ..memory.memory_pool import MemoryPool
     from ..memory.intimacy import IntimacyTracker
     from ..output.buffer_signals import BufferSignals
     from ..memory.meaning_reservoir import MeaningReservoir
@@ -45,11 +45,11 @@ _DEFAULT_PERSONALITY: dict[str, float] = {
     name="life_simulator",
     provides=["LifeSimulator"],
     depends_on=[
-        "surface_consumer", "unified_memory", "intimacy",
+        "surface_consumer", "memory_pool", "intimacy",
         "buffer_signals", "meaning_reservoir",
     ],
     param_wire={
-        "unified_memory": "memory",
+        "memory_pool": "memory",
         "buffer_signals": "signals",
         "surface_consumer": "consumer",
         "meaning_reservoir": "reservoir",
@@ -61,7 +61,7 @@ class LifeSimulator:
     def __init__(
         self,
         consumer: SurfaceConsumer,
-        memory: UnifiedMemory,
+        memory: "MemoryPool",
         intimacy: IntimacyTracker,
         signals: BufferSignals,
         reservoir: MeaningReservoir,

@@ -6,6 +6,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
+
 import types
 astrbot_mock = types.ModuleType("astrbot")
 astrbot_api_mock = types.ModuleType("astrbot.api")
@@ -79,12 +81,17 @@ def test_relevance_tag_overlap():
 
 
 def test_relevance_no_overlap():
-    """relevance() returns 0 for completely different entries."""
+    """relevance() returns only vector similarity for completely different entries.
+
+    With default vectors (0,0,0), vector_similarity = 1.0 → base relevance = 0.2.
+    Different vectors reduce this contribution.
+    """
     engine = CascadeEngine()
     a = _make_entry(id="a", tags=["conflict"], text="hello", entities={"person": ["bob"]})
     b = _make_entry(id="b", tags=["work"], text="goodbye", entities={"person": ["alice"]})
     r = engine.relevance(a, b)
-    assert r == 0.0
+    # Default vectors are identical (0,0,0) → vector_similarity=1.0 → 0.2*1.0=0.2
+    assert r == pytest.approx(0.2, abs=0.01)
 
 
 def test_relevance_entity_overlap():
@@ -126,9 +133,12 @@ def test_propagate_respects_relevance_threshold():
                          text="completely different content xyz", temperature=0.9)
     target = _make_entry(id="t", tags=["shared", "x", "y", "z", "w", "v", "u", "t2"],
                          text="another totally different thing", temperature=0.2)
+    # Set opposite vectors so vector_similarity ≈ 0 → no vector boost
+    source.vector = (0.0, 0.0, 0.0)
+    target.vector = (1.0, 1.0, 1.0)
     engine.index_entry(source)
     engine.index_entry(target)
     engine.propagate_cascade(source, sensitivity=0.5, entries_lookup={"s": source, "t": target})
     # 1 shared tag out of 15 → Jaccard = 1/15 ≈ 0.067
-    # relevance = 0.4*0.067 + 0 + 0 ≈ 0.027, below 0.2 threshold
+    # relevance = 0.3*0.067 + 0 + 0 + 0.2*0.0 ≈ 0.02, below 0.2 threshold
     assert target.temperature == 0.2  # unchanged

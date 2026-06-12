@@ -4,13 +4,13 @@
     "type": "string",
     "options": ["auto", "disabled"],
     "default": "disabled",
-    "hint": "disabled: 使用 Sylanne 默认行为（推荐新手）; auto: 选择人格后发送 /spirit_init 初始化人格参数（解析标签 + 生成 13 维参数）"
+    "hint": "disabled: 使用 Sylanne 默认行为（推荐新手）; auto: 选择人格后发送 /setup_init 初始化人格参数（解析标签 + 生成 13 维参数）"
   },
   "auto_source": {
     "description": "【自动模式】读取的人格",
     "type": "string",
     "_special": "select_persona",
-    "hint": "仅 auto 模式生效。选择人格后，发送 /spirit_init 初始化人格参数（解析标签 + 生成 13 维参数）"
+    "hint": "仅 auto 模式生效。选择人格后，发送 /setup_init 初始化人格参数（解析标签 + 生成 13 维参数）"
   },
   "feature_toggles": {
     "description": "功能模块开关（修改后需重启生效）",
@@ -21,13 +21,13 @@
         "description": "阴影检测",
         "type": "bool",
         "default": true,
-        "hint": "检测未符号化的情绪模式（echo、回避、确认偏差）。关闭后 /spirit_shadows 不可用"
+        "hint": "检测未符号化的情绪模式（echo、回避、确认偏差）。关闭后 /reflect_shadows 不可用"
       },
       "enable_sentinel": {
         "description": "预警系统",
         "type": "bool",
         "default": true,
-        "hint": "13 信号早期预警。关闭后 /spirit_sentinel 不可用"
+        "hint": "13 信号早期预警。关闭后 /reflect_sentinel 不可用"
       },
       "enable_narrative": {
         "description": "叙事身份",

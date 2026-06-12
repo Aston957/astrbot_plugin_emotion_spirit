@@ -9,6 +9,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..memory.memory_pool import MemoryPool
+    from ..memory.memory_sampler import MemorySampler
     from ..memory.intimacy import IntimacyTracker
     from ..regulation.superego import ValueAlignment, ConscienceTracker, IdealSelf
     from ..regulation.shadow_detector import ShadowDetector
@@ -60,6 +61,9 @@ class PromptInjector:
         self._shadow = shadow
         self._diary = diary
         self._buffer_signals = buffer_signals  # v1.7.2: P2-1 保留 aggregate_* 真消费点
+        # Phase D: MemorySampler now uses MemoryPool directly
+        from ..memory.memory_sampler import MemorySampler
+        self._sampler = MemorySampler(pool)
         # Phase 2.5: 亲密度段 (per-user 4 段)
         self._intimacy_segment: dict[str, str] = {}
 
@@ -101,6 +105,23 @@ class PromptInjector:
         if recent:
             impressions = "; ".join(e.text[:30] for e in recent)
             parts.append(f"[印象] 最近你感觉: {impressions}")
+
+        # [向量回忆] PAD 向量空间语义检索 (Phase D: 通过 MemoryPool)
+        if self._sampler is not None:
+            entries = self._pool.all_entries()
+            if entries:
+                mean_temp = self._pool.mean_temperature()
+                # 从最近 warm entry 取向量作为查询
+                warm_entries = self._pool.get_layer("warm")
+                if warm_entries:
+                    latest = max(warm_entries, key=lambda e: e.created_at)
+                    mood_vec = latest.vector
+                    results = self._sampler.search_similar(mood_vec, k=3)
+                    if results:
+                        recalls = "; ".join(
+                            f"{r.entry.text[:30]}({r.score:.1f})" for r in results
+                        )
+                        parts.append(f"[向量回忆] 情感相近的记忆: {recalls}")
 
         # [日记] 最近日记摘要
         diary_entries = self._diary.get_recent_diary(days=3)

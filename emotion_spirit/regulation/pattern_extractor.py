@@ -140,7 +140,7 @@ class PatternExtractor:
                     count=len(entries_list),
                     first_seen=min(e.created_at for e in all_entries),
                     last_seen=max(e.created_at for e in all_entries),
-                    avg_phi=sum(e.phi_at_creation for e in all_entries) / len(all_entries),
+                    avg_phi=sum(e.emotional_weight for e in all_entries) / len(all_entries),
                     avg_emotional_weight=sum(e.emotional_weight for e in all_entries) / len(all_entries),
                     examples=[e.id for e in all_entries[:5]],
                 ))
@@ -186,7 +186,7 @@ class PatternExtractor:
                 count=len(tag_entries),
                 first_seen=min(e.created_at for e in tag_entries),
                 last_seen=max(e.created_at for e in tag_entries),
-                avg_phi=sum(e.phi_at_creation for e in tag_entries) / len(tag_entries),
+                avg_phi=sum(e.emotional_weight for e in tag_entries) / len(tag_entries),
                 avg_emotional_weight=sum(e.emotional_weight for e in tag_entries) / len(tag_entries),
                 examples=[e.id for e in tag_entries[:5]],
             ))
@@ -227,7 +227,7 @@ class PatternExtractor:
                         count=count,
                         first_seen=min(e.created_at for e in trigger_entries),
                         last_seen=max(e.created_at for e in trigger_entries),
-                        avg_phi=sum(e.phi_at_creation for e in trigger_entries) / max(1, len(trigger_entries)),
+                        avg_phi=sum(e.emotional_weight for e in trigger_entries) / max(1, len(trigger_entries)),
                         avg_emotional_weight=sum(e.emotional_weight for e in trigger_entries) / max(1, len(trigger_entries)),
                         examples=[e.id for e in trigger_entries[:5]],
                     ))

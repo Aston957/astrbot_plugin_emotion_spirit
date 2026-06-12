@@ -17,9 +17,10 @@ class CascadeEngine:
     """Cascade propagation engine with inverted indexes."""
 
     RELEVANCE_THRESHOLD: float = 0.2
-    TAG_WEIGHT: float = 0.4
-    ENTITY_WEIGHT: float = 0.3
-    TEXT_WEIGHT: float = 0.3
+    TAG_WEIGHT: float = 0.3
+    ENTITY_WEIGHT: float = 0.25
+    TEXT_WEIGHT: float = 0.25
+    VECTOR_WEIGHT: float = 0.2
 
     def __init__(self) -> None:
         self._tag_index: dict[str, set[str]] = {}     # tag → {entry_ids}
@@ -61,8 +62,51 @@ class CascadeEngine:
         candidates.discard(source.id)
         return list(candidates)
 
+    @staticmethod
+    def vector_distance(
+        vec_a: tuple[float, float, float],
+        vec_b: tuple[float, float, float],
+    ) -> float:
+        """Hybrid vector similarity: cosine (direction) + euclidean (magnitude).
+
+        Cosine captures "what emotion" (direction), euclidean captures "how strong" (magnitude).
+        Weights: 0.6 * direction + 0.4 * magnitude.
+
+        Special case: if both vectors are zero → 1.0 (both unknown → match).
+        If one is zero → euclidean only (direction meaningless).
+
+        Returns:
+            Similarity score in [0, 1], higher = more similar.
+        """
+        import math
+
+        # Euclidean component
+        dist = math.sqrt(
+            (vec_a[0] - vec_b[0]) ** 2
+            + (vec_a[1] - vec_b[1]) ** 2
+            + (vec_a[2] - vec_b[2]) ** 2
+        )
+        max_dist = math.sqrt(3.0)
+        magnitude_sim = 1.0 - min(dist / max_dist, 1.0)
+
+        # Cosine component
+        dot = vec_a[0] * vec_b[0] + vec_a[1] * vec_b[1] + vec_a[2] * vec_b[2]
+        norm_a = math.sqrt(vec_a[0] ** 2 + vec_a[1] ** 2 + vec_a[2] ** 2)
+        norm_b = math.sqrt(vec_b[0] ** 2 + vec_b[1] ** 2 + vec_b[2] ** 2)
+
+        if norm_a == 0.0 and norm_b == 0.0:
+            return 1.0  # both unknown → match
+        if norm_a == 0.0 or norm_b == 0.0:
+            return magnitude_sim  # one unknown → euclidean only
+
+        cos_sim = dot / (norm_a * norm_b)
+        # Clamp cosine to [0, 1] (vectors are in [0,1]^3, so cosine >= 0)
+        cos_sim = max(0.0, min(1.0, cos_sim))
+
+        return 0.6 * cos_sim + 0.4 * magnitude_sim
+
     def relevance(self, a: UnifiedEntry, b: UnifiedEntry) -> float:
-        """Mixed relevance: 0.4*tag + 0.3*entity + 0.3*text keyword overlap."""
+        """Mixed relevance: 0.3*tag + 0.25*entity + 0.25*text + 0.2*vector."""
         # Tag overlap (Jaccard)
         tags_a, tags_b = set(a.tags), set(b.tags)
         tag_union = tags_a | tags_b
@@ -80,10 +124,14 @@ class CascadeEngine:
         text_union = words_a | words_b
         text_overlap = len(words_a & words_b) / len(text_union) if text_union else 0.0
 
+        # Vector similarity (Euclidean distance → similarity)
+        vec_sim = self.vector_distance(a.vector, b.vector)
+
         return (
             self.TAG_WEIGHT * tag_overlap
             + self.ENTITY_WEIGHT * ent_overlap
             + self.TEXT_WEIGHT * text_overlap
+            + self.VECTOR_WEIGHT * vec_sim
         )
 
     def propagate_cascade(
