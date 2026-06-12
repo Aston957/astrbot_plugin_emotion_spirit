@@ -607,6 +607,51 @@ def test_generate_with_mock_llm():
     assert sim.pending_life_event is result
 
 
+def test_store_event_to_memory():
+    """LifeEvent 生成后写入 MemoryPool。"""
+    sim, pool = _make_sim()
+
+    event = LifeEvent(
+        text="安静地翻着一本书",
+        mood="平静",
+        urgency=0.2,
+        timestamp=time.time(),
+        wants_to_share=True,
+        event_type="reading",
+    )
+    sim._store_event_to_memory(event)
+
+    # 验证写入了 MemoryPool
+    assert len(pool.buffer) == 1
+    entry = pool.buffer[0]
+    assert "翻着一本书" in entry.text
+    assert "life_event" in entry.tags
+    assert "reading" in entry.tags
+    assert "平静" in entry.tags
+    # reading: valence=0.2, share_tendency=0.4 → weight = 0.2 + 0.4*0.3 + 0.1 = 0.42
+    assert entry.emotional_weight > 0.3
+
+
+def test_generate_fallback_writes_to_memory():
+    """fallback 生成的 LifeEvent 写入 MemoryPool。"""
+    sim, pool = _make_sim()
+    pool.add("existing", 0.5, 0.5, ["test"], "user1")
+
+    event_dict = {
+        "type": "mode_a",
+        "trigger": "idle",
+        "memories": [{"text": "test", "layer": "buffer", "temperature": 0.5, "emotional_weight": 0.5, "tags": ["test"]}],
+        "state_narrative": "你现在相对平静。",
+        "signals": {},
+    }
+
+    _run_async(sim.generate_life_prose(event_dict))
+    # 原有 1 条 + 新增 1 条 life_event
+    assert len(pool.buffer) == 2
+    life_event_entries = [e for e in pool.buffer if "life_event" in e.tags]
+    assert len(life_event_entries) == 1
+
+
 def test_serialization_with_events():
     """to_dict/from_dict 保留 events。"""
     sim, _ = _make_sim()

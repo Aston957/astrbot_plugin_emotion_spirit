@@ -551,6 +551,7 @@ class LifeSimulator:
             self._events.append(event)
             if len(self._events) > 50:
                 self._events = self._events[-30:]
+            self._store_event_to_memory(event)
             self._pending_life_event = event
             return event
         except (json.JSONDecodeError, ValueError, TypeError):
@@ -603,6 +604,7 @@ class LifeSimulator:
         self._events.append(event)
         if len(self._events) > 50:
             self._events = self._events[-30:]
+        self._store_event_to_memory(event)
         self._pending_life_event = event
         return event
 
@@ -625,6 +627,31 @@ class LifeSimulator:
         if not event.event_type or event.event_type not in LIFE_EVENT_WEIGHTS:
             return {"valence": 0.0, "arousal": 0.0, "share_tendency": 0.0}
         return dict(LIFE_EVENT_WEIGHTS[event.event_type])
+
+    def _store_event_to_memory(self, event: LifeEvent) -> None:
+        """将 LifeEvent 写入 MemoryPool 作为记忆条目。
+
+        事件类型的情绪权重决定 raw_weight:
+          valence 绝对值越高 → 权重越高 (正面或负面事件都印象深刻)
+          share_tendency 高 → 权重稍高 (想分享的事件更难忘)
+        """
+        weights = self._apply_event_emotion_weights(event)
+        raw_weight = min(1.0, abs(weights.get("valence", 0.0)) + weights.get("share_tendency", 0.0) * 0.3 + 0.1)
+        tags = ["life_event"]
+        if event.event_type:
+            tags.append(event.event_type)
+        if event.mood and event.mood != "neutral":
+            tags.append(event.mood)
+        try:
+            self._memory.add(
+                text=event.text,
+                raw_weight=raw_weight,
+                phi=0.3,  # 生活事件 phi 较低 (不是紧急情绪)
+                tags=tags,
+                source_user="life_simulator",
+            )
+        except Exception:
+            pass  # 写入失败不影响主流程
 
     @staticmethod
     def _describe_emotion(
