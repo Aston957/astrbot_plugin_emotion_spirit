@@ -17,7 +17,7 @@
 - 延迟 3 秒验证 LLM 调用链
 - 延迟 5 秒运行人格分析（auto 模式）
 
-使用 `/spirit_status` 确认插件正常运行。
+使用 `/view_status` 确认插件正常运行。
 
 ---
 
@@ -36,12 +36,12 @@
 1. 在配置中选择 `persona_mode = auto`
 2. 在 `auto_source` 中选择要分析的 AstrBot 人格
 3. 重启插件，等待 LLM 分析完成
-4. 使用 `/spirit_persona` 查看分析结果
+4. 使用 `/view_whoami` 查看分析结果
 
 **工作原理：**
 - 插件读取 AstrBot 人格的 system_prompt
 - 通过 LLM 提取 5 轴标签（MBTI、依恋、情绪策略、冲突风格、时间取向）
-- 使用 `label_mapper` 自动映射为 11 维参数
+- 使用 `label_mapper` 自动映射为 13 维参数
 - 结果缓存到 `data/plugin_data/emotion_spirit/persona_report.json`
 
 ### 2.3 Manual 模式
@@ -50,17 +50,17 @@
 2. 在 `manual_personas` 中点击"添加人格"
 3. 填写人格名称，选择 5 轴标签
 4. 重启插件
-5. 使用 `/spirit_personas` 查看所有人格
-6. 使用 `/spirit_switch <名称>` 切换人格
+5. 使用 `/view_whoamis` 查看所有人格
+6. 使用 `/setup_switch <名称>` 切换人格
 
 ### 2.4 查看人格详情
 
 | 命令 | 说明 |
 |------|------|
-| `/spirit_persona` | 查看当前人格的 5 轴标签 |
-| `/spirit_detail` | 查看当前人格的 11 维参数 |
-| `/spirit_detail <名称>` | 查看指定人格的 11 维参数 |
-| `/spirit_personas` | 列出所有人格 |
+| `/view_whoami` | 查看当前人格的 5 轴标签 |
+| `/view_detail` | 查看当前人格的 13 维参数 |
+| `/view_detail <名称>` | 查看指定人格的 13 维参数 |
+| `/view_whoamis` | 列出所有人格 |
 
 ---
 
@@ -72,7 +72,7 @@
 
 **作用：** 检测未符号化的情绪模式——反复出现但无法确认的记忆（回声）、系统性回避的话题（回避）、被压抑的记忆类型（确认偏差）。
 
-**关闭影响：** `/spirit_shadows` 不可用，PromptInjector 不再注入阴影信息。
+**关闭影响：** `/reflect_shadows` 不可用，PromptInjector 不再注入阴影信息。
 
 **建议：** 保持开启。阴影检测是情感自省的核心功能。
 
@@ -80,7 +80,7 @@
 
 **作用：** 13 信号早期预警，监测身体状态、缓冲池健康和级联风险。
 
-**关闭影响：** `/spirit_sentinel` 不可用。
+**关闭影响：** `/reflect_sentinel` 不可用。
 
 **建议：** 保持开启。预警系统是诊断工具，对调试很有价值。
 
@@ -114,7 +114,7 @@
 
 ## 4. 诊断命令
 
-### 4.1 `/spirit_status`
+### 4.1 `/view_status`
 
 查看系统整体状态，包括：
 - 人格模式和当前人格
@@ -123,26 +123,26 @@
 - 亲密度、价值对齐、良心压力、意义蓄水
 - 功能开关状态
 
-### 4.2 `/spirit_drift`
+### 4.2 `/reflect_drift`
 
 查看人格漂移状态，包括：
 - 整合度斜率
 - 意义蓄水水平
 - 各维度的漂移方向和速度
 
-### 4.3 `/spirit_sentinel`
+### 4.3 `/reflect_sentinel`
 
 查看预警状态，包括：
 - 当前预警级别（normal/warning/critical）
 - 触发的信号列表
 
-### 4.4 `/spirit_shadows`
+### 4.4 `/reflect_shadows`
 
 查看阴影检测结果，包括：
 - 检测到的阴影数量
 - 每个阴影的证据类型、标签、置信度和建议
 
-### 4.5 `/spirit_diary`
+### 4.5 `/reflect_diary`
 
 手动生成日记。日记类型由情感动量决定：
 - **ascending**: 情感在改善
@@ -150,7 +150,7 @@
 - **stagnant**: 情感平稳
 - **cyclic**: 情感在循环
 
-### 4.6 `/spirit_patterns`
+### 4.6 `/reflect_patterns`
 
 查看行为模式，包括：
 - **cycle**: 循环模式（A→B→A→B）
@@ -186,13 +186,13 @@
 
 A: 确保 AstrBot 配置了可用的 LLM provider。auto 模式和日记生成依赖 LLM。
 
-### Q: `/spirit_shadows` 返回"已关闭"
+### Q: `/reflect_shadows` 返回"已关闭"
 
 A: 在配置中启用 `enable_shadow_detector`，然后重启 AstrBot。
 
 ### Q: 如何切换人格？
 
-A: 使用 `/spirit_personas` 列出所有人格，然后 `/spirit_switch <名称>` 切换。
+A: 使用 `/view_whoamis` 列出所有人格，然后 `/setup_switch <名称>` 切换。
 
 ### Q: 关闭某个功能后数据会丢失吗？
 
@@ -210,8 +210,8 @@ A: 使用 manual 模式手动配置 5 轴标签，覆盖 auto 模式的分析结
 
 ## 7. 最佳实践
 
-1. **首次使用建议 auto 模式**，让 LLM 自动分析人格，然后通过 `/spirit_persona` 检查结果
+1. **首次使用建议 auto 模式**，让 LLM 自动分析人格，然后通过 `/view_whoami` 检查结果
 2. **保持阴影检测和预警系统开启**，这两个功能对情感自省最有价值
-3. **定期查看 `/spirit_status`**，了解系统运行状态
+3. **定期查看 `/view_status`**，了解系统运行状态
 4. **不要频繁切换人格**，每次切换都会重置人格相关的状态
 5. **备份数据目录**，特别是 `spirit_data.json` 包含所有记忆数据

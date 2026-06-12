@@ -299,7 +299,7 @@ emotion_spirit 从"单一字符串 pad_label"升级为"概率分布 + 派生数�
 ### 架构原则
 
 - **数据驱动**: LLM 直接读 `signals.pad_distribution` (结构化数据，零信息损失)
-- **description 是辅助层**: 仅人类查看 (WebUI, `/spirit_status`)，每次 `get_emotion_state()` 懒渲染
+- **description 是辅助层**: 仅人类查看 (WebUI, `/view_status`)，每次 `get_emotion_state()` 懒渲染
 - **最小必要公开**: 公开 9+4=13 字段，不暴露 damage/intimacy/conscience 等隐私数据
 - **5 形态分布**: single_dominant / mixed / blended / calm_baseline / multi_color
 

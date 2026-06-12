@@ -4,7 +4,7 @@
 
 ## 1. AstrBot 命令接口
 
-### 1.1 `/spirit_status`
+### 1.1 `/view_status`
 
 查看 emotion_spirit 系统状态。
 
@@ -29,7 +29,7 @@ SylannEngine: 已连接
 
 ---
 
-### 1.2 `/spirit_persona`
+### 1.2 `/view_whoami`
 
 查看当前人格的 5 轴标签。
 
@@ -48,9 +48,9 @@ MBTI: ENFP
 
 ---
 
-### 1.3 `/spirit_detail [名称]`
+### 1.3 `/view_detail [名称]`
 
-查看人格的 11 维参数详情。
+查看人格的 13 维参数详情。
 
 **参数：**
 - `名称` (可选): 人格名称。不填则显示当前人格。
@@ -79,7 +79,7 @@ MBTI: ENFP
 
 ---
 
-### 1.4 `/spirit_personas`
+### 1.4 `/view_whoamis`
 
 列出所有可用人格。
 
@@ -95,7 +95,7 @@ MBTI: ENFP
 
 ---
 
-### 1.5 `/spirit_switch <名称>`
+### 1.5 `/setup_switch <名称>`
 
 切换当前活跃人格。
 
@@ -111,7 +111,7 @@ MBTI: ENFP
 
 ---
 
-### 1.6 `/spirit_drift`
+### 1.6 `/reflect_drift`
 
 查看人格漂移状态。
 
@@ -130,7 +130,7 @@ MBTI: ENFP
 
 ---
 
-### 1.7 `/spirit_sentinel`
+### 1.7 `/reflect_sentinel`
 
 查看预警状态。
 
@@ -156,7 +156,7 @@ MBTI: ENFP
 
 ---
 
-### 1.8 `/spirit_shadows`
+### 1.8 `/reflect_shadows`
 
 查看阴影检测结果。
 
@@ -179,7 +179,7 @@ MBTI: ENFP
 
 ---
 
-### 1.9 `/spirit_diary`
+### 1.9 `/reflect_diary`
 
 手动生成日记。
 
@@ -197,7 +197,7 @@ MBTI: ENFP
 
 ---
 
-### 1.10 `/spirit_patterns`
+### 1.10 `/reflect_patterns`
 
 查看行为模式。
 
@@ -329,7 +329,7 @@ class PersonaAnalyzer:
 class PersonaAnalysisResult:
     persona_id: str
     labels: dict[str, str]           # 5 轴标签
-    personality: dict                # 11 维参数
+    personality: dict                # 13 维参数
     confidence: float
     source: str                      # "llm" | "rule"
 
@@ -349,7 +349,7 @@ def labels_to_personality(labels: dict[str, str]) -> dict[str, dict[str, float]]
 # 输出: {"deep": {5 dims}, "surface": {6 dims}}
 
 def personality_to_labels(personality: dict) -> dict[str, str]
-# 输入: 11 维参数
+# 输入: 13 维参数
 # 输出: 最接近的 5 轴标签
 ```
 
