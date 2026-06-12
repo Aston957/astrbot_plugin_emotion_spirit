@@ -5,6 +5,77 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [3.0.0] — 2026-06-12
+
+### Added
+
+#### Phase A: 统一记忆系统 (7 modules)
+- `UnifiedEntry`: 自包含记忆实体 + `compute_decay_factor()` 情境衰减
+- `DecayModel`: 双轴衰减函数 (Ebbinghaus)
+- `CascadeEngine`: 倒排索引级联传播
+- `CollapseArchetype`: 5 种崩溃行为模式
+- `SuppressionState`: 动态压抑系统
+- `MemorySampler`: 人格加权多层采样 + 向量相似检索
+
+#### Phase B: Bridge + Output 增强 (6 modules)
+- `EngineManager`: SylannEngine 生命周期管理
+- `PersonalityBridge`: 5D↔12D 人格映射
+- `HotPoolForwarder`: inject 信号 → MemoryPool 转发
+- `RealtimeDispatch`: 即时分段回复 + 打断检测
+- `RhythmLearner`: 节律学习
+- `BotDecision`: proactive_chat 适配器
+
+#### Phase C: 向量记忆空间
+- PAD 3D 向量 (`valence, arousal, dominance`)
+- `search_by_vector()`: 欧氏距离检索
+- CascadeEngine 4 分量 relevance: `0.3*tag + 0.25*entity + 0.25*text + 0.2*vector`
+- 混合距离: `0.6*cosine + 0.4*euclidean`
+
+#### Phase D: 记忆系统重构
+- MemoryPool flat 存储 (删除 per-user 分池)
+- participant 过滤视图 (`buffer_in(user_id)`)
+- 记忆崩溃系统: `check_collapse()` → 5 种 CollapseArchetype
+- 情境衰减: 人格因子 + 亲密关系 + 情感权重联合调制
+
+#### Phase E: 生产流程接入
+- 单写 MemoryPool (不再双写 UnifiedMemory)
+- 向量检索注入 PromptInjector
+- 崩溃检测接入 SurfaceHandler
+
+#### Phase F: sylanne_core 内嵌
+- 46 模块从 SylannEngine v2 复制到 `emotion_spirit/sylanne_core/`
+- `SylanneEngine.shared()` 共享实例模式
+- License MIT + SylannEngine 致谢
+
+#### Phase G: LLM LifeSimulator
+- `LifeEvent` 数据结构 (text/mood/urgency/wants_to_share/event_type)
+- `LifeEventType`: 7 种事件类型 (reading/walking/cooking/thinking/creating/resting/observing)
+- `LIFE_EVENT_WEIGHTS`: 事件类型 → valence/arousal/share_tendency
+- `configure(llm_caller=)`: 注入 LLM callable
+- `generate_life_prose()`: LLM 生成生活片段 (fallback 规则引擎)
+- `_store_event_to_memory()`: LifeEvent 写入 MemoryPool
+- `on_llm_request`: Mode A/B 触发检查 → LifeEvent 生成 → system_prompt 注入
+- `BotDecision.get_life_simulation_context()`: proactive_chat 上下文 API
+
+#### Phase H: on_llm_response
+- `on_llm_response` 钩子: bot 回复写入 MemoryPool (source_user="bot")
+- `_extract_bot_emotion()`: 规则情绪提取 (warm/apologetic/curious/detailed/neutral)
+- IntimacyTracker 更新 (vulnerability_delta for warm replies)
+
+### Changed
+- metadata.yaml: 移除 `requires_plugins` (sylanne_core 已内嵌)
+- `_conf_schema.json`: `/spirit_*` → `/setup_*/reflect_*` 命令名修正
+- README.md: 版本 v3.0.0, 测试数 856, 维度数修正, 目录结构更新
+- `_version.py`: 2.0.0 → 3.0.0
+- `public_api_stable.md`: 版本更新
+
+### Fixed
+- `_conf_schema.json` hint 文本引用已删除的 `/spirit_*` 命令
+- `metadata.yaml` 声明已不需要的外部插件依赖
+
+### Tests
+- 856 tests passed, 0 failures (从 612 增长到 856)
+
 ## [Unreleased]
 
 ### Added (Release Infrastructure)

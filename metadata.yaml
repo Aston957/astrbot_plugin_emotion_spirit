@@ -1,8 +1,8 @@
 name: emotion_spirit
 display_name: "Emotion Spirit"
-desc: "长期记忆、人格演化与超我调控 — SylannEngine 之上的自我层 (v2.0)"
+desc: "长期记忆、人格演化与超我调控 — SylannEngine 内嵌的自我层 (v3.0)"
 author: "emotion_spirit"
-version: "2.0.0"
+version: "3.0.0"
 repo: "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
 support_platforms:
   - aiocqhttp
