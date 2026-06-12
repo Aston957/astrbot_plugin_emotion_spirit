@@ -3,14 +3,14 @@
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-818%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-856%20passed-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
 [![AstrBot](https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v2.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v3.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
 
 ---
 
@@ -26,7 +26,7 @@ v3.0.0 起，**SylannEngine 计算核心 (`sylanne_core`) 已内嵌到本插件*
 
 ### ⭐ 方式 1: GitHub Release slim zip (推荐)
 
-GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~250 KB), 跳过测试/仿真/开发工具.
+GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, 含 sylanne_core + KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 2. 下载 `astrbot-plugin-emotion-spirit-3.0.0.zip`
@@ -59,50 +59,59 @@ pip install -e .[dev]
 
 ## 这是什么 / What is this
 
-emotion_spirit 是 AstrBot 生态的 SylannEngine 下游插件，负责"自我 + 超我"层。SylannEngine 处理即时情感（本我，ms ~ hr），emotion_spirit 在其之上构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、11+3=13 维人格演化、月度叙事弧、阴影检测、三元力学引擎、价值对齐、良心压力、理想自我等高级功能。Phase 3 引入三元力学（自然/社会/个体），Phase 4 完成 v2.0 收尾（4 层目录重构、ConscienceTracker 滑动窗口 P95 归一化、pyproject 现代打包、Public API 稳定契约）。
+emotion_spirit 是 AstrBot 生态的情感计算插件，负责"自我 + 超我"层。v3.0 起 SylannEngine 计算核心已内嵌（`sylanne_core`），无需外部依赖。插件构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、13 维人格演化、三元力学引擎、超我调控、LLM 生活模拟、bot 回复记忆等高级功能。
 
-emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine, responsible for the "ego + superego" layer. While SylannEngine handles immediate affect (id, ms ~ hr), emotion_spirit builds on top with: a four-tier long-term memory (buffer / warm / cold / ghost), 11+3=13-dimensional personality evolution, monthly narrative arcs, shadow detection, a three-force dynamics engine, value alignment, conscience pressure, and ideal-self gap analysis. Phase 3 introduced three-force dynamics (natural / social / individual). Phase 4 closes the v2.0 release (4-layer directory refactor, ConscienceTracker sliding-window P95 normalization, modern pyproject packaging, public API stability contract).
+emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for the "ego + superego" layer. Since v3.0, the SylannEngine compute core (`sylanne_core`) is embedded — zero external dependencies. The plugin builds a four-tier long-term memory, 13-dimensional personality evolution, three-force dynamics engine, superego regulation, LLM life simulation, and bot-reply memory.
 
 ```
 弗洛伊德           实现                  时间尺度
 ────────────────────────────────────────────────
-本我 (Id)          SylannEngine          ms ~ hr
-自我 (Ego)         emotion_spirit v2.0   hr ~ month
-超我 (Superego)    emotion_spirit v2.0   贯穿
+本我 (Id)          sylanne_core (内嵌)   ms ~ hr
+自我 (Ego)         emotion_spirit v3.0   hr ~ month
+超我 (Superego)    emotion_spirit v3.0   贯穿
 ```
 
 ## 核心能力 / Key Features
 
-### 记忆层 / Memory Layer (Phase 2)
+### 记忆层 / Memory Layer
 - **4 层记忆**: 缓冲池（待确认）→ 温池（已确认）→ 冷池（模式沉淀）→ 幽灵（永久创伤）
-- **6 维亲密度**: 不对称的亲密度追踪（warmth / trust / dependence / security / familiarity / longing）
-- **Ebbinghaus 遗忘**: 记忆自然衰减，被召回时强化
-- **关系人格微调** (Phase 2.5): 每个关系独立的人格参数
+- **Flat 存储 + participant 过滤** (v3.0): 不按用户分池，recall 时按 participant 过滤
+- **PAD 向量记忆空间** (v3.0): 每条记忆携带 PAD 三维向量，支持向量相似检索
+- **级联引擎**: 倒排索引 + 4 分量混合相关度 (tag + entity + text + vector)
+- **情境衰减**: 人格因子 × 亲密关系 × 情感权重联合调制的非均匀遗忘
+- **记忆崩溃系统** (v3.0): 5 种崩溃行为模式 (Volcano/Collapse/Freeze/Drift/Cold)
+- **6 维亲密度**: 不对称的亲密度追踪 (Bowlby 内部工作模型)
+- **关系人格微调**: 每个关系独立的人格参数
 
-### 演化层 / Evolution Layer (Phase 1.5 + Phase 3)
-- **13 维人格漂移检测** (双 EMA): 11 维 (Phase 1.5) + 3 维 (Phase 3) + v1.7 拆分 2 维
+### 演化层 / Evolution Layer
+- **13 维人格漂移检测** (双 EMA)
 - **月度叙事弧**: 上升 / 下降 / 停滞 / 循环型
 - **阴影检测** (荣格式): 回声模式、回避模式、确认偏差
 - **反事实模拟**: 为无法消化的创伤提供替代视角
 
-### 调控层 / Regulation Layer (Phase 1.5 + Phase 3 + Phase 4)
-- **价值对齐**: 追踪行为是否符合人格的价值观
-- **ConscienceTracker 滑动窗口 P95 归一化** (Phase 4 C1, **v2.0 新**): 区分"持续 N 次小冲突"vs"持续 1 次大冲突"
-- **理想自我差距**: 当前人格与理想人格的差距计算
-- **意义蓄水池**: 长期意义积累与释放
+### 调控层 / Regulation Layer
+- **三元力学引擎**: natural (自然) / social (社会) / individual (个体), 5 fixture × 8 场景仿真
+- **3072 KB 文献化 baseline**: 涵盖 5 轴人格 (MBTI × 依恋 × 情绪策略 × 冲突风格 × 时间取向)
+- **ConscienceTracker P95 归一化**: 累加器是真相源, 消费时归一化
+- **价值对齐 + 理想自我差距 + 意义蓄水池**
 
-### 三元力学引擎 / Three-Force Dynamics (Phase 3, **v2.0 算法 H**)
-- **3 维权重**: natural (自然) / social (社会) / individual (个体), 各维 ∈ [0, 1], sum = 1
-- **算法 H**: 5 fixture × 8 场景仿真 + P95 分位 baseline
-- **3072 KB 文献化 baseline** (Phase 3.0C): 涵盖 5 轴人格 (MBTI × 依恋 × 情绪策略 × 冲突风格 × 时间取向)
-- **Step 4 narrative 回测**: natural 10.2% / social 32.6% / individual 57.2%
+### LLM 生活模拟 / Life Simulation (v3.0 新)
+- **LifeEvent**: 7 种事件类型 (reading/walking/cooking/thinking/creating/resting/observing)
+- **Mode A/B 触发**: idle 60s / 15 轮 (Mode A) + 2-4h 无对话 (Mode B)
+- **LLM 生成**: 触发后调用 LLM 生成自然语言生活片段，无 LLM 时自动降级为规则引擎
+- **记忆写入**: LifeEvent 自动写入 MemoryPool，可被未来对话 recall
+- **主动联系上下文**: 通过 BotDecision API 提供给 proactive_chat
 
-### v2.0 新增 / v2.0 New
-- **ConscienceTracker B2 滑动窗口 P95 归一化**: 累加器是真相源, 消费时归一化, 给极端事件留 5% headroom
-- **pyproject.toml 现代打包**: `pip install -e .[dev]` 干净, setuptools >=80, python >=3.11
-- **4 层目录重构**: `emotion_spirit/{core|memory|regulation|output}/`, 依赖方向严格单向
-- **Public API 稳定契约**: 38 modules 加 `__all__`, `public_api_stable.md` 列 stable/internal/deprecated 三表
-- **v1.x 兼容垫片**: `_v1_compat.py` + `_DeprecatedImportFinder` hook (codebase 内部卫生)
+### Bot 回复记忆 / Bot Reply Memory (v3.0 新)
+- **on_llm_response**: Bot 回复后自动写入 MemoryPool (source_user="bot")
+- **规则情绪提取**: warm / apologetic / curious / detailed / neutral
+- **记忆闭环**: 用户消息 + bot 回复都成为记忆，形成完整对话叙事
+
+### SylannEngine 内嵌 / Embedded Engine (v3.0 新)
+- **46 模块**: 7 层计算脊柱 (HDC → 预测编码 → Void-Scar → 关系层论 → HGT → 自创生 → 相变)
+- **零外部依赖**: `git clone` 即用，无需安装外部插件
+- **共享实例**: `SylanneEngine.shared()` 单例模式，同一 data_dir 只创建一次
+- **优雅降级**: 无 LLM provider 时自动降级为纯 emotion_spirit 模式
 
 ## 截图 / Screenshots
 
@@ -114,7 +123,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 | [chat-transcript-trauma.html](docs/mockups/chat-transcript-trauma.html) | 1 轮 trauma 触发幽灵消化 + ConscienceTracker B2 减压 | README §核心能力 演化层 |
 | [spirit-status-output.html](docs/mockups/spirit-status-output.html) | `/view_status` 完整输出 (含三元力学 + ConscienceTracker B2) | README §指令 |
 | [personality-timeline.html](docs/mockups/personality-timeline.html) | 6 个月 13 维人格漂移时间线 | README §核心能力 演化层 |
-| [architecture-diagram.html](docs/mockups/architecture-diagram.html) | v2.0 4 层架构图 (core/memory/regulation/output) | architecture.md §架构 + README §快速开始 |
+| [architecture-diagram.html](docs/mockups/architecture-diagram.html) | v3.0 5 层架构图 (core/memory/regulation/output + sylanne_core) | architecture.md §架构 + README §快速开始 |
 
 ## 安装 / Installation
 
@@ -124,7 +133,7 @@ emotion_spirit is an AstrBot ecosystem plugin sitting downstream of SylannEngine
 - Python >= 3.11
 - ~~SylannEngine v1.0.0rc1+ 插件~~ (v3.0.0 起 sylanne_core 已内嵌，无需安装)
 
-### 通过 pip (推荐, **v2.0 新**)
+### 通过 pip (推荐)
 
 ```bash
 # 从源码安装 (editable)
@@ -140,9 +149,9 @@ python -c "import emotion_spirit; print(emotion_spirit.__version__)"
 
 1. 将 `emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/` 目录(从 Release zip 解压后得到的就是这个)
 2. 重启 AstrBot
-3. 插件会自动连接 SylannEngine（延迟 2 秒，等待 SylannEngine 初始化）
+3. 插件自动加载 (v3.0 起 sylanne_core 已内嵌，无需额外安装)
 
-### KB 数据 / KB Data (自动加载 / Auto-loaded, **v2.0 新**)
+### KB 数据 / KB Data (自动加载 / Auto-loaded)
 
 **3072 组合人格基线 KB 跟 plugin 一起分发,无需额外下载或配置**:
 
@@ -175,12 +184,12 @@ body = await api.get_body_state(session_key)
 trajectory = await api.get_emotion_state(session_key, include_trajectory=True)
 # 返回 emotion_trajectory 字段: list of {valence, arousal, dominance, timestamp}
 
-# 4. 三元力学状态 (Phase 3, v2.0 新)
+# 4. 三元力学状态
 from emotion_spirit.regulation.force_dynamics import ForceDynamics
 forces = ForceDynamics().compute(personality, body_state, conscience_pressure)
 # 返回 {natural: float, social: float, individual: float, dominant: str}
 
-# 5. ConscienceTracker 压力 (Phase 4 C1, v2.0 新)
+# 5. ConscienceTracker 压力
 from emotion_spirit.regulation.superego import ConscienceTracker
 tracker = ConscienceTracker()
 pressure = tracker.get_pressure()
@@ -221,7 +230,7 @@ pressure = tracker.get_pressure()
 
 | Env Var | 默认 | 说明 |
 |---------|------|------|
-| `EMOTION_SPIRIT_PRESSURE_WINDOW` | 200 | ConscienceTracker 滑动窗口大小 (Phase 4 C1, v2.0 新) |
+| `EMOTION_SPIRIT_PRESSURE_WINDOW` | 200 | ConscienceTracker 滑动窗口大小 |
 
 ### 4. 高级 / 调试
 
@@ -312,12 +321,10 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 | **Bot operator** | [docs/user-guide.md](docs/user-guide.md) | 用户手册 (人格配置 + 高级功能) |
 | **Developer** | [docs/api.md](docs/api.md) | API 完整参考 (Stable / Internal / Deprecated) |
 | **Public API 契约** | [public_api_stable.md](public_api_stable.md) | 跨 minor 版本保证不破坏的 API 列表 |
-| **Maintainer** | [docs/architecture.md](docs/architecture.md) | 架构文档 (4 层 + Phase 演化) |
+| **Maintainer** | [docs/architecture.md](docs/architecture.md) | 架构文档 (5 层 + Phase 演化) |
 | **Maintainer** | [docs/theory.md](docs/theory.md) | 理论依据 (心理学 + 神经科学 + LLM agent) |
-| **Spec** | [docs/superpowers/specs/2026-06-08-phase-4-launch-design.md](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md) | v2.0 设计 spec (12 章节) |
-| **Plan** | [docs/superpowers/plans/2026-06-08-phase-4-launch.md](docs/superpowers/plans/2026-06-08-phase-4-launch.md) | v2.0 实施 plan (6 task) |
 
-## v2.0 4 层目录结构 / v2.0 4-Layer Directory Structure
+## v3.0 目录结构 / v3.0 Directory Structure
 
 ```
 emotion_spirit/
@@ -390,15 +397,16 @@ emotion_spirit/
 
 **依赖方向**: `L0 ← L1 ← L2 ← L3` (严格单向, `test_layer_dependency_no_reverse` enforce)
 
-## v2.0 → v1.x 版本映射 / Versioning
+## 版本映射 / Versioning
 
-| v2.0 (2026-06) | v1.x (历史) | 变化 |
-|----------------|------------|------|
-| 104 modules (58 core + 46 sylanne_core) 在 5 sub-packages | 38 modules 平铺 | v2.0 重构 + v3.0 sylanne_core 内嵌 |
-| `ConscienceTracker.get_pressure() ∈ [0, 1]` | 同样 ∈ [0, 1] | **语义改**: P95 归一化, 区分"持续冲突"vs"极端事件" |
-| `emotion_spirit.regulation.superego.ConscienceTracker` | `emotion_spirit.superego.ConscienceTracker` | 路径改, v1.x 兼容垫片 redirect |
-| `emotion_spirit.output.public_api.PublicAPI` | `emotion_spirit.public_api.PublicAPI` | 路径改, v1.x 兼容垫片 redirect |
-| 13 维人格 (5 deep + 8 surface) | 11 维 (Phase 1.5) | Phase 3 +2 (perception_acuity, directness), v1.7 拆 autonomy_guard → 2 维 (+1), v1.7.2 +gossip_tendency |
+| v3.0 (2026-06) | v2.0 (2026-06) | v1.x (历史) | 变化 |
+|----------------|----------------|------------|------|
+| 104 modules (58 core + 46 sylanne_core) | 30 modules | 38 modules 平铺 | v3.0 sylanne_core 内嵌 |
+| 856 tests | 612 tests | ~250 tests | 持续增长 |
+| SylannEngine 内嵌 | 外部依赖 | 外部依赖 | v3.0 零外部依赖 |
+| LLM LifeSimulator | stub | 无 | v3.0 LLM 生活模拟 |
+| on_llm_response | 无 | 无 | v3.0 bot 回复记忆 |
+| 13 维人格 | 12 维 | 11 维 | v1.7 +gossip_tendency |
 
 ## License & Attribution / 许可与致谢
 
@@ -416,7 +424,7 @@ emotion_spirit/
 4. Russell, J. A., & Mehrabian, A. (1977). *Evidence for a three-factor theory of emotions*. Journal of Research in Personality. (PAD 模型)
 5. Jung, C. G. (1968). *The Archetypes and the Collective Unconscious*. Princeton University Press. (阴影 / 投射 / 自性)
 
-v2.0 Phase 3 三元力学 (natural / social / individual) 灵感来源:
+三元力学 (natural / social / individual) 灵感来源:
 - 社会生态学 (Bronfenbrenner 1979): 微观 / 中观 / 宏观系统
 - 道德基础理论 (Haidt 2007): 多基础道德心理学
 - 自我决定理论 (Deci & Ryan 2000): 自主 / 胜任 / 关联
