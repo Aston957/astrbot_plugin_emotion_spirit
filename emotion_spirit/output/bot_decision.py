@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from ..memory.topic_privacy import TopicPrivacy
     from ..memory.memory_pool import MemoryPool
     from .surface_consumer import SurfaceConsumer
+    from ..regulation.life_simulator import LifeSimulator
 
 
 from ..core.registry import register
@@ -158,10 +159,12 @@ class BotDecisionMaker:
         self,
         memory_pool: "MemoryPool | None" = None,
         surface_consumer: SurfaceConsumer | None = None,
+        life_simulator: "LifeSimulator | None" = None,
     ) -> None:
         """注入 proactive 上下文所需的依赖。"""
         self._memory_pool = memory_pool
         self._surface_consumer = surface_consumer
+        self._life_simulator = life_simulator
 
     def get_proactive_context(self, session_id: str) -> str:
         """返回 emotion_spirit 的内部状态作为 proactive_chat 的上下文。
@@ -246,6 +249,36 @@ class BotDecisionMaker:
                 text = entry.text[:100] if len(entry.text) > 100 else entry.text
                 lines.append(f"- {text}")
             return "\n".join(lines)
+        except Exception:
+            return ""
+
+    def get_life_simulation_context(self, session_id: str) -> str:
+        """返回 LifeSimulator 生成的生活事件作为 proactive_chat 的上下文。
+
+        Phase G 新增: 读取 LifeSimulator.pending_life_event,
+        返回自然语言生活片段供 proactive_chat 注入 prompt。
+
+        Args:
+            session_id: 会话标识。
+
+        Returns:
+            生活事件上下文字符串。无数据时返回空字符串。
+        """
+        life_sim = getattr(self, "_life_simulator", None)
+        if life_sim is None:
+            return ""
+
+        try:
+            event = life_sim.pending_life_event
+            if event is None:
+                return ""
+
+            parts = [f"[生活片段] {event.text}"]
+            if event.mood and event.mood != "neutral":
+                parts.append(f"（心情: {event.mood}）")
+            if event.wants_to_share:
+                parts.append("（想分享给你）")
+            return " ".join(parts)
         except Exception:
             return ""
 

@@ -3,6 +3,7 @@
 import sys
 import os
 import time
+import asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -21,7 +22,9 @@ from emotion_spirit.memory.memory_pool import MemoryPool
 from emotion_spirit.memory.intimacy import IntimacyTracker
 from emotion_spirit.output.buffer_signals import BufferSignals
 from emotion_spirit.memory.meaning_reservoir import MeaningReservoir
-from emotion_spirit.regulation.life_simulator import LifeSimulator
+from emotion_spirit.regulation.life_simulator import (
+    LifeSimulator, LifeEvent, LifeEventType, LIFE_EVENT_WEIGHTS,
+)
 
 DEFAULT_PERSONALITY = {
     "openness": 0.5,
@@ -438,6 +441,191 @@ def test_state_narrative_all_active():
     assert "翻涌" in narrative
     assert "连锁反应" in narrative
     assert "5 个很久以前的画面" in narrative
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase G: LLM LifeSimulator 升级测试
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_life_event_dataclass():
+    """LifeEvent 基本属性。"""
+    event = LifeEvent(
+        text="安静地翻着一本书",
+        mood="平静",
+        urgency=0.2,
+        timestamp=time.time(),
+        wants_to_share=True,
+        event_type=LifeEventType.READING,
+    )
+    assert event.text == "安静地翻着一本书"
+    assert event.mood == "平静"
+    assert event.urgency == 0.2
+    assert event.wants_to_share is True
+    assert event.shared is False
+    assert event.event_type == "reading"
+
+
+def test_life_event_type_constants():
+    """LifeEventType 常量正确。"""
+    assert LifeEventType.READING == "reading"
+    assert LifeEventType.WALKING == "walking"
+    assert LifeEventType.COOKING == "cooking"
+    assert LifeEventType.THINKING == "thinking"
+    assert LifeEventType.CREATING == "creating"
+    assert LifeEventType.RESTING == "resting"
+    assert LifeEventType.OBSERVING == "observing"
+
+
+def test_life_event_weights():
+    """LIFE_EVENT_WEIGHTS 包含所有事件类型。"""
+    for event_type in [
+        LifeEventType.READING, LifeEventType.WALKING, LifeEventType.COOKING,
+        LifeEventType.THINKING, LifeEventType.CREATING, LifeEventType.RESTING,
+        LifeEventType.OBSERVING,
+    ]:
+        assert event_type in LIFE_EVENT_WEIGHTS
+        weights = LIFE_EVENT_WEIGHTS[event_type]
+        assert "valence" in weights
+        assert "arousal" in weights
+        assert "share_tendency" in weights
+
+
+def test_configure_llm_caller():
+    """configure() 注入 LLM callable。"""
+    sim, _ = _make_sim()
+    assert sim._llm_caller is None
+
+    async def fake_llm(system_prompt, user_prompt):
+        return '{"activity": "test", "thought": "", "mood": "calm"}'
+
+    sim.configure(llm_caller=fake_llm)
+    assert sim._llm_caller is fake_llm
+
+
+def test_pending_life_event_lifecycle():
+    """pending_life_event 生命周期: 初始 None → 生成后有值 → consume 后 None。"""
+    sim, _ = _make_sim()
+    assert sim.pending_life_event is None
+    assert sim.consume_life_event() is None
+
+    # 手动设置一个 pending event
+    event = LifeEvent(text="test", mood="calm", urgency=0.1, timestamp=time.time())
+    sim._pending_life_event = event
+    assert sim.pending_life_event is event
+
+    consumed = sim.consume_life_event()
+    assert consumed is event
+    assert sim.pending_life_event is None
+
+
+def test_infer_event_type():
+    """_infer_event_type 关键词匹配。"""
+    assert LifeSimulator._infer_event_type("在看书") == "reading"
+    assert LifeSimulator._infer_event_type("出去散步了") == "walking"
+    assert LifeSimulator._infer_event_type("在厨房做饭") == "cooking"
+    assert LifeSimulator._infer_event_type("在思考人生") == "thinking"
+    assert LifeSimulator._infer_event_type("画了一幅画") == "creating"
+    assert LifeSimulator._infer_event_type("躺在沙发上休息") == "resting"
+    assert LifeSimulator._infer_event_type("望着窗外") == "observing"
+    assert LifeSimulator._infer_event_type("随便什么") == ""
+
+
+def test_apply_event_emotion_weights():
+    """_apply_event_emotion_weights 返回正确权重。"""
+    event = LifeEvent(text="读书", mood="calm", urgency=0.1, timestamp=0, event_type="reading")
+    weights = LifeSimulator._apply_event_emotion_weights(event)
+    assert weights["valence"] == 0.2
+    assert weights["arousal"] == -0.1
+    assert weights["share_tendency"] == 0.4
+
+    # 未知类型返回零
+    event_unknown = LifeEvent(text="x", mood="x", urgency=0, timestamp=0, event_type="unknown")
+    w2 = LifeSimulator._apply_event_emotion_weights(event_unknown)
+    assert w2["valence"] == 0.0
+
+
+def _run_async(coro):
+    """在新 event loop 中运行 async 协程 (避免全量测试时 loop 冲突)。"""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def test_generate_fallback():
+    """无 LLM 时规则 fallback 生成 LifeEvent。"""
+    sim, pool = _make_sim()
+    pool.add("test memory", 0.5, 0.5, ["test"], "user1")
+
+    event_dict = {
+        "type": "mode_a",
+        "trigger": "idle",
+        "memories": [{"text": "test memory", "layer": "buffer", "temperature": 0.5, "emotional_weight": 0.5, "tags": ["test"]}],
+        "state_narrative": "你现在相对平静。",
+        "signals": {},
+    }
+
+    result = _run_async(sim.generate_life_prose(event_dict))
+    assert result is not None
+    assert isinstance(result, LifeEvent)
+    assert result.text
+    assert result.mood
+    assert result.timestamp > 0
+    assert result.event_type in [
+        "reading", "walking", "cooking", "thinking", "creating", "resting", "observing",
+    ]
+    assert sim.pending_life_event is result
+
+
+def test_generate_with_mock_llm():
+    """有 LLM 时生成 LifeEvent (mock)。"""
+    sim, pool = _make_sim()
+    pool.add("test memory", 0.5, 0.5, ["test"], "user1")
+
+    async def mock_llm(system_prompt, user_prompt):
+        return '{"activity": "在阳台上浇花", "thought": "今天天气真好", "mood": "愉快", "wants_to_share": true, "urgency": 0.3}'
+
+    sim.configure(llm_caller=mock_llm)
+
+    event_dict = {
+        "type": "mode_b",
+        "subtype": "life_event",
+        "memories": [{"text": "test memory", "layer": "buffer", "temperature": 0.5, "emotional_weight": 0.5, "tags": ["test"]}],
+        "state_narrative": "你现在相对平静。",
+        "signals": {"pad": {"valence": 0.5, "arousal": 0.3}},
+        "emotion": None,
+    }
+
+    result = _run_async(sim.generate_life_prose(event_dict, persona_desc="一个热爱生活的角色"))
+    assert result is not None
+    assert "浇花" in result.text
+    assert result.mood == "愉快"
+    assert result.wants_to_share is True
+    assert result.urgency == 0.3
+    assert sim.pending_life_event is result
+
+
+def test_serialization_with_events():
+    """to_dict/from_dict 保留 events。"""
+    sim, _ = _make_sim()
+    sim._events.append(LifeEvent(
+        text="test event", mood="calm", urgency=0.2,
+        timestamp=12345.0, wants_to_share=True, event_type="reading",
+    ))
+
+    data = sim.to_dict()
+    assert len(data["events"]) == 1
+    assert data["events"][0]["text"] == "test event"
+    assert data["events"][0]["event_type"] == "reading"
+
+    sim2, _ = _make_sim()
+    sim2.from_dict(data)
+    assert len(sim2._events) == 1
+    assert sim2._events[0].text == "test event"
+    assert sim2._events[0].event_type == "reading"
+    assert sim2._events[0].wants_to_share is True
 
 
 if __name__ == "__main__":

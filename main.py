@@ -178,7 +178,14 @@ class EmotionSpiritPlugin(Star):
         self._personality_bridge = PersonalityBridge()
         self._engine_manager.set_forwarder(self._hotpool_forwarder)
         # configure bot_decision proactive deps
-        self._decision.configure_proactive_deps(memory_pool=self._pool)
+        self._decision.configure_proactive_deps(
+            memory_pool=self._pool,
+            life_simulator=self._life_sim,
+        )
+
+        # Phase G: LifeSimulator LLM callable 注入
+        if self._life_sim is not None:
+            self._life_sim.configure(llm_caller=self._get_llm_callable())
 
         # Phase B: RealtimeDispatch + RhythmLearner
         from emotion_spirit.output.realtime_dispatch import RealtimeDispatch
@@ -590,6 +597,26 @@ class EmotionSpiritPlugin(Star):
 
         await self._flush_inject_queue()
 
+        # Phase G: LifeSimulator LLM 生活片段生成
+        # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
+        if self._life_sim is not None:
+            try:
+                signals = self._consumer.consume({})
+                personality_dict = {
+                    **(signals.personality_deep or {}),
+                    **(signals.personality_surface or {}),
+                }
+                event_a = self._life_sim.check_mode_a(signals, personality_dict)
+                event_b = event_a or self._life_sim.check_mode_b(signals, personality_dict)
+                if event_b:
+                    await self._life_sim.generate_life_prose(
+                        event_b,
+                        persona_desc=self._current_persona.get("label", "") if self._current_persona else "",
+                        personality=personality_dict,
+                    )
+            except Exception:
+                logger.debug("emotion_spirit: life_sim tick error", exc_info=True)
+
         if self._persona_mode == "disabled":
             return
         if self._persona_mode == "auto" and not self._persona_initialized:
@@ -730,6 +757,7 @@ class EmotionSpiritPlugin(Star):
             )
             if life_sim_data:
                 self._life_sim.from_dict(life_sim_data)
+            self._life_sim.configure(llm_caller=self._get_llm_callable())
         self._diary = DiaryWriter(
             self._pool, self._patterns, self._buffer_signals,
             self._alignment, self._conscience,
