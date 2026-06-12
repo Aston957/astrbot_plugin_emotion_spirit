@@ -1,7 +1,7 @@
 # AstrBot Emotion Spirit 插件 — 框架结构报告
 
-> **生成日期**: 2026-06-09
-> **版本**: v2.0.0v1（基于 612/612 tests，30 modules，29 modules 后的 KB ship 修正）
+> **生成日期**: 2026-06-12
+> **版本**: v3.0.0（基于 856 tests，104 modules，Phase A-I 全部完成）
 > **位置**: `D:\新建文件夹\emotion_spirit\now\astrbot_plugin_emotion_spirit\`
 > **目标读者**: 项目维护者、新加入的贡献者
 

@@ -133,7 +133,7 @@ pip install -e .[dev]
 
 # 验证
 python -c "import emotion_spirit; print(emotion_spirit.__version__)"
-# 期望: 2.0.0.post1
+# 期望: 3.0.0
 ```
 
 ### 通过 AstrBot 拖拽 (传统)
@@ -323,7 +323,7 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 emotion_spirit/
 ├── __init__.py                # 公开 API 入口 + _DeprecatedImportFinder (C3) + PEP 440 version (C2)
 ├── layer.py                   # 抽象基类 (留根)
-├── _version.py                # PEP 440 version 真相源 (2.0.0.post1)
+├── _version.py                # PEP 440 version 真相源 (3.0.0)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
 ├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)
