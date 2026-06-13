@@ -1,42 +1,45 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-*.bak
-*.tmp
-.DS_Store
-
-# Local release zip (built for testing; CI builds the real one)
-*.zip
-
-# Python packaging build artifacts (Phase 4 C2)
+*.py[cod]
+*$py.class
+*.so
+.Python
 *.egg-info/
-build/
+*.egg
 dist/
+build/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
 
-# Phase 4 C4: emotion_spirit/output/ is now a source sub-package.
-# Repo-root `output/` (created at runtime by 3.0A property-test scripts) is
-# unrelated to the source layout and should remain ignored; the source
-# sub-package is whitelisted via the negation below.
-output/
-!emotion_spirit/output/
-!emotion_spirit/output/__init__.py
+# v3.0.1 patch: editable install 在 deploy 目录生成,不能 commit
+astrbot_plugin_emotion_spirit.egg-info/
 
-# === Release build: data/ tracking ===
-# `data/` holds runtime resources (cmd_config.json, t2i_templates/) that
-# the plugin needs at runtime. We DO want them tracked by git so they
-# end up in the release zip. But we DON'T want transient tool outputs
-# (data/temp/, data/t2i_templates/*.bak, etc.) tracked.
-#
-# Strategy: ignore the whole data/ dir, then re-include only the files
-# that should be shipped.
-data/
-!data/cmd_config.json
-!data/t2i_templates/
-!data/t2i_templates/*.html
-
-# verification/output/ is simulation harness output, never shipped.
-verification/output/
-
-# data/temp/ is a scratch directory used by some tools during execution.
+# AstrBot 本地运行时数据 (敏感配置 + temp 文件)
+data/cmd_config.json
 data/temp/
+data/data_v4.db
+data/data_v4.db-shm
+data/data_v4.db-wal
+data/knowledge_base/
+data/astrbot.db
+data/logs/
+data/webchat/imgs/
+data/attachments/
+data/dist/        # 启动时自动下载 dashboard.zip 解压
+data/dashboard.zip
+data/plugins.json  # AstrBot 自动生成
+
+# 编辑器 / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# secrets (即使有 allowlist,也保留 .gitignore 作冗余保护)
+data/cmd_config.json.bak

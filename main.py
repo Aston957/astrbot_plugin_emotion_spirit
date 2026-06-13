@@ -20,6 +20,10 @@ from astrbot.api.star import Context, Star
 from astrbot.api import logger
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
+# persona_id 的 sentinel(占位符)值集合 — 表示"还没真正选过人格"
+# 出现这些值时,_load_persona_state 视为"未初始化",让 /setup_init 走正常路径
+_SENTINEL_PERSONA_IDS = frozenset({"default", "unknown", ""})
+
 from emotion_spirit.core.plugin_factory import build as build_modules
 from emotion_spirit.output.command_router import CommandRouter
 from emotion_spirit.output.public_api import PublicAPI
@@ -31,21 +35,43 @@ from emotion_spirit.regulation.persona_analyzer import save_report, load_report
 from emotion_spirit.regulation.persona_report_parser import parse_persona_report
 
 
-def _ns_command(name: str, cmd_attr: str):
+def _ns_command(name: str, cmd_attr: str, desc: str = ""):
     """把 CommandImpl.{cmd_attr} 方法注册为 AstrBot /{name} 命令 (Phase 4 post-merge ns 化).
 
     用法 (类体中):
-        setup_init_cmd = _ns_command("setup_init", "setup_init")
+        setup_init_cmd = _ns_command("setup_init", "setup_init", "初始化当前人格参数...")
 
     Args:
         name: AstrBot 命令名 (e.g. "setup_init", "view_status", "reflect_drift")
         cmd_attr: self._cmd 上对应的方法名 (CommandImpl 类)
+        desc: 命令描述,显示在 /help 列表和 dashboard 命令面板
+
+    Note (v4.25.5 兼容性):
+    - 不在签名里放 *args/**kwargs(v4.25.5 CommandFilter 会把 validate 后的 kwargs 当作必填)
+    - 给每个 handler 唯一 __name__,避免 12 个 CommandFilter 共享同一个 _handler
+      导致 cmd_attr 闭包永远是第一个命令
     """
-    @filter.command(name)
-    async def _handler(self, event: AstrMessageEvent, *args, **kwargs):
+    async def _ns_handler(self, event: AstrMessageEvent):
         handler = getattr(self._cmd, cmd_attr)
-        async for r in handler(event, *args, **kwargs):
+        # 从 v4.25.5 校验后的 parsed_params 读第一个用户参数
+        parsed = event.get_extra("parsed_params") or {}
+        first_arg = parsed.get("args")
+        # 'args' 缺失或为 typing.Any(没传用户参数)→ 不传位置参数
+        if first_arg is None or first_arg is Any:
+            args_tuple: tuple = ()
+        elif isinstance(first_arg, str):
+            args_tuple = (first_arg,)
+        else:
+            args_tuple = (str(first_arg),)
+        async for r in handler(event, *args_tuple):
             yield r
+
+    # 关键: 在 @filter.command 应用前重命名,让每个 handler 在 star_handlers_registry 里独立
+    _ns_handler.__name__ = f"_ns_handler_{cmd_attr}"
+    # 同时把 desc 写到 __doc__,register/star_handler.py:63 优先从 docstring 取 desc
+    if desc:
+        _ns_handler.__doc__ = desc
+    return filter.command(name, desc=desc)(_ns_handler)
     return _handler
 
 
@@ -389,9 +415,25 @@ class EmotionSpiritPlugin(Star):
     def _load_persona_state(self) -> None:
         persona_data = self._store.get("persona", {})
         if self._is_persona_initialized(persona_data):
+            saved_persona_id = persona_data.get("persona_id", "")
+            config_persona = self._config.get("auto_source", "")
+            # 优先级: 持久化是 sentinel 占位 + config 显式指定了真实 persona
+            # → 视为首次启动,config 优先,让 /setup_init 走正常路径
+            if (
+                config_persona
+                and saved_persona_id in _SENTINEL_PERSONA_IDS
+                and config_persona not in _SENTINEL_PERSONA_IDS
+            ):
+                logger.info(
+                    "emotion_spirit: config 指定 '%s' 覆盖持久化占位 %r,"
+                    "使用 config 路径",
+                    config_persona, saved_persona_id,
+                )
+                self._persona_initialized = False
+                self._labels = {}
+                return
             self._persona_initialized = True
             self._labels = dict(persona_data.get("labels", {}))
-            saved_persona_id = persona_data.get("persona_id")
             if saved_persona_id:
                 self._current_persona = saved_persona_id
             logger.info(
@@ -446,9 +488,22 @@ class EmotionSpiritPlugin(Star):
                 "emotion_spirit: 检测到老数据但无 persona 配置, 使用默认 labels (ISTJ-安全型)。"
                 "请用 /setup_relabel 调整为正确 persona。"
             )
+        # 关键: 如果 _current_persona 是 sentinel 占位符(说明没真正选过),
+        # 不能假装"已初始化" — 否则会污染后续 restart 的 _load_persona_state 路径。
+        # 保留 labels 供 /view 类参考,但 persona_initialized 留 False,等用户显式初始化。
+        if self._current_persona in _SENTINEL_PERSONA_IDS:
+            logger.warning(
+                "emotion_spirit: 迁移完成但 _current_persona 是占位符 %r,"
+                "labels 暂用 ISTJ 默认值 (mbti=%s),"
+                "persona_initialized 留 False,等待 /setup_init 或 /setup_switch",
+                self._current_persona, labels.get("mbti"),
+            )
+            self._labels = labels
+            self._persona_initialized = False
+            return
         self._store.set("persona", {
             "initialized": True,
-            "persona_id": self._current_persona or "unknown",
+            "persona_id": self._current_persona,
             "labels": labels,
             "initialized_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": 1,
@@ -761,18 +816,18 @@ class EmotionSpiritPlugin(Star):
     # - reflect_* (5): 内省 (drift / sentinel / shadows / diary / patterns)
     # v1.x 旧 /spirit_* 入口已删 (v1 无外部用户, spec §1.3).
 
-    setup_init_cmd = _ns_command("setup_init", "setup_init")
-    setup_relabel_cmd = _ns_command("setup_relabel", "setup_relabel")
-    setup_switch_cmd = _ns_command("setup_switch", "setup_switch")
-    setup_list_cmd = _ns_command("setup_list", "setup_list")
-    view_status_cmd = _ns_command("view_status", "view_status")
-    view_detail_cmd = _ns_command("view_detail", "view_detail")
-    view_whoami_cmd = _ns_command("view_whoami", "view_whoami")
-    reflect_drift_cmd = _ns_command("reflect_drift", "reflect_drift")
-    reflect_sentinel_cmd = _ns_command("reflect_sentinel", "reflect_sentinel")
-    reflect_shadows_cmd = _ns_command("reflect_shadows", "reflect_shadows")
-    reflect_diary_cmd = _ns_command("reflect_diary", "reflect_diary")
-    reflect_patterns_cmd = _ns_command("reflect_patterns", "reflect_patterns")
+    setup_init_cmd = _ns_command("setup_init", "setup_init", "初始化当前人格参数。仅 auto 模式需要手动调用。")
+    setup_relabel_cmd = _ns_command("setup_relabel", "setup_relabel", "两阶段调整人格标签。")
+    setup_switch_cmd = _ns_command("setup_switch", "setup_switch", "切换到指定人格。")
+    setup_list_cmd = _ns_command("setup_list", "setup_list", "列出所有可用人格。")
+    view_status_cmd = _ns_command("view_status", "view_status", "查看 emotion_spirit 状态。")
+    view_detail_cmd = _ns_command("view_detail", "view_detail", "查看人格的完整 13 维参数。")
+    view_whoami_cmd = _ns_command("view_whoami", "view_whoami", "查看当前人格标签 (5 轴标签概览)。")
+    reflect_drift_cmd = _ns_command("reflect_drift", "reflect_drift", "查看人格漂移状态。")
+    reflect_sentinel_cmd = _ns_command("reflect_sentinel", "reflect_sentinel", "查看预警状态。")
+    reflect_shadows_cmd = _ns_command("reflect_shadows", "reflect_shadows", "查看阴影检测。")
+    reflect_diary_cmd = _ns_command("reflect_diary", "reflect_diary", "手动生成日记。")
+    reflect_patterns_cmd = _ns_command("reflect_patterns", "reflect_patterns", "查看行为模式。")
 
     # ═══ 内部方法: 持久化 ═══
 
