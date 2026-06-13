@@ -1,8 +1,12 @@
 name: CI
 
 # Trigger: every push to main + every pull request to main
-# Purpose: run the full 612-test suite across Python 3.11/3.12/3.13
+# Purpose: run the full test suite across Python 3.11/3.13 AND
+#          AstrBot 4.9.2 / 4.14.6 / 4.25.5 (R1 from ECOSYSTEM_EVAL_2026-06-13).
 # This is the PR-time test gate that the v2.0.0 release previously lacked.
+# The AstrBot matrix is the **breaking-change early warning**: if AstrBot
+# upstream changes command/handler/persistence semantics, we want CI red
+# BEFORE the user installs a new AstrBot and finds emotion_spirit broken.
 
 on:
   push:
@@ -15,12 +19,17 @@ permissions:
 
 jobs:
   test:
-    name: Tests (Python ${{ matrix.python-version }})
+    name: Tests (Python ${{ matrix.python-version }} × AstrBot ${{ matrix.astrbot-version }})
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false  # run all matrix versions even if one fails
+      fail-fast: false  # run all matrix combos even if one fails
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.13']
+        astrbot-version: ['4.9.2', '4.14.6', '4.25.5']
+        # AstrBot 4.25.5 requires Python >=3.12 → skip the 3.11 + 4.25.5 combo
+        exclude:
+          - python-version: '3.11'
+            astrbot-version: '4.25.5'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,9 +42,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install package + dev dependencies
+      # AstrBot 4.9.2 / 4.14.6 are on PyPI; 4.25.5 is GitHub-only.
+      # Pin the install source per matrix entry.
+      - name: Install AstrBot ${{ matrix.astrbot-version }}
         run: |
           python -m pip install --upgrade pip
+          if [[ "${{ matrix.astrbot-version }}" == "4.25.5" ]]; then
+            # AstrBotDevs org renamed in 2026 — PyPI only has up to 4.14.6
+            pip install "astrbot @ git+https://github.com/AstrBotDevs/AstrBot@v${{ matrix.astrbot-version }}"
+          else
+            pip install "astrbot==${{ matrix.astrbot-version }}"
+          fi
+
+      - name: Install package + dev dependencies
+        run: |
           pip install -e ".[dev]"
 
       - name: Run tests
@@ -46,7 +66,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-results-${{ matrix.python-version }}
+          name: pytest-results-py${{ matrix.python-version }}-astrbot${{ matrix.astrbot-version }}
           path: |
             .pytest_cache/
             **/test-*.xml
