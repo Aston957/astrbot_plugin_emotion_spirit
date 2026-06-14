@@ -43,10 +43,17 @@ dev = [
 ]
 
 [tool.setuptools]
+# 显式列出所有子包, 避免 setuptools find() 漏掉
+# v3.0 加 bridge (Phase B), v3.0.1 R3 加 sylanne (重命名自 sylanne_core)
 packages = [
   "emotion_spirit",
-  "emotion_spirit.core", "emotion_spirit.memory",
-  "emotion_spirit.regulation", "emotion_spirit.output",
+  "emotion_spirit.core",
+  "emotion_spirit.memory",
+  "emotion_spirit.regulation",
+  "emotion_spirit.output",
+  "emotion_spirit.bridge",
+  "emotion_spirit.sylanne",
+  "emotion_spirit.sylanne.compute",
 ]
 include-package-data = true
 
