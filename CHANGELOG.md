@@ -111,6 +111,20 @@
   3. 拖拽整个仓库 (不推荐, 16.7 MB 含开发资料)
 - 章节明确列出"zip 包含"和"zip 不包含"的文件清单
 
+### Added
+
+#### R2: v3.1+ 公开 spec ([`docs/emotion-spirit-v31-design.md`](docs/emotion-spirit-v31-design.md), 2026-06-14)
+- **6 大目标** 按优先级排序:
+  - P0: MemoryPool v2 索引优化(性能)
+  - P0: API deprecation policy(可维护性)
+  - P1: Telemetry opt-in(真实使用信号)
+  - P1: Phase 5+ Dream Generator 实施(新功能)
+  - P2: E2E + mutation testing(测试可信度)
+  - P2: PyPI 公开发布(突破私仓)
+- **Timeline**: v3.1.0 目标 2026-09-01(从 alpha.1 起 4 个里程碑)
+- **兼容性承诺**: 配置/数据/公开 API 100% 保持(只新增不删除)
+- **Status**: 📥 Proposed, 待评审 + 实施
+
 ### Changed
 
 #### R3: `sylanne_core` → `sylanne` 重命名 (per [ADR-0008](docs/adr/0008-rename-sylanne-core-to-sylanne.md), 2026-06-14)
