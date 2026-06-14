@@ -22,7 +22,7 @@ from .utils import safe_filename
 if TYPE_CHECKING:
     from ..config import DimensionProfile
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 
 class AlphaRuntime:

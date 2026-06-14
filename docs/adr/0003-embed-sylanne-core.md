@@ -56,5 +56,5 @@ Chosen option: **B**,因为:
 ## More Information
 
 * 实施于 v3.0.0v1 (2026-06-09), Phase F "SylannEngine 嵌入"
-* 后续: ADR-0003 计划 2026-Q3 由 R3 跟进 — `sylanne_core` 重命名为 `sylanne`(消除 namespace 冲突)
+* 后续: [ADR-0008](0008-rename-sylanne-core-to-sylanne.md) 已于 2026-06-14 实施 `sylanne_core` → `sylanne` 重命名
 * 相关: [[emotion-spirit-v3-merger-plan]] Phase F

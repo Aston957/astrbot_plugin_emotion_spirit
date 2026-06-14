@@ -7,7 +7,7 @@ import time
 from collections import OrderedDict
 from typing import Any
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 
 class BoundedDict(OrderedDict[Any, Any]):

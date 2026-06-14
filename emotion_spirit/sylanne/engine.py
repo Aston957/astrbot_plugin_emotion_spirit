@@ -6,7 +6,7 @@ to obtain a pre-configured instance.
 
 Typical usage::
 
-    from sylanne_core import SylanneEngine, SylanneConfig
+    from sylanne import SylanneEngine, SylanneConfig
 
     engine = SylanneEngine(data_dir="./data", llm=my_llm_fn)
     await engine.start()
@@ -31,7 +31,7 @@ from .compute.utils import safe_filename
 from .config import SylanneConfig
 from .types import EngineStatus, HealthStatus, Surface
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 
 class SharedEngineConflictError(Exception):

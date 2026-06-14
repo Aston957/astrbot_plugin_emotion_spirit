@@ -22,7 +22,7 @@ def safe_filename(session_key: str) -> str:
     return "".join(parts) or "default"
 
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 
 def safe_ensure_future(

@@ -7,7 +7,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 _SYSTEM_PROMPT = """你是一个文本情感分类器。分析用户输入的文本，返回 JSON 格式的评估结果。
 

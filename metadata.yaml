@@ -10,6 +10,6 @@ support_platforms:
   - qq_official
 astrbot_version: ">=4.9.2,<5"
 
-# SylannEngine 已内嵌到 emotion_spirit/sylanne_core/，不再需要外部插件依赖
-# (v3.0.0 Phase F: SylannEngine.shared() 单例模式, 46 模块内嵌)
+# SylannEngine 已内嵌到 emotion_spirit/sylanne/，不再需要外部插件依赖
+# (v3.0.0 Phase F: SylannEngine.shared() 单例模式, 46 模块内嵌; 2026-06-14 R3 从 sylanne_core 重命名为 sylanne)
 # requires_plugins 已移除 — 原因: 会导致 AstrBot 强制要求安装已不需要的外部插件

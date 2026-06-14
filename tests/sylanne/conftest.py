@@ -1,4 +1,4 @@
-"""conftest.py for sylanne_core tests — sets up astrbot mock before collection."""
+"""conftest.py for sylanne tests — sets up astrbot mock before collection."""
 
 import sys
 import types

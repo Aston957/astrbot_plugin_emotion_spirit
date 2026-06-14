@@ -55,7 +55,7 @@ except ImportError:
 if TYPE_CHECKING:
     from ..config import DimensionProfile
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 # 各 alpha 层的 schema 版本标识，用于前向兼容检查
 SCHEMA_RELATIONAL_TIME_VERSION = "sylanne.alpha.relational_time.v1"

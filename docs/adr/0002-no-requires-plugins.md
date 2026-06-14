@@ -27,7 +27,7 @@ v3.0 (Phase F) 把 SylannEngine 46 模块内嵌后,`requires_plugins` 被移除�
 
 Chosen option: **B**,因为:
 
-v3.0 把 SylannEngine 46 模块嵌入 `emotion_spirit/sylanne_core/`,功能完全自包含。继续声明 `requires_plugins` 会让 AstrBot 在用户没装 SylannEngine 时报错(虽然不需要),造成**死锁级安装问题**。
+v3.0 把 SylannEngine 46 模块嵌入 `emotion_spirit/sylanne/`,功能完全自包含(per [ADR-0008](0008-rename-sylanne-core-to-sylanne.md),`sylanne_core` 已于 2026-06-14 重命名为 `sylanne`)。继续声明 `requires_plugins` 会让 AstrBot 在用户没装 SylannEngine 时报错(虽然不需要),造成**死锁级安装问题**。
 
 ### Positive Consequences
 

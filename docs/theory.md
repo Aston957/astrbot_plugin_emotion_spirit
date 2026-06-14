@@ -10,7 +10,7 @@
 
 ### 1.1 弗洛伊德人格结构 (Id / Ego / Superego)
 
-emotion_spirit 整体架构的隐喻来源。SylannEngine (sylanne_core 已内嵌于 v3.0) 处理 Id (即时情感, ms ~ hr), emotion_spirit v3.0 处理 Ego (长期记忆 + 人格演化, hr ~ month) + Superego (价值对齐 + 良心压力, 贯穿).
+emotion_spirit 整体架构的隐喻来源。SylannEngine (sylanne 已内嵌于 v3.0) 处理 Id (即时情感, ms ~ hr), emotion_spirit v3.0 处理 Ego (长期记忆 + 人格演化, hr ~ month) + Superego (价值对齐 + 良心压力, 贯穿).
 
 **Source**: Freud, S. (1923). *Das Ich und das Es* (The Ego and the Id).
 

@@ -574,7 +574,7 @@ class EmotionSpiritPlugin(Star):
     async def _start_engine_shared(self, llm) -> None:
         """通过 SylanneEngine.shared() 获取共享引擎并注册监听器。"""
         try:
-            from emotion_spirit.sylanne_core import SylanneEngine, SylanneConfig
+            from emotion_spirit.sylanne import SylanneEngine, SylanneConfig
 
             data_dir = str(Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit" / "sylanne_sessions")
             config = SylanneConfig(mode="lite")
@@ -597,7 +597,7 @@ class EmotionSpiritPlugin(Star):
                 pass
             # 释放共享实例（flush 落盘 + 关闭）
             try:
-                from emotion_spirit.sylanne_core import SylanneEngine
+                from emotion_spirit.sylanne import SylanneEngine
                 data_dir = str(Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit" / "sylanne_sessions")
                 await SylanneEngine.release_shared(data_dir)
             except Exception:

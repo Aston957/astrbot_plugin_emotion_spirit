@@ -86,7 +86,7 @@ def test_no_third_party_imports():
     }
     local_top_levels = local_modules | repo_root_modules | {
         "emotion_spirit", "core", "memory", "regulation", "output",
-        "bridge", "sylanne_core",
+        "bridge", "sylanne",
     }
     allowed_prefixes = (
         "__future__",
@@ -104,8 +104,8 @@ def test_no_third_party_imports():
     for py_file in emotion_spirit_dir.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
-        # sylanne_core 是内嵌第三方库，有自己的依赖 (numpy/torch 等)，跳过
-        if "sylanne_core" in str(py_file):
+        # sylanne 是内嵌第三方库，有自己的依赖 (numpy/torch 等)，跳过
+        if "sylanne" in str(py_file):
             continue
         try:
             tree = ast.parse(py_file.read_text(encoding="utf-8"))

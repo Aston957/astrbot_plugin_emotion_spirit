@@ -21,10 +21,10 @@ class TestEngineManager:
         assert em._started is False
 
     def test_start_graceful(self):
-        """start() 不管 sylanne_core 是否可用都不报错。"""
+        """start() 不管 sylanne 是否可用都不报错。"""
         em = EngineManager()
         result = em.start()
-        # sylanne_core 可能可用也可能不可用, 但不应该抛异常
+        # sylanne 可能可用也可能不可用, 但不应该抛异常
         assert isinstance(result, bool)
 
     def test_stop_when_not_started(self):

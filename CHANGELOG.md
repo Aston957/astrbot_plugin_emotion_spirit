@@ -111,6 +111,21 @@
   3. 拖拽整个仓库 (不推荐, 16.7 MB 含开发资料)
 - 章节明确列出"zip 包含"和"zip 不包含"的文件清单
 
+### Changed
+
+#### R3: `sylanne_core` → `sylanne` 重命名 (per [ADR-0008](docs/adr/0008-rename-sylanne-core-to-sylanne.md), 2026-06-14)
+- **`emotion_spirit/sylanne_core/`** → **`emotion_spirit/sylanne/`**: 物理隔离外部 Sylanne 插件, 消除 namespace 冲突风险
+- **`tests/sylanne_core/`** → **`tests/sylanne/`**: 测试目录同步重命名
+- **影响**:
+  - 公共 API: `from emotion_spirit.sylanne import SylanneEngine` (取代 `sylanne_core`)
+  - 旧路径 `emotion_spirit.sylanne_core` 已不可导入 (无 backward compat alias)
+- **新增测试**: `tests/test_namespace_isolation.py` (5 tests) 验证 namespace 隔离
+- **测试覆盖**: 856 → 861 tests, 0 regression, 全 861 通过
+- **破坏性**: 是 — 任何外部代码写 `emotion_spirit.sylanne_core` 会立即失败
+- **评估依据**: `ECOSYSTEM_EVAL_2026-06-13` R3 推荐 (单 plugin 范围内隐形 blocker)
+- **文档**: ADR-0008 记录决策; ADR-0002/0003/0005 引用更新; README/metadata.yaml/LICENSE 同步
+- **动机**: `sylanne` 比 `sylanne_core` 短 6 字符, 且与外部 `sylanne_alpha` 物理隔离
+
 ## [2.0.0v1] - 2026-06-09
 
 > **里程碑**: Phase 3 闭环 + Phase 4 Launch 收尾 (5 commits + 1 debt cleanup, 591→612 tests, 0 回归)

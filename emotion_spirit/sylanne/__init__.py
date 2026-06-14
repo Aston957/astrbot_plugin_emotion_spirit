@@ -4,7 +4,7 @@ Text in, structured emotional state out. Designed as an AstrBot plugin dependenc
 
 Quick start (standalone)::
 
-    from emotion_spirit.sylanne_core import SylanneEngine, SylanneConfig
+    from emotion_spirit.sylanne import SylanneEngine, SylanneConfig
 
     engine = SylanneEngine(data_dir="./data", llm=my_llm_fn)
     await engine.start()
@@ -14,7 +14,7 @@ Quick start (standalone)::
 
 Quick start (embedded)::
 
-    from emotion_spirit.sylanne_core import get_engine
+    from emotion_spirit.sylanne import get_engine
     engine = get_engine()  # pre-configured by plugin main.py
     surface = await engine.process(session_id, text)
 """

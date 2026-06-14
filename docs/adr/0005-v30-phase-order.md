@@ -23,7 +23,7 @@ emotion_spirit v3.0 (Phase A-I, 2026-Q2) 是一个 9 阶段的合并工程,涉�
 * **C → 向量空间** → 在统一记忆基础上做相似度检索
 * **D → 重构** → 利用 C 阶段的接口清理遗留
 * **E → 接入** → 公开 API 稳定化
-* **F → sylanne_core 内嵌** → 跟外部 Sylanne 解耦
+* **F → sylanne 内嵌**(当时名为 `sylanne_core`,已于 2026-06-14 R3 重命名)→ 跟外部 Sylanne 解耦
 * **G → LifeSimulator** → 在 memory + bridge 之上做高级功能
 * **H → on_llm_response hook** → AstrBot 集成
 * **I → 集成 + 发布** → v2.0.0v1 → v3.0.0v1 single release
@@ -37,7 +37,7 @@ Chosen option: **A→B→C→D→E→F→G→H→I 依赖深度排序**,因为:
 1. A 阶段产出"统一记忆",后续所有阶段都依赖
 2. B 阶段产出"Bridge 层",C/G/H 阶段都依赖
 3. C 阶段产出"向量空间",D 阶段的重构和 G 阶段的 LifeSimulator 都用
-4. F 阶段(sylanne_core 内嵌)放在中段,让 v3.0.0 中段可以测试"新旧两套"
+4. F 阶段(`sylanne` 内嵌,当时名为 `sylanne_core`,已于 2026-06-14 R3 重命名)放在中段,让 v3.0.0 中段可以测试"新旧两套"
 5. I 阶段(发布)放最后,所有功能稳定后再发版
 
 ### Positive Consequences

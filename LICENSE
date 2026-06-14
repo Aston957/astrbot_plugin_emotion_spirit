@@ -22,5 +22,5 @@ SOFTWARE.
 
 ---
 
-This software includes `sylanne_core/` from SylannEngine (https://github.com/Ayleovelle/SylannEngine),
+This software includes `sylanne/` (formerly `sylanne_core/`, renamed in 2026-06-14 R3) from SylannEngine (https://github.com/Ayleovelle/SylannEngine),
 used with permission from the original author under this MIT License.

@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from ..config import DimensionProfile
     from .social_field import SocialSignals
 
-logger = logging.getLogger("sylanne_core")
+logger = logging.getLogger("sylanne")
 
 _TIMING_WINDOW = 50
 # 单层执行超时告警阈值（纳秒），200ms

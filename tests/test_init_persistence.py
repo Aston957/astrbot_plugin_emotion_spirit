@@ -59,7 +59,7 @@ sys.modules["astrbot.core.utils.astrbot_path"] = astrbot_core_utils_astra_path_m
 astrbot_core_mock.utils = astrbot_core_utils_mock
 astrbot_core_utils_mock.astrbot_path = astrbot_core_utils_astra_path_mock
 
-# sylanne_core is now embedded in emotion_spirit — no mock needed
+# sylanne is now embedded in emotion_spirit — no mock needed
 
 from emotion_spirit.store import SpiritStore
 from astrbot_plugin_emotion_spirit.main import EmotionSpiritPlugin

@@ -1,7 +1,7 @@
 """EngineManager — SylannEngine 生命周期管理桥接。
 
 封装 SylannEngine 的初始化、消息处理、信号注入和状态读取。
-sylanne_core 已内嵌到 emotion_spirit.sylanne_core，无引擎时降级为纯 emotion_spirit 模式。
+sylanne 已内嵌到 emotion_spirit.sylanne，无引擎时降级为纯 emotion_spirit 模式。
 
 设计哲学:
   - SylannEngine 是可选的计算加速器, 不是必须依赖
@@ -25,7 +25,7 @@ __all__ = ["EngineManager"]
 class EngineManager:
     """SylannEngine 生命周期管理器。
 
-    所有 sylanne_core 访问通过 try/except 保护。
+    所有 sylanne 访问通过 try/except 保护。
     引擎不可用时所有方法优雅降级 (返回 None / 静默跳过)。
     """
 
@@ -46,12 +46,12 @@ class EngineManager:
     def start(self) -> bool:
         """启动引擎。返回是否成功。
 
-        try/except 保护: 没装 sylanne_core 就跳过。
+        try/except 保护: 没装 sylanne 就跳过。
         """
         if self._started:
             return True
         try:
-            from ..sylanne_core import get_engine
+            from ..sylanne import get_engine
             self._engine = get_engine()
             self._started = True
             logger.info("EngineManager: SylannEngine 连接成功")
