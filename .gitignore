@@ -43,3 +43,8 @@ Thumbs.db
 
 # secrets (即使有 allowlist,也保留 .gitignore 作冗余保护)
 data/cmd_config.json.bak
+
+# tests/output/ 误生成目录: 早期 pytest 会把 test 文件写到 tests/output/ 错位位置
+# 已在 2026-06-15 清理 (commit 26ed923), 14 个真 test 文件 move 到 tests/ 顶层
+# 保留此规则防重犯
+/tests/output/
