@@ -99,7 +99,7 @@ __all__ = [
     "SharedEngineConflictError",
     "get_engine",
 ]
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 
 
 def get_engine() -> SylanneEngine:

@@ -101,6 +101,7 @@ def test_t2_restart_recovers_persona_state():
         store2 = SpiritStore(tmpdir)
         store2.load()
         plugin._store = store2
+        plugin._config = {}  # v3.0.1 patch: _load_persona_state 现在读 self._config
         plugin._persona_initialized = False
         plugin._labels = {}
         plugin._current_persona = ""

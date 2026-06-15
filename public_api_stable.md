@@ -1,10 +1,10 @@
-# emotion_spirit Public API (v3.0.0)
+# emotion_spirit Public API (v3.0.1)
 
 > **稳定 API** = 跨 minor 版本保证不破坏。v3.0 引入的 API 在 v3.x 全程稳定。
 > **Internal API** = 可能在任意 minor 版本变更。仅 codebase 内部使用。
 > **Deprecated** = v1.x API, codebase 内部 deprecation, 不视为用户过渡 (v1 无用户).
 >
-> **版本**: v3.0.0 (PEP 440, per `emotion_spirit/_version.py`)
+> **版本**: v3.0.1 (PEP 440, per `emotion_spirit/_version.py`)
 > **维护**: 每次 minor 版本更新需同步检查, 新 stable API 需经过 1 个 minor 版本 deprecation 周期
 > **详情**: 完整 v2.0 设计见 [`docs/superpowers/specs/2026-06-08-phase-4-launch-design.md`](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md)
 

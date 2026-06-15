@@ -198,7 +198,7 @@ class TestVersionConsistency:
 
     def test_version_string(self):
         from emotion_spirit._version import __version__
-        assert __version__ == "3.0.0"
+        assert __version__ == "3.0.1"
 
     def test_metadata_version(self):
         import yaml
@@ -208,7 +208,7 @@ class TestVersionConsistency:
         )
         with open(meta_path, encoding="utf-8") as f:
             meta = yaml.safe_load(f)
-        assert meta["version"] == "3.0.0"
+        assert meta["version"] == "3.0.1"
 
 
 # ═══ 6. LifeEvent 事件类型完整性 ═══
