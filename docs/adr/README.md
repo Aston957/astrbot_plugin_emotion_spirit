@@ -15,6 +15,8 @@ emotion_spirit 项目的所有关键设计决策都记录在这里。
 | [ADR-0005](0005-v30-phase-order.md) | v3.0 Phase A-I 实施顺序 | ✅ Accepted | 2026-06-13 |
 | [ADR-0006](0006-v17-autonomy-guard-split.md) | v1.7 autonomy_guard 拆分 (11→12 维) | ✅ Accepted | 2026-06-13 |
 | [ADR-0007](0007-pre-commit-secret-scan.md) | pre-commit secret scan (vs CI-only) | ✅ Accepted | 2026-06-13 |
+| [ADR-0008](0008-rename-sylanne-core-to-sylanne.md) | `sylanne_core` → `sylanne` 重命名 (R3 实施) | ✅ Accepted | 2026-06-13 |
+| [ADR-0009](0009-v301-patch-lesson.md) | v3.0.1 patch 教训 — multi-file change checklist | ✅ Accepted | 2026-06-15 |
 
 ## 添加新 ADR
 
