@@ -19,6 +19,7 @@ emotion_spirit 项目的所有关键设计决策都记录在这里。
 | [ADR-0009](0009-v301-patch-lesson.md) | v3.0.1 patch 教训 — multi-file change checklist | ✅ Accepted | 2026-06-15 |
 | [ADR-0010](0010-v31-release-process.md) | v3.1 release 流程 — 5-phase alpha/beta/stable 标准化 | ✅ Accepted | 2026-06-15 |
 
+| 11 | [ADR-0011](0011-workflow-dependency-graph.md) | 18 flow 依赖图 — 运行时序治理视图 | ✅ Accepted | 2026-06-15 |
 ## 添加新 ADR
 
 1. 复制 `template.md`(MADR 模板)到 `NNNN-short-title.md`
