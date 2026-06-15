@@ -210,7 +210,7 @@ class SpiritStore:
         self._path = self._dir / _STORE_FILE
         self._data: dict[str, Any] = {}
         self._dirty = False
-        self._last_save_time: float = time.time()
+        self._last_save_time: float = time.time_ns() / 1e9  # nanosecond 分辨率, 防 Windows time.time() 15ms 粒度导致的 flaky test
 
         # 创建 4 NS typed accessor (共享 sub-dict 引用, _rebind_ns 内 setdefault)
         self._rebind_ns()
@@ -311,7 +311,7 @@ class SpiritStore:
                 os.fsync(f.fileno())
             os.replace(tmp, self._path)
             self._dirty = False
-            self._last_save_time = time.time()
+            self._last_save_time = time.time_ns() / 1e9  # nanosecond 分辨率
             # 清空 4 NS dirty
             self.pad_history.clear_dirty()
             self.pad_trajectory.clear_dirty()
