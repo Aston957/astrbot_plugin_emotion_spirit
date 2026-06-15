@@ -1,0 +1,36 @@
+emotion_spirit 数据收集摘要
+============================================================
+总轮次: 500
+耗时: 0.11s
+日志文件: surface_log_1780725785.csv
+
+全局场景分布:
+  daily_neutral            :  206 ( 41.2%)
+  safe_companionship       :  141 ( 28.2%)
+  intimacy_growth          :   62 ( 12.4%)
+  recovery                 :   54 ( 10.8%)
+  conflict                 :   25 (  5.0%)
+  cascading                :   11 (  2.2%)
+  boundary_invasion        :    1 (  0.2%)
+
+Persona 详情:
+
+INFP-A:
+  burst=7, recovery=9, peace=84
+  final intimacy_pull=0.987, autonomy_guard=0.646
+
+ISTJ-S:
+  burst=17, recovery=24, peace=59
+  final intimacy_pull=0.505, autonomy_guard=0.976
+
+ENTP-AV:
+  burst=4, recovery=6, peace=90
+  final intimacy_pull=0.534, autonomy_guard=0.977
+
+ISFJ-D:
+  burst=4, recovery=9, peace=87
+  final intimacy_pull=0.742, autonomy_guard=0.809
+
+ESTP-A:
+  burst=5, recovery=6, peace=89
+  final intimacy_pull=0.997, autonomy_guard=0.497

@@ -1,0 +1,39 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.13, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\Aston\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: D:\新建文件夹\emotion_spirit\now\astrbot_plugin_emotion_spirit\verification
+plugins: anyio-4.13.0, hypothesis-6.155.1
+collecting ... collected 28 items
+
+property_tests.py::test_resistance_bounded PASSED                        [  3%]
+property_tests.py::test_core_peripheral_separation PASSED                [  7%]
+property_tests.py::test_anchor_decay_monotonic PASSED                    [ 10%]
+property_tests.py::test_anchor_upper_bound PASSED                        [ 14%]
+property_tests.py::test_stress_boost_bound PASSED                        [ 17%]
+property_tests.py::test_fallback_linear PASSED                           [ 21%]
+property_tests.py::test_persona_switch_reset PASSED                      [ 25%]
+property_tests.py::test_pressure_bounded PASSED                          [ 28%]
+property_tests.py::test_pressure_decay_monotonic PASSED                  [ 32%]
+property_tests.py::test_repair_relief_ordering PASSED                    [ 35%]
+property_tests.py::test_alignment_reduces_pressure PASSED                [ 39%]
+property_tests.py::test_ideal_gap_bounded PASSED                         [ 42%]
+property_tests.py::test_reinforcement_bounded PASSED                     [ 46%]
+property_tests.py::test_ideal_gap_symmetry PASSED                        [ 50%]
+property_tests.py::test_alignment_score_bounded PASSED                   [ 53%]
+property_tests.py::test_alignment_monotonic_aligned PASSED               [ 57%]
+property_tests.py::test_intervention_levels PASSED                       [ 60%]
+property_tests.py::test_guard_empty_sentinel PASSED                      [ 64%]
+property_tests.py::test_critical_throttle PASSED                         [ 67%]
+property_tests.py::test_slope_window_safety PASSED                       [ 71%]
+property_tests.py::test_slope_increasing PASSED                          [ 75%]
+property_tests.py::test_slope_decreasing PASSED                          [ 78%]
+property_tests.py::test_drift_update_robust PASSED                       [ 82%]
+property_tests.py::test_tension_classification PASSED                    [ 85%]
+property_tests.py::test_righteous_threshold PASSED                       [ 89%]
+property_tests.py::test_no_conflict_no_tension PASSED                    [ 92%]
+property_tests.py::test_collapse_increases_pressure PASSED               [ 96%]
+property_tests.py::test_surface_defaults PASSED                          [100%]
+
+============================= 28 passed in 1.17s ==============================
+
