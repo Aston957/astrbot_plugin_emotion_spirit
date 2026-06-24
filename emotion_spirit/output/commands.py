@@ -375,10 +375,11 @@ class CommandImpl:
         features.append("阴影:ON" if self._p._enable_shadow else "阴影:OFF")
         features.append("预警:ON" if self._p._enable_sentinel else "预警:OFF")
         features.append("叙事:ON" if self._p._enable_narrative else "叙事:OFF")
-        if self._p._enable_life:
-            features.append(f"生活:{self._p._life_mode}")
-        else:
-            features.append("生活:OFF")
+        # Mode A (生活片段) + Mode B (主动对话)
+        mode_a = "ON" if getattr(self._p, '_enable_life_fragment', True) else "OFF"
+        mode_b = "ON" if getattr(self._p, '_enable_proactive_prompt', True) else "OFF"
+        features.append(f"生活片段:{mode_a}")
+        features.append(f"主动对话:{mode_b}")
 
         init_status = ""
         if self._p._persona_mode == "auto":
