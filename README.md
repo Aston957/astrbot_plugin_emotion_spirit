@@ -1,22 +1,22 @@
-# emotion_spirit v3.0.1
+# emotion_spirit v1.0.0
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-885%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-886%20passed-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
 [![AstrBot](https://img.shields.io/badge/astrbot-%3E%3D4.9.2-orange)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [版本: v2.0.0](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+[架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [Public API](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
 
 ---
 
 ## 架构说明 / Architecture
 
-v3.0.0 起，**SylannEngine 计算核心 (`sylanne`) 已内嵌到本插件**，无需单独安装外部插件。引擎在插件初始化时自动创建（需要 LLM provider 可用），无 LLM 时优雅降级为纯 emotion_spirit 模式。
+**SylannEngine 计算核心 (`sylanne`) 已内嵌到本插件**，无需单独安装外部插件。引擎在插件初始化时自动创建（需要 LLM provider 可用），无 LLM 时优雅降级为纯 emotion_spirit 模式。
 
 `sylanne` 包含 7 层计算脊柱（HDC → 预测编码 → 伤痕-空洞 → 关系层论 → HGT → 自创生 → 相变），源码来自 [SylannEngine](https://github.com/Ayleovelle/SylannEngine)，经作者授权以 MIT 许可使用。
 
@@ -29,7 +29,7 @@ v3.0.0 起，**SylannEngine 计算核心 (`sylanne`) 已内嵌到本插件**，�
 GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, 含 sylanne + KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-3.0.0.zip`
+2. 下载 `astrbot-plugin-emotion-spirit-1.0.0.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. 复制到 AstrBot 的 `data/plugins/` 目录
 5. 重启 AstrBot → 插件自动加载
@@ -59,16 +59,16 @@ pip install -e .[dev]
 
 ## 这是什么 / What is this
 
-emotion_spirit 是 AstrBot 生态的情感计算插件，负责"自我 + 超我"层。v3.0 起 SylannEngine 计算核心已内嵌（`sylanne`），无需外部依赖。插件构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、13 维人格演化、三元力学引擎、超我调控、LLM 生活模拟、bot 回复记忆等高级功能。
+emotion_spirit 是 AstrBot 生态的情感计算插件，负责"自我 + 超我"层。SylannEngine 计算核心已内嵌（`sylanne`），无需外部依赖。插件构建四层长期记忆（缓冲池 / 温池 / 冷池 / 幽灵）、13 维人格演化、三元力学引擎、超我调控、LLM 生活模拟、bot 回复记忆等高级功能。
 
-emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for the "ego + superego" layer. Since v3.0, the SylannEngine compute core (`sylanne`) is embedded — zero external dependencies. The plugin builds a four-tier long-term memory, 13-dimensional personality evolution, three-force dynamics engine, superego regulation, LLM life simulation, and bot-reply memory.
+emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for the "ego + superego" layer. The SylannEngine compute core (`sylanne`) is embedded — zero external dependencies. The plugin builds a four-tier long-term memory, 13-dimensional personality evolution, three-force dynamics engine, superego regulation, LLM life simulation, and bot-reply memory.
 
 ```
 弗洛伊德           实现                  时间尺度
 ────────────────────────────────────────────────
 本我 (Id)          sylanne (内嵌)   ms ~ hr
-自我 (Ego)         emotion_spirit v3.0   hr ~ month
-超我 (Superego)    emotion_spirit v3.0   贯穿
+自我 (Ego)         emotion_spirit        hr ~ month
+超我 (Superego)    emotion_spirit        贯穿
 ```
 
 ## 核心能力 / Key Features
@@ -122,7 +122,7 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 
 - AstrBot v4.9.2+
 - Python >= 3.11
-- ~~SylannEngine v1.0.0rc1+ 插件~~ (v3.0.0 起 sylanne 已内嵌，无需安装)
+- ~~SylannEngine v1.0.0rc1+ 插件~~ (sylanne 已内嵌，无需安装)
 
 ### 通过 pip (推荐, **v2.0 新**)
 
@@ -133,14 +133,14 @@ pip install -e .[dev]
 
 # 验证
 python -c "import emotion_spirit; print(emotion_spirit.__version__)"
-# 期望: 3.0.0
+# 期望: 1.0.0
 ```
 
 ### 通过 AstrBot 拖拽 (传统)
 
 1. 将 `emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/` 目录(从 Release zip 解压后得到的就是这个)
 2. 重启 AstrBot
-3. 插件自动加载 (v3.0 起 sylanne 已内嵌，无需额外安装)
+3. 插件自动加载 (sylanne 已内嵌，无需额外安装)
 
 ### KB 数据 / KB Data (自动加载 / Auto-loaded, **v2.0 新**)
 
@@ -323,7 +323,7 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 emotion_spirit/
 ├── __init__.py                # 公开 API 入口 + _DeprecatedImportFinder (C3) + PEP 440 version (C2)
 ├── layer.py                   # 抽象基类 (留根)
-├── _version.py                # PEP 440 version 真相源 (3.0.0)
+├── _version.py                # PEP 440 version 真相源 (1.0.0)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
 ├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)
@@ -375,19 +375,19 @@ emotion_spirit/
 │   ├── predictive_sentinel.py # 预警
 │   ├── buffer_signals.py      # 缓冲池信号
 │   ├── trend_utils.py         # EMA 工具
-│   ├── realtime_dispatch.py   # 实时调度 (v3.0 新)
-│   └── rhythm_learner.py      # 节奏学习 (v3.0 新)
-├── bridge/                    # v3.0 新: SylannEngine 桥接层 (3 modules)
+│   ├── realtime_dispatch.py   # 实时调度
+│   └── rhythm_learner.py      # 节奏学习
+├── bridge/                    # SylannEngine 桥接层 (3 modules)
 │   ├── engine_manager.py      # 引擎管理器 (inject/process_async)
 │   ├── personality_bridge.py  # 5D→12D 人格映射
 │   └── hotpool_forwarder.py   # 热池转发器
-├── migrations/                # v3.0.1 新: 配置迁移框架 (5 modules)
+├── migrations/                # 配置迁移框架 (5 modules)
 │   ├── registry.py            # @register_migration 装饰器
 │   ├── state.py               # MigrationState 持久化
 │   ├── runner.py              # run_migrations() 主逻辑
 │   └── rules/
-│       └── v3_0_to_v3_1.py    # v3.0→v3.1 迁移规则 (2 条)
-└── sylanne/              # v3.0 新: SylannEngine 计算核心内嵌 (46 modules)
+│       └── v3_0_to_v3_1.py    # 配置迁移规则 (2 条)
+└── sylanne/              # SylannEngine 计算核心内嵌 (46 modules)
     ├── adapter.py             # 引擎适配器
     ├── algebra.py             # 代数运算
     ├── compute/               # 7 层计算脊柱 (HDC→预测编码→伤痕-空洞→关系层论→HGT→自创生→相变)
@@ -398,11 +398,11 @@ emotion_spirit/
 
 ## v2.0 → v1.x 版本映射 / Versioning
 
-| v3.0 (2026-06) | v2.0 (2026-06) | v1.x (历史) | 变化 |
+| v1.0.0 (2026-06) | v2.0 (2026-06) | v1.x (历史) | 变化 |
 |----------------|----------------|------------|------|
-| 104 modules (58 core + 46 sylanne) | 30 modules | 38 modules 平铺 | v3.0 sylanne 内嵌 |
+| 104 modules (58 core + 46 sylanne) | 30 modules | 38 modules 平铺 | sylanne 内嵌 |
 | 885 tests | 612 tests | ~250 tests | 持续增长 |
-| SylannEngine 内嵌 | 外部依赖 | 外部依赖 | v3.0 零外部依赖 |
+| SylannEngine 内嵌 | 外部依赖 | 外部依赖 | 零外部依赖 |
 | LLM LifeSimulator | stub | 无 | v3.0 LLM 生活模拟 |
 | on_llm_response | 无 | 无 | v3.0 bot 回复记忆 |
 | 13 维人格 | 12 维 | 11 维 | v1.7 +gossip_tendency |
