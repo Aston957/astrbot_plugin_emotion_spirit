@@ -606,12 +606,17 @@ class CommandImpl:
 
         # 获取当前人格 (从 labels 转换)
         labels = self._p._labels
-        logger.info(f"[view_force] labels={labels}, persona_initialized={self._p._persona_initialized}")
         if not labels or not any(labels.values()):
             yield event.plain_result("⚠️ 未初始化人格，请先发送 /setup_init")
             return
 
-        personality = labels_to_personality(labels)
+        personality_raw = labels_to_personality(labels)
+        # 展平 deep + surface 为 flat dict
+        personality = {}
+        if isinstance(personality_raw, dict):
+            for section in personality_raw.values():
+                if isinstance(section, dict):
+                    personality.update(section)
 
         # 计算力学状态
         body_state = self._p._consumer._latest_body if hasattr(self._p._consumer, '_latest_body') else None
@@ -629,10 +634,10 @@ class CommandImpl:
         lines.append(f"\n主导力: {dominant} ({forces[dominant]:.3f})")
 
         # 13 维到力的映射
-        from emotion_spirit.regulation.force_dynamics import DIM_FORCE
+        from emotion_spirit.core.knowledge import KnowledgeBase
         lines.append(f"\n📊 13 维→力映射:")
         dim_groups = {"natural": [], "social": [], "individual": []}
-        for dim, force_type in DIM_FORCE.items():
+        for dim, force_type in KnowledgeBase.DIM_FORCE.items():
             if dim in personality:
                 dim_groups[force_type].append((dim, personality[dim]))
 
