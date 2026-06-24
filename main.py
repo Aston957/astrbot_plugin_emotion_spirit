@@ -342,6 +342,8 @@ class EmotionSpiritPlugin(Star):
         view.command("status", help_text="状态总览")(self._cmd.view_status)
         view.command("detail", help_text="11 维参数详情")(self._cmd.view_detail)
         view.command("whoami", help_text="当前 persona")(self._cmd.view_whoami)
+        view.command("memory", help_text="记忆池条目摘要")(self._cmd.view_memory)
+        view.command("force", help_text="三元力学状态")(self._cmd.view_force)
 
         reflect = self._router.namespace("reflect")
         reflect.command("drift", help_text="漂移趋势")(self._cmd.reflect_drift)
@@ -916,6 +918,8 @@ class EmotionSpiritPlugin(Star):
     view_status_cmd = _ns_command("view_status", "view_status", "查看 emotion_spirit 状态。")
     view_detail_cmd = _ns_command("view_detail", "view_detail", "查看人格的完整 13 维参数。")
     view_whoami_cmd = _ns_command("view_whoami", "view_whoami", "查看当前人格标签 (5 轴标签概览)。")
+    view_memory_cmd = _ns_command("view_memory", "view_memory", "显示当前用户记忆池条目摘要。")
+    view_force_cmd = _ns_command("view_force", "view_force", "三元力学状态 + 13 维→力映射。")
     reflect_drift_cmd = _ns_command("reflect_drift", "reflect_drift", "查看人格漂移状态。")
     reflect_sentinel_cmd = _ns_command("reflect_sentinel", "reflect_sentinel", "查看预警状态。")
     reflect_shadows_cmd = _ns_command("reflect_shadows", "reflect_shadows", "查看阴影检测。")

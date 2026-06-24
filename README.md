@@ -287,13 +287,15 @@ pressure = tracker.get_pressure()
 | `/setup_switch <name>` | 切换人格 | PersonaProfile (L1) |
 | `/setup_list` | 列出所有人格 | PersonaProfile (L1) |
 
-### `view_*` ns (3 命令) — 状态查看
+### `view_*` ns (5 命令) — 状态查看
 
 | 命令 | 说明 | 依赖模块 |
 |------|------|----------|
 | `/view_status` | 查看系统状态 (含三元力学 + ConscienceTracker B2) | PublicAPI (L3) |
 | `/view_detail` | 查看 13 维参数详情 | PersonaProfile (L1) |
 | `/view_whoami` | 查看 5 轴人格标签 | PersonaProfile (L1) |
+| `/view_memory` | 显示当前用户 buffer/warm/cold 条目摘要 | MemoryPool (L1) |
+| `/view_force` | 三元力学状态 + 13 维→力映射 | ForceDynamics (L2) |
 
 ### `reflect_*` ns (5 命令) — 内省
 

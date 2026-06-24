@@ -562,3 +562,78 @@ class CommandImpl:
             lines.append(f"  [{p.pattern_type}] {', '.join(p.tags)} (次数: {p.count})")
 
         yield event.plain_result("\n".join(lines))
+
+    # ═══ /view 扩展命令 ═══
+
+    async def view_memory(self, event: AstrMessageEvent) -> None:
+        """显示当前用户 buffer/warm/cold 条目摘要。"""
+        pool = self._p._pool
+        user_id = event.get_sender_id()
+
+        # 按用户过滤条目
+        user_buffer = [e for e in pool.buffer if e.source_user == user_id]
+        user_warm = [e for e in pool.warm if e.source_user == user_id]
+        user_cold = [e for e in pool.cold if e.source_user == user_id]
+        user_ghosts = [e for e in pool.ghosts if e.source_user == user_id]
+
+        lines = ["🧠 记忆池状态"]
+        lines.append(f"缓冲池: {len(pool.buffer)} 条 (你: {len(user_buffer)})")
+        lines.append(f"温池: {len(pool.warm)} 条 (你: {len(user_warm)})")
+        lines.append(f"冷池: {len(pool.cold)} 条 (你: {len(user_cold)})")
+        lines.append(f"幽灵: {len(pool.ghosts)} 条 (你: {len(user_ghosts)})")
+
+        # 显示最近的 buffer 条目
+        if user_buffer:
+            lines.append(f"\n📝 最近 buffer 条目 (最多 5 条):")
+            for e in sorted(user_buffer, key=lambda x: x.created_at, reverse=True)[:5]:
+                text_preview = e.text[:40] + "..." if len(e.text) > 40 else e.text
+                lines.append(f"  [{e.tier}] {text_preview} (权重: {e.weight:.2f})")
+
+        # 显示最近的 warm 条目
+        if user_warm:
+            lines.append(f"\n🔥 最近 warm 条目 (最多 3 条):")
+            for e in sorted(user_warm, key=lambda x: x.created_at, reverse=True)[:3]:
+                text_preview = e.text[:40] + "..." if len(e.text) > 40 else e.text
+                lines.append(f"  {text_preview} (权重: {e.weight:.2f})")
+
+        yield event.plain_result("\n".join(lines))
+
+    async def view_force(self, event: AstrMessageEvent) -> None:
+        """三元力学状态 + 13 维→力映射。"""
+        from emotion_spirit.regulation.force_dynamics import ForceDynamics
+
+        # 获取当前人格
+        personality = self._p._parsed_drives
+        if not personality:
+            yield event.plain_result("⚠️ 未初始化人格，请先发送 /setup_init")
+            return
+
+        # 计算力学状态
+        body_state = self._p._consumer._latest_body if hasattr(self._p._consumer, '_latest_body') else None
+        pressure = self._p._conscience.get_pressure()
+        force = ForceDynamics().compute(personality, body_state, pressure)
+
+        lines = ["⚡ 三元力学状态"]
+        lines.append(f"自然 (natural):   {force.natural:.3f}")
+        lines.append(f"社会 (social):    {force.social:.3f}")
+        lines.append(f"个体 (individual): {force.individual:.3f}")
+
+        # 找出主导力
+        forces = {"自然": force.natural, "社会": force.social, "个体": force.individual}
+        dominant = max(forces, key=forces.get)
+        lines.append(f"\n主导力: {dominant} ({forces[dominant]:.3f})")
+
+        # 13 维到力的映射
+        from emotion_spirit.regulation.force_dynamics import DIM_FORCE
+        lines.append(f"\n📊 13 维→力映射:")
+        dim_groups = {"natural": [], "social": [], "individual": []}
+        for dim, force_type in DIM_FORCE.items():
+            if dim in personality:
+                dim_groups[force_type].append((dim, personality[dim]))
+
+        for force_type, dims in dim_groups.items():
+            if dims:
+                dims_str = ", ".join(f"{d}={v:.2f}" for d, v in dims[:3])
+                lines.append(f"  {force_type}: {dims_str}")
+
+        yield event.plain_result("\n".join(lines))

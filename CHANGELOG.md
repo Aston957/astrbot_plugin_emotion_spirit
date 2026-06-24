@@ -48,7 +48,7 @@
 - **LLM 集成**: `LifeSimulator.configure(llm_caller=)` 注入 LLM callable
 
 #### 输出层
-- **12 个命令**: setup_* (4) / view_* (3) / reflect_* (5)
+- **14 个命令**: setup_* (4) / view_* (5) / reflect_* (5)
 - **Prompt 注入**: `PromptInjector` 组装 system prompt
 - **日记生成**: `DiaryWriter` 定时生成 + 手动触发
 - **叙事身份**: `NarrativeIdentity` 月度叙事弧
