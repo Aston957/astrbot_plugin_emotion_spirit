@@ -18,6 +18,7 @@ emotion_spirit/                          # 总根: 5 个 root 文件 + 6 个子�
 ├── regulation/     (13 modules)        ← L2 调控: 超我 + 力学 + 漂移 + 模拟
 ├── output/         (16 modules)        ← L3 输出: prompt 注入 + 命令 + 决策
 ├── bridge/         (4 modules)         ← 桥接: Sylanne 引擎对接 (L3 ↔ Sylanne)
+├── migrations/     (5 modules)         ← 配置迁移: @register_migration + Runner + State
 └── sylanne/        (46 modules)        ← 内嵌 SylannEngine 引擎
     ├── (13 top-level) algebra / engine / expression / ...
     └── compute/   (33 sub-modules)   HDC / 伤痕 / 虚空 / 自创生 / ...
@@ -38,6 +39,7 @@ emotion_spirit/                          # 总根: 5 个 root 文件 + 6 个子�
 | `regulation/` | 内在调控 | bot 内心怎么处理?有没有挣扎? | 依赖 memory,被 output 读 |
 | `output/` | 对外表现 | bot 怎么说话?什么时候说话? | 依赖 memory + regulation |
 | `bridge/` | 引擎桥接 | Sylanne 引擎怎么接进来? | 依赖 memory + regulation,被 output 调 |
+| `migrations/` | 配置迁移 | 老配置怎么升级到新 schema? | 独立,被 main.py 调用 |
 | `sylanne/` | 计算引擎 | 即时情感怎么算? | 独立,只通过 bridge 对接 |
 
 ### 0.3 层间调用关系图
@@ -89,6 +91,7 @@ emotion_spirit/                          # 总根: 5 个 root 文件 + 6 个子�
 | regulation/ | 13 | ~600 | ~7.8K |
 | output/ | 16 | ~500 | ~8.0K |
 | bridge/ | 4 | ~400 | ~1.6K |
+| migrations/ | 5 | ~200 | ~1.5K |
 | sylanne/(top) | 13 | ~1000 | ~13K |
 | sylanne/compute/ | 33 | ~400 | ~13K |
 | **总计** | **99** | | **~57K** |
@@ -711,6 +714,40 @@ emotion_spirit/                          # 总根: 5 个 root 文件 + 6 个子�
 ### 5.5 `bridge/` 总结
 
 `bridge/` 只有 4 个模块,体现了"**集成层要轻**"的设计哲学。引擎变化不应污染 emotion_spirit 主体,所以单独抽出来。
+
+---
+
+## §5.5 第二层:`migrations/` 配置迁移(5 modules)
+
+`migrations/` 是**配置迁移框架**，用于自动将老 config 迁移到新 schema。采用 Registry 模式，`@register_migration` 装饰器注册迁移规则。
+
+### 5.5.1 模块列表
+
+| 模块 | 功能 |
+|---|---|
+| `__init__.py` | 公开 API 入口 |
+| `registry.py` | `@register_migration` 装饰器 + `get_migrations()` + `get_latest_version()` |
+| `state.py` | `MigrationState` 持久化到 `data/migrations.json`（原子写盘） |
+| `runner.py` | `run_migrations()` 主逻辑，fail-soft 单条规则失败不阻塞 |
+| `rules/v3_0_to_v3_1.py` | v3.0→v3.1 迁移规则 (2 条: split_modes + rename) |
+
+### 5.5.2 核心 API
+
+```python
+@register_migration(from_version=1, to_version=2)
+def my_rule(config: dict) -> dict:
+    return config
+
+state = MigrationState(data_dir).load_or_init()
+new_config, new_state = run_migrations(config, state)
+```
+
+### 5.5.3 设计决策
+
+- **Registry 模式**: 可扩展，加新规则只追加代码
+- **Fail-soft**: 单条规则失败不阻塞其他规则
+- **写盘顺序**: config 先写，state 后写（幂等）
+- **集成点**: `main.py __init__` 中在 `build_modules()` 之前运行
 
 ---
 

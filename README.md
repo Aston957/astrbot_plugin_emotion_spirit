@@ -1,9 +1,9 @@
-# emotion_spirit v3.0.0
+# emotion_spirit v3.0.1
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-818%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-885%20passed-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
@@ -381,6 +381,12 @@ emotion_spirit/
 │   ├── engine_manager.py      # 引擎管理器 (inject/process_async)
 │   ├── personality_bridge.py  # 5D→12D 人格映射
 │   └── hotpool_forwarder.py   # 热池转发器
+├── migrations/                # v3.0.1 新: 配置迁移框架 (5 modules)
+│   ├── registry.py            # @register_migration 装饰器
+│   ├── state.py               # MigrationState 持久化
+│   ├── runner.py              # run_migrations() 主逻辑
+│   └── rules/
+│       └── v3_0_to_v3_1.py    # v3.0→v3.1 迁移规则 (2 条)
 └── sylanne/              # v3.0 新: SylannEngine 计算核心内嵌 (46 modules)
     ├── adapter.py             # 引擎适配器
     ├── algebra.py             # 代数运算
@@ -395,7 +401,7 @@ emotion_spirit/
 | v3.0 (2026-06) | v2.0 (2026-06) | v1.x (历史) | 变化 |
 |----------------|----------------|------------|------|
 | 104 modules (58 core + 46 sylanne) | 30 modules | 38 modules 平铺 | v3.0 sylanne 内嵌 |
-| 856 tests | 612 tests | ~250 tests | 持续增长 |
+| 885 tests | 612 tests | ~250 tests | 持续增长 |
 | SylannEngine 内嵌 | 外部依赖 | 外部依赖 | v3.0 零外部依赖 |
 | LLM LifeSimulator | stub | 无 | v3.0 LLM 生活模拟 |
 | on_llm_response | 无 | 无 | v3.0 bot 回复记忆 |

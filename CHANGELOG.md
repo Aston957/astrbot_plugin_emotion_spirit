@@ -5,6 +5,51 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [3.0.1] — 2026-06-13
+
+### Fixed
+
+#### AstrBot v4.25.5 兼容性修复 (10 个 bug)
+- **Python 3.13**: AstrBot v4.25.5 要求 `requires-python >= 3.12`，升级到 Python 3.13
+- **Namespace package**: `pip install -e .` 注册 emotion_spirit 顶层包（v4.25.5 不再动 sys.path）
+- **命令签名校验**: handler `*args/**kwargs` 加类型注解（v4.25.5 反射校验参数）
+- **CommandFilter 命名冲突**: 12 个 filter 共享 `_handler` → 每个 handler 唯一 `__name__`
+- **Handler 调用语义**: async generator → 普通 coroutine（v4.25.5 pipeline 用 `await`）
+- **命令 description**: 12 个命令加 `desc=` 参数 + `__doc__` 双保险
+- **持久化 sentinel**: `_SENTINEL_PERSONA_IDS` 检测 `default`/`unknown`/`""` 占位符
+- **迁移 fallback**: `_migrate_old_spirit_data` 时 `_persona_initialized = False`
+
+### Tests
+- 818 → 818 tests (bug fix, 无新增)
+
+## [Unreleased]
+
+### Added
+
+#### Config Migration Framework (2026-06-24)
+- **`emotion_spirit/migrations/`** 通用配置迁移框架:
+  - `registry.py`: `@register_migration(from_version, to_version)` 装饰器注册迁移规则
+  - `state.py`: `MigrationState` 持久化迁移状态到 `data/migrations.json`（原子写盘）
+  - `runner.py`: `run_migrations()` 主逻辑，fail-soft 单条规则失败不阻塞
+  - `rules/v3_0_to_v3_1.py`: 2 条迁移规则（split_modes + rename）
+- **v3.0 → v3.1 迁移规则**:
+  - `split_life_simulator_modes`: `enable_life_simulator` + `life_simulator_mode` → per-mode 开关
+  - `rename_enable_proactive_chat`: `enable_proactive_chat` → `enable_proactive_prompt`
+- **Web API**: `POST /emotion_spirit/re_run_migration` 手动强制重跑迁移
+- **集成点**: `main.py __init__` 中在 `build_modules()` 之前运行迁移
+
+### Changed
+
+#### 配置项改造 (2026-06-24)
+- **6 个新配置段**: `memory_pool` / `life_simulator` / `proactive_chat` / `diary_schedule` / `emotion_sensitivity` / `sentinel_thresholds` / `safety_layer`
+- **删除死配置**: `feature_toggles.enable_life_simulator` / `feature_toggles.life_simulator_mode`
+- **Mode B 参数**: `LIFE_SIM_CONFIG` 新增 `density_threshold` / `density_window_hours` / `full_density_hours`
+- **修复**: `memory_pool.py` `cold_max=500` 硬编码 → `MEMORY_POOL_CONFIG["cold_max"]`
+- **`/view_status`**: 用新字段 `enable_life_fragment` / `enable_proactive_prompt` 显示
+
+### Tests
+- 885 tests passed, 0 failures（含 25 个新 migration tests）
+
 ## [3.0.0] — 2026-06-12
 
 ### Added
@@ -532,6 +577,8 @@
 
 | 版本 | 主要变化 | 测试 | 提交 |
 |------|---------|------|------|
+| v3.0.1 | AstrBot v4.25.5 兼容性修复 (10 bug) | 818 | 2 |
+| v3.0.0 | Phase A-I 全部完成 + sylanne 内嵌 | 856 | - |
 | v1.3 | compute_ambiguity 改 1 - max(p) | 254 | 3 |
 | v1.2.1 | VELOCITY_BURST_THRESHOLD + emotion_burst | 252 | 1 |
 | v1.2.0 | 情绪动态表示 (ambiguity/velocity/trajectory) | 250 | 8 |

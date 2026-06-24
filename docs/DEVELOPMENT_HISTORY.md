@@ -498,21 +498,21 @@ v3.0 加 bridge + R3 加 sylanne 后,`pyproject.toml` 的 `[tool.setuptools].pac
 
 ---
 
-## 13. 当前状态快照(2026-06-14)
+## 13. 当前状态快照(2026-06-24)
 
 ### 13.1 数字
 
 | 指标 | 数值 |
 |---|---|
-| 版本 | v3.0.1 + R1-R3 治理完善 |
-| LOC | 54,682 |
-| 模块 | 104(58 core + 46 sylanne) |
-| 测试 | **861 passed, 0 failures** |
-| Git commits | 145+(main 上 4 个新:R1 / R2 / R3 / pyproject fix) |
+| 版本 | v3.0.1 + Config Migration Framework |
+| LOC | 54,682+ |
+| 模块 | 109(58 core + 46 sylanne + 5 migrations) |
+| 测试 | **885 passed, 0 failures** |
+| Git commits | 152+(main 上 7 个新:migration framework) |
 | 第三方运行时依赖 | 0(只依赖 AstrBot) |
 | Python 兼容性 | 3.11 / 3.13 |
 | AstrBot 兼容性 | 4.9.2 / 4.14.6 / 4.25.5 |
-| 文档 | 8 份 ADR + 4 docs + theory + 23 理论来源 |
+| 文档 | 12 份 ADR + 4 docs + theory + 23 理论来源 |
 | 外部用户 | 0(私仓) |
 
 ### 13.2 Git 状态
@@ -663,9 +663,38 @@ Phase 5+ 远期 (待启动)
 
 ---
 
-## 17. 一句话总结
+## 17. 2026-06-24 Config Migration Framework
 
-> **从 Phase 0 的 Superego 基础,经过 1.5/2.0/2.5/3.0 三个能力层(情绪/关系/力学),Phase 4 转型到 v2.0.0 完整发布,v3.0 大合并 9 个子项目,到 v3.0.1 + R1-R3 治理完善的 104 模块 / 861 测试 / 8 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
+### 背景
+
+v3.1 配置项改造移除了 2 个老配置 (`enable_life_simulator`, `life_simulator_mode`) 并重命名了 1 个字段。需要一个通用的配置迁移框架来处理老用户的配置兼容性。
+
+### 实施
+
+采用 **Registry 模式**: `@register_migration(from_version, to_version)` 装饰器 + Runner + State 持久化。
+
+**7 Tasks (TDD)**:
+1. Registry (`@register_migration` 装饰器)
+2. State (`MigrationState` + atomic save)
+3. Runner (`run_migrations()` fail-soft)
+4. Rules v3.0→v3.1 (2 条迁移规则)
+5. Wire main.py + Web API endpoint
+6. Integration test
+7. Manual production verification
+
+**关键发现**: AstrBot 的配置系统在 plugin 加载前就验证 schema，自动添加缺失字段。Migration framework 是**保险机制**，AstrBot 处理不了的复杂迁移才需要它。
+
+### 数字
+
+- 25 新 tests (4+6+6+8+1)
+- 6 commits
+- 885/885 tests passed
+
+---
+
+## 18. 一句话总结
+
+> **从 Phase 0 的 Superego 基础,经过 1.5/2.0/2.5/3.0 三个能力层(情绪/关系/力学),Phase 4 转型到 v2.0.0 完整发布,v3.0 大合并 9 个子项目,到 v3.0.1 + Config Migration Framework 的 109 模块 / 885 测试 / 12 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
 
 **最关键的 3 个 Phase 转折点**:
 1. **Phase 1.5 情绪概率分布** — 解决"情绪是确定性单值"的根本问题,确立 PAD 框架

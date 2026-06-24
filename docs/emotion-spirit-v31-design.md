@@ -128,6 +128,7 @@ emotion_spirit 当前稳定版 v3.0.1(2026-06-13)。v3.0 期间完成 9 阶段�
 | 里程碑 | 目标日期 | 备注 |
 |--------|----------|------|
 | v3.1 spec 公开 | 2026-06-14(本文档) | ✅ |
+| Config Migration Framework | 2026-06-24 | ✅ 配置迁移框架已完成(7 tasks, 25 tests) |
 | v3.1-alpha.1 (MemoryPool v2) | 2026-07-15 | P0 第一个交付 |
 | v3.1-alpha.2 (Deprecation + Telemetry) | 2026-08-01 | P0+P1 |
 | v3.1-beta.1 (Phase 5+ Dream Generator) | 2026-08-15 | P1 |
@@ -140,7 +141,7 @@ emotion_spirit 当前稳定版 v3.0.1(2026-06-13)。v3.0 期间完成 9 阶段�
 
 | 维度 | v3.0.x → v3.1.0 |
 |------|-----------------|
-| 配置文件 | 100% 兼容(无 schema breaking) |
+| 配置文件 | 100% 兼容(无 schema breaking, 通过 Config Migration Framework 自动迁移) |
 | 持久化数据 | 100% 可读,按需 auto-migrate(透明) |
 | 公开 API(`interfaces/`) | 100% 保持,只新增不删除(deprecated API 走 N+1 路径) |
 | 命令列表 | 100% 保持(只新增,deprecation 走 warning) |
