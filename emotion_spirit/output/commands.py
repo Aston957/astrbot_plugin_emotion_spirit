@@ -601,12 +601,15 @@ class CommandImpl:
     async def view_force(self, event: AstrMessageEvent) -> None:
         """三元力学状态 + 13 维→力映射。"""
         from emotion_spirit.regulation.force_dynamics import ForceDynamics
+        from emotion_spirit.core.label_mapper import labels_to_personality
 
-        # 获取当前人格
-        personality = self._p._parsed_drives
-        if not personality:
+        # 获取当前人格 (从 labels 转换)
+        labels = self._p._labels
+        if not labels or not any(labels.values()):
             yield event.plain_result("⚠️ 未初始化人格，请先发送 /setup_init")
             return
+
+        personality = labels_to_personality(labels)
 
         # 计算力学状态
         body_state = self._p._consumer._latest_body if hasattr(self._p._consumer, '_latest_body') else None
