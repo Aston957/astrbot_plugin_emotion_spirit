@@ -73,7 +73,6 @@ def _ns_command(name: str, cmd_attr: str, desc: str = ""):
     if desc:
         _ns_handler.__doc__ = desc
     return filter.command(name, desc=desc)(_ns_handler)
-    return _handler
 
 
 class EmotionSpiritPlugin(Star):
