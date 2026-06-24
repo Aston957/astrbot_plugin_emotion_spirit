@@ -602,9 +602,11 @@ class CommandImpl:
         """三元力学状态 + 13 维→力映射。"""
         from emotion_spirit.regulation.force_dynamics import ForceDynamics
         from emotion_spirit.core.label_mapper import labels_to_personality
+        from astrbot.api import logger
 
         # 获取当前人格 (从 labels 转换)
         labels = self._p._labels
+        logger.info(f"[view_force] labels={labels}, persona_initialized={self._p._persona_initialized}")
         if not labels or not any(labels.values()):
             yield event.plain_result("⚠️ 未初始化人格，请先发送 /setup_init")
             return
@@ -613,7 +615,7 @@ class CommandImpl:
 
         # 计算力学状态
         body_state = self._p._consumer._latest_body if hasattr(self._p._consumer, '_latest_body') else None
-        pressure = self._p._conscience.get_pressure()
+        pressure = max(0.0, min(1.0, self._p._conscience.get_pressure()))
         force = ForceDynamics().compute(personality, body_state, pressure)
 
         lines = ["⚡ 三元力学状态"]
