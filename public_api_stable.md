@@ -8,7 +8,7 @@
 
 ## Stable (公共契约)
 
-跨 minor 版本 (v2.0 → v2.1 → v2.x) 保证不破坏。变更需 major 版本。
+跨 minor 版本 (v1.0 → v1.1 → v1.x) 保证不破坏。变更需 major 版本。
 
 ### 情绪与身体状态
 
@@ -24,33 +24,32 @@
 |------|---------|------|----------|
 | 注册模块 | Register module | `@register_module("name")` | v1.0 |
 
-### 三元力学 (Phase 3, v2.0)
+### 三元力学
 
 | 中文 | English | 入口 | 引入版本 |
 |------|---------|------|----------|
-| 力学状态 | Force state | `ForceDynamics().compute(personality, body_state, conscience_pressure)` | v3.0 (per Phase 3.0A spec) |
-| 人格 baseline | Persona baseline | `persona_labels_db.get_baseline(persona_id)` | v3.0 (per Phase 3.0C spec) |
+| 力学状态 | Force state | `ForceDynamics().compute(personality, body_state, conscience_pressure)` | v1.0 |
+| 人格 baseline | Persona baseline | `persona_labels_db.get_baseline(persona_id)` | v1.0 |
 
-### ConscienceTracker (Phase 4 C1 改造, v2.0)
+### ConscienceTracker
 
 | 中文 | English | 入口 | 引入版本 |
 |------|---------|------|----------|
-| ConscienceTracker 压力 | ConscienceTracker pressure | `ConscienceTracker.get_pressure()` | v1.0 (**语义 v2.0 改**) |
-| ConscienceTracker 原始压力 | ConscienceTracker raw pressure | `ConscienceTracker._raw_pressure` (read-only 诊断用) | v2.0 (新暴露) |
-| 压力窗口配置 | Window size | env var `EMOTION_SPIRIT_PRESSURE_WINDOW` (默认 200) | v2.0 (新) |
+| ConscienceTracker 压力 | ConscienceTracker pressure | `ConscienceTracker.get_pressure()` | v1.0 |
+| ConscienceTracker 原始压力 | ConscienceTracker raw pressure | `ConscienceTracker._raw_pressure` (read-only 诊断用) | v1.0 |
+| 压力窗口配置 | Window size | env var `EMOTION_SPIRIT_PRESSURE_WINDOW` (默认 200) | v1.0 |
 
-**v2.0 语义变更说明** (v1.x → v2.0):
-- **v1.x**: `get_pressure()` 返回 `min(1.0, max(0.0, raw))` (hard-clip)
-- **v2.0**: `get_pressure()` 返回 `min(1.0, raw / P95(sliding_window))` (滑动窗口 P95 分位归一化)
-- **契约保持**: 返回值仍 ∈ [0, 1] (ForceDynamics 消费契约不变)
-- **语义变化**: "持续 50 次小冲突" 跟 "持续 1 次大冲突" 现在有差异 (v1.x 完全 clip 后无差异)
+**语义说明**:
+- `get_pressure()` 返回 `min(1.0, raw / P95(sliding_window))` (滑动窗口 P95 分位归一化)
+- **契约**: 返回值 ∈ [0, 1] (ForceDynamics 消费契约)
+- **语义**: "持续 50 次小冲突" 跟 "持续 1 次大冲突" 有差异
 
 ### 其他 Stable API
 
 | 中文 | English | 入口 | 引入版本 |
 |------|---------|------|----------|
-| v1.x 兼容垫片 | v1.x compat shim | `from emotion_spirit import _v1_compat` | v2.0 (新) |
-| v1.x import redirect | v1.x import redirect | 自动 (via `_DeprecatedImportFinder`) | v2.0 (新) |
+| 兼容垫片 | compat shim | `from emotion_spirit import _v1_compat` | v1.0 |
+| import redirect | import redirect | 自动 (via `_DeprecatedImportFinder`) | v1.0 |
 
 ## Internal (codebase 内部用)
 
@@ -105,7 +104,7 @@ v1.x API, codebase 内部 deprecation. 触发 `DeprecationWarning`. 将随 v2.1 
 
 `emotion_spirit.{module}` → `emotion_spirit.{layer}.{module}` (C4 后生效, 自动 redirect + DeprecationWarning)
 
-| Deprecated v1.x import | v2.0 path |
+| Deprecated import | Current path |
 |------------------------|-----------|
 | `emotion_spirit.registry` | `emotion_spirit.core.registry` |
 | `emotion_spirit.config` | `emotion_spirit.core.config` |
@@ -149,13 +148,11 @@ v1.x API, codebase 内部 deprecation. 触发 `DeprecationWarning`. 将随 v2.1 
 
 | 版本 | 日期 | 状态 | 备注 |
 |------|------|------|------|
-| v1.0 | 2026-04 | ✅ Released | 初版, hard-clip conscience_pressure, 平铺 38 modules |
-| v1.7.2 | 2026-05 | ✅ Released | trajectory 走高级 API opt-in |
-| **v2.0.0v1** | **2026-06-09** | **✅ Released (本 spec)** | 4-layer dir + B2 sliding-window + pyproject + 4 收尾 |
+| **v1.0.0** | **2026-06-24** | **✅ Released** | 首个正式版本, 109 modules, 886 tests |
 
 ## 维护协议
 
-- **每次 minor 版本 (v2.x)**: 同步检查本表, 新 stable API 加 1 个 minor 版本 deprecation 周期
-- **每次 major 版本 (v3.0)**: deprecated API 删除, internal API 重新审视
-- **Patch 版本 (v2.0.x)**: 不变更本表
+- **每次 minor 版本 (v1.x)**: 同步检查本表, 新 stable API 加 1 个 minor 版本 deprecation 周期
+- **每次 major 版本 (v2.0)**: deprecated API 删除, internal API 重新审视
+- **Patch 版本 (v1.0.x)**: 不变更本表
 - **变更需走 PR**: 修改本表视为 API 变更, 需 maintainer 2 人 review

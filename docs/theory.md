@@ -1,7 +1,7 @@
-# emotion_spirit v3.0 理论依据
+# emotion_spirit 理论依据
 
 > **目的**: 解释 emotion_spirit 每个机制背后的理论来源, 帮助 maintainer 理解设计意图, 避免无根据的"重构".
-> **范围**: v3.0 收尾涉及的所有理论, 涵盖 Phase 0.5-3.0C + Phase 4 (C1-C5).
+> **范围**: 所有模块的理论基础, 涵盖记忆系统、人格演化、超我调控、情绪表示、生活模拟等.
 > **面向**: Maintainer + 对 AI 情感建模感兴趣的研究者.
 
 ---
@@ -10,7 +10,7 @@
 
 ### 1.1 弗洛伊德人格结构 (Id / Ego / Superego)
 
-emotion_spirit 整体架构的隐喻来源。SylannEngine (sylanne 已内嵌于 v3.0) 处理 Id (即时情感, ms ~ hr), emotion_spirit v3.0 处理 Ego (长期记忆 + 人格演化, hr ~ month) + Superego (价值对齐 + 良心压力, 贯穿).
+emotion_spirit 整体架构的隐喻来源。SylannEngine (sylanne, 已内嵌) 处理 Id (即时情感, ms ~ hr), emotion_spirit 处理 Ego (长期记忆 + 人格演化, hr ~ month) + Superego (价值对齐 + 良心压力, 贯穿).
 
 **Source**: Freud, S. (1923). *Das Ich und das Es* (The Ego and the Id).
 
@@ -178,7 +178,7 @@ L0 ← L1 ← L2 ← L3 严格单向依赖, 跟 ACT-R 的模块化设计原则�
 
 ---
 
-## 7. v3.0 收尾偏离记录 (Phase 4 累积)
+## 7. 偏离记录
 
 完整 16 条偏离记录在 spec §12.2. 关键 4 条理论相关:
 
@@ -191,7 +191,7 @@ L0 ← L1 ← L2 ← L3 严格单向依赖, 跟 ACT-R 的模块化设计原则�
 
 ## 8. 完整参考文献
 
-(17 篇核心 + 5 篇 v3.0 引用)
+(17 篇核心 + 5 篇扩展引用)
 
 1. Anderson, J. R. (2007). *How Can the Human Mind Occur in the Physical Universe?* Oxford University Press.
 2. Ainsworth, M. D. S., et al. (1978). *Patterns of Attachment*. Lawrence Erlbaum.
@@ -212,7 +212,7 @@ L0 ← L1 ← L2 ← L3 严格单向依赖, 跟 ACT-R 的模块化设计原则�
 17. Russell, J. A., & Mehrabian, A. (1977). *Evidence for a three-factor theory of emotions*. J. Research in Personality.
 18. Tononi, G. (2004). *An information integration theory of consciousness*. BMC Neuroscience.
 
-v3.0 引用 (Phase 3 + 4):
+扩展引用:
 19. emotion_spirit. (2026-06-07). *Phase 3.0A Three-Force Engine Spec*. `docs/superpowers/specs/2026-06-07-emotion-spirit-phase-30a-three-force-engine.md`
 20. emotion_spirit. (2026-06-07). *Phase 3.0C Persona Labels KB Spec*. `docs/superpowers/specs/2026-06-07-emotion-spirit-phase-30c-persona-labels-kb.md`
 21. emotion_spirit. (2026-06-08). *Phase 4 Launch Design Spec*. `docs/superpowers/specs/2026-06-08-phase-4-launch-design.md`

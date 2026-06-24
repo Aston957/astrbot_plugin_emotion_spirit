@@ -1,7 +1,7 @@
 # AstrBot Emotion Spirit 插件 — 框架结构报告
 
-> **生成日期**: 2026-06-12
-> **版本**: v3.0.0（基于 856 tests，104 modules，Phase A-I 全部完成）
+> **生成日期**: 2026-06-24
+> **版本**: v1.0.0（基于 886 tests，109 modules）
 > **位置**: `D:\新建文件夹\emotion_spirit\now\astrbot_plugin_emotion_spirit\`
 > **目标读者**: 项目维护者、新加入的贡献者
 
@@ -126,7 +126,7 @@ emotion_spirit/
 
 `tests/conftest.py` + `tests/fixture_labels.py`：公共 fixture（Persona 样本、KB 子集、dimension 常量）。
 
-> **统计**：约 50 个测试文件，612/612 passed（KB 重建并 ship 进 plugin 之后的状态）。
+> **统计**：约 50 个测试文件，886/886 passed（KB 重建并 ship 进 plugin 之后的状态）。
 
 ---
 
@@ -232,7 +232,7 @@ emotion_spirit/
               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Knowledge Base  (core/kb/persona_labels_db.json, 2.74 MB)  │
-│  - PAD raw + 12 维人格标签                                  │
+│  - PAD raw + 13 维人格标签                                  │
 │  - 由 tools/regenerate_kb.py 离线生成，ship 进 plugin       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -240,7 +240,7 @@ emotion_spirit/
 ### 9.2 关键设计决策（来自 memory 共识）
 
 1. **per-session 躯体隔离**（[[sylannengine-architecture]]）：每个会话/用户拥有独立的状态副本，绝不跨用户传染。
-2. **12 维人格**（[[emotion-spirit-v17]]）：从 11 维 `autonomy_guard` 拆出 `relational_autonomy` + `exploration_openness`，区分 ISTJ/ENTP 类人格差异。
+2. **13 维人格**（[[emotion-spirit-v17]]）：从 11 维 `autonomy_guard` 拆出 `relational_autonomy` + `exploration_openness`，区分 ISTJ/ENTP 类人格差异。
 3. **三层力力学**（[[emotion-spirit-phase-3-progress]] + [[three-force-framework]]）：自然/社会/个体三元力 → 力竭落点决定状态。
 4. **KB 离线生成 + ship**（[[emotion-spirit-persona-kb-regen-plan]]）：`persona_labels_db.json` 2.74 MB 入 git，clone 即用，**解决 release blocker**。
 5. **per-user + SocialGraph + TopicPrivacy**（[[phase2-design]]）：Phase 2.0 完成 8/8 步。
@@ -250,7 +250,7 @@ emotion_spirit/
 
 | 关注点 | 负责模块 |
 |--------|----------|
-| 12 维人格拆解 | `regulation/persona_analyzer.py`、`regulation/persona_report_parser.py` |
+| 13 维人格拆解 | `regulation/persona_analyzer.py`、`regulation/persona_report_parser.py` |
 | 标签库生成/查询 | `core/persona_labels_db.py`、`core/label_mapper.py`、`core/kb/persona_labels_db.json` |
 | 关系记忆 | `memory/memory_pool.py`、`memory/relationship_personality.py`、`memory/intimacy.py` |
 | 社交图 | `memory/social_graph.py`、`memory/topic_privacy.py` |
@@ -279,7 +279,7 @@ emotion_spirit/
 
 ### 9.5 测试与验证
 
-- **单元/集成测试**：`tests/` 镜像 4 层子包，约 50 文件，**612/612 passed**。
+- **单元/集成测试**：`tests/` 镜像 4 层子包，约 50 文件，**886/886 passed**。
 - **属性测试**：`verification/property_tests.py` (Hypothesis) + `output/property_test_report.txt`。
 - **仿真**：`verification/simulation_runner.py` 跑 drift/life/gossip 三套，`output/simulation_report.md` 出总结。
 - **3072 narrative 回测**：`verification/narrative_backtest_3072.py` 输出到 `verification/output/narrative_backtest_3072.json` (4 MB)。
@@ -297,4 +297,4 @@ emotion_spirit/
 
 ## 10. 一句话总结
 
-> `astrbot_plugin_emotion_spirit` 是一个 **4 层架构、30 个核心模块、612 个测试、12 维人格 + 三元力学 + per-user 关系记忆** 的 AstrBot 灵魂内核插件；其设计哲学可概括为"**人格内核 → 关系记忆 → 表面输出**"三层流动，配合**调节层**保持人格稳定，并以 `core/kb/persona_labels_db.json` 作为离线可重建的可移植知识库。
+> `astrbot_plugin_emotion_spirit` 是一个 **4 层架构、109 个模块、886 个测试、13 维人格 + 三元力学 + per-user 关系记忆** 的 AstrBot 灵魂内核插件；其设计哲学可概括为"**人格内核 → 关系记忆 → 表面输出**"三层流动，配合**调节层**保持人格稳定，并以 `core/kb/persona_labels_db.json` 作为离线可重建的可移植知识库。

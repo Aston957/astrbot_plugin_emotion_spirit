@@ -1,6 +1,6 @@
 # emotion_spirit API 文档
 
-> v3.0.0
+> v1.0.0
 
 ## 1. AstrBot 命令接口
 

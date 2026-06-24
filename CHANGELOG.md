@@ -15,7 +15,7 @@
 #### 核心架构
 - **4 层目录结构**: `core/` (基础) / `memory/` (记忆) / `regulation/` (调控) / `output/` (输出)
 - **SylannEngine 内嵌**: 46 模块从 SylannEngine v2 内嵌到 `emotion_spirit/sylanne/`
-- **104 模块**: 58 core + 46 sylanne，886 tests
+- **109 模块**: 58 core + 46 sylanne + 5 migrations，886 tests
 
 #### 记忆系统
 - **4 层记忆池**: buffer / warm / cold / ghost，flat 存储

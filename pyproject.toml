@@ -33,7 +33,7 @@ dependencies = [
 Homepage = "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
 Repository = "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
 Issues = "https://github.com/Aston957/astrbot_plugin_emotion_spirit/issues"
-Changelog = "https://github.com/Aston957/astrbot_plugin_emotion_spirit/blob/v2.0/CHANGELOG.md"
+Changelog = "https://github.com/Aston957/astrbot_plugin_emotion_spirit/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -44,7 +44,7 @@ dev = [
 
 [tool.setuptools]
 # 显式列出所有子包, 避免 setuptools find() 漏掉
-# v3.0 加 bridge (Phase B), v3.0.1 R3 加 sylanne (重命名自 sylanne_core)
+# bridge (SylannEngine 桥接层), sylanne (内嵌 SylannEngine 计算核心)
 packages = [
   "emotion_spirit",
   "emotion_spirit.core",

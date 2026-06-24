@@ -87,20 +87,19 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 
 ### 调控层 / Regulation Layer (Phase 1.5 + Phase 3 + Phase 4)
 - **价值对齐**: 追踪行为是否符合人格的价值观
-- **ConscienceTracker 滑动窗口 P95 归一化** (Phase 4 C1, **v2.0 新**): 区分"持续 N 次小冲突"vs"持续 1 次大冲突"
+- **ConscienceTracker 滑动窗口 P95 归一化**: 区分"持续 N 次小冲突"vs"持续 1 次大冲突"
 - **理想自我差距**: 当前人格与理想人格的差距计算
 - **意义蓄水池**: 长期意义积累与释放
 
-### 三元力学引擎 / Three-Force Dynamics (Phase 3, **v2.0 算法 H**)
+### 三元力学引擎 / Three-Force Dynamics
 - **3 维权重**: natural (自然) / social (社会) / individual (个体), 各维 ∈ [0, 1], sum = 1
 - **算法 H**: 5 fixture × 8 场景仿真 + P95 分位 baseline
 - **3072 KB 文献化 baseline** (Phase 3.0C): 涵盖 5 轴人格 (MBTI × 依恋 × 情绪策略 × 冲突风格 × 时间取向)
 - **Step 4 narrative 回测**: natural 10.2% / social 32.6% / individual 57.2%
 
-### v2.0 新增 / v2.0 New
-- **ConscienceTracker B2 滑动窗口 P95 归一化**: 累加器是真相源, 消费时归一化, 给极端事件留 5% headroom
+### 其他特性
 - **pyproject.toml 现代打包**: `pip install -e .[dev]` 干净, setuptools >=80, python >=3.11
-- **4 层目录重构**: `emotion_spirit/{core|memory|regulation|output}/`, 依赖方向严格单向
+- **4 层目录结构**: `emotion_spirit/{core|memory|regulation|output}/`, 依赖方向严格单向
 - **Public API 稳定契约**: 38 modules 加 `__all__`, `public_api_stable.md` 列 stable/internal/deprecated 三表
 - **v1.x 兼容垫片**: `_v1_compat.py` + `_DeprecatedImportFinder` hook (codebase 内部卫生)
 
@@ -114,7 +113,7 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 | [chat-transcript-trauma.html](docs/mockups/chat-transcript-trauma.html) | 1 轮 trauma 触发幽灵消化 + ConscienceTracker B2 减压 | README §核心能力 演化层 |
 | [spirit-status-output.html](docs/mockups/spirit-status-output.html) | `/view_status` 完整输出 (含三元力学 + ConscienceTracker B2) | README §指令 |
 | [personality-timeline.html](docs/mockups/personality-timeline.html) | 6 个月 13 维人格漂移时间线 | README §核心能力 演化层 |
-| [architecture-diagram.html](docs/mockups/architecture-diagram.html) | v3.0 5 层架构图 (core/memory/regulation/output + sylanne) | architecture.md §架构 + README §快速开始 |
+| [architecture-diagram.html](docs/mockups/architecture-diagram.html) | 5 层架构图 (core/memory/regulation/output + sylanne) | architecture.md §架构 + README §快速开始 |
 
 ## 安装 / Installation
 
@@ -124,7 +123,7 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 - Python >= 3.11
 - ~~SylannEngine v1.0.0rc1+ 插件~~ (sylanne 已内嵌，无需安装)
 
-### 通过 pip (推荐, **v2.0 新**)
+### 通过 pip (推荐)
 
 ```bash
 # 从源码安装 (editable)
@@ -142,7 +141,7 @@ python -c "import emotion_spirit; print(emotion_spirit.__version__)"
 2. 重启 AstrBot
 3. 插件自动加载 (sylanne 已内嵌，无需额外安装)
 
-### KB 数据 / KB Data (自动加载 / Auto-loaded, **v2.0 新**)
+### KB 数据 / KB Data (自动加载 / Auto-loaded)
 
 **3072 组合人格基线 KB 跟 plugin 一起分发,无需额外下载或配置**:
 
@@ -175,12 +174,12 @@ body = await api.get_body_state(session_key)
 trajectory = await api.get_emotion_state(session_key, include_trajectory=True)
 # 返回 emotion_trajectory 字段: list of {valence, arousal, dominance, timestamp}
 
-# 4. 三元力学状态 (Phase 3, v2.0 新)
+# 4. 三元力学状态
 from emotion_spirit.regulation.force_dynamics import ForceDynamics
 forces = ForceDynamics().compute(personality, body_state, conscience_pressure)
 # 返回 {natural: float, social: float, individual: float, dominant: str}
 
-# 5. ConscienceTracker 压力 (Phase 4 C1, v2.0 新)
+# 5. ConscienceTracker 压力
 from emotion_spirit.regulation.superego import ConscienceTracker
 tracker = ConscienceTracker()
 pressure = tracker.get_pressure()
@@ -209,23 +208,25 @@ pressure = tracker.get_pressure()
 
 ### 2. 功能开关
 
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable_shadow_detector` | bool | true | 阴影检测 |
-| `enable_sentinel` | bool | true | 预警系统 (13 信号) |
-| `enable_narrative` | bool | true | 月度叙事弧 |
-| `enable_life_simulator` | bool | true | 自主生活模拟 |
-| `life_simulator_mode` | select | `both` | both / passive / silent |
+| 配置段 | 配置项 | 类型 | 默认值 | 说明 |
+|--------|--------|------|--------|------|
+| `feature_toggles` | `enable_shadow_detector` | bool | true | 阴影检测 |
+| `feature_toggles` | `enable_sentinel` | bool | true | 预警系统 (13 信号) |
+| `feature_toggles` | `enable_narrative` | bool | true | 月度叙事弧 |
+| `life_simulator` | `enable_life_fragment` | bool | true | Mode A: 对话中插入生活片段 |
+| `proactive_chat` | `enable_proactive_prompt` | bool | true | Mode B: 长沉默后主动发起对话 |
+| `memory_pool` | `warm_max` / `cold_max` / `ghost_max` | int | 500/2000/50 | 记忆池容量 |
+| `safety_layer` | `enabled` | bool | true | 安全层开关 |
 
 ### 3. 性能调优
 
 | Env Var | 默认 | 说明 |
 |---------|------|------|
-| `EMOTION_SPIRIT_PRESSURE_WINDOW` | 200 | ConscienceTracker 滑动窗口大小 (Phase 4 C1, v2.0 新) |
+| `EMOTION_SPIRIT_PRESSURE_WINDOW` | 200 | ConscienceTracker 滑动窗口大小 |
 
 ### 4. 高级 / 调试
 
-v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `DeprecationWarning`. v1.x 旧 import path (`emotion_spirit.public_api` 等 38 mapping) 自动 redirect 到 v2.0 路径 (`emotion_spirit.output.public_api`) 同样触发 `DeprecationWarning`.
+兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `DeprecationWarning`. 旧 import path (`emotion_spirit.public_api` 等 38 mapping) 自动 redirect 到新路径 (`emotion_spirit.output.public_api`) 同样触发 `DeprecationWarning`.
 
 ## 安全 / Security
 
@@ -243,7 +244,7 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 
 ### 开发者：如何避免泄漏凭证
 
-仓库自带 pre-commit secret 检查（v2.0.0v2 起）。**首次 clone 后跑一次**：
+仓库自带 pre-commit secret 检查。**首次 clone 后跑一次**：
 
 ```bash
 ./scripts/install_hooks.sh
@@ -314,10 +315,10 @@ v1.x 兼容垫片 (`_v1_compat.py`) 在 codebase 内部卫生用, 触发 `Deprec
 | **Public API 契约** | [public_api_stable.md](public_api_stable.md) | 跨 minor 版本保证不破坏的 API 列表 |
 | **Maintainer** | [docs/architecture.md](docs/architecture.md) | 架构文档 (4 层 + Phase 演化) |
 | **Maintainer** | [docs/theory.md](docs/theory.md) | 理论依据 (心理学 + 神经科学 + LLM agent) |
-| **Spec** | [docs/superpowers/specs/2026-06-08-phase-4-launch-design.md](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md) | v2.0 设计 spec (12 章节) |
-| **Plan** | [docs/superpowers/plans/2026-06-08-phase-4-launch.md](docs/superpowers/plans/2026-06-08-phase-4-launch.md) | v2.0 实施 plan (6 task) |
+| **Spec** | [docs/superpowers/specs/2026-06-08-phase-4-launch-design.md](docs/superpowers/specs/2026-06-08-phase-4-launch-design.md) | 设计 spec (12 章节) |
+| **Plan** | [docs/superpowers/plans/2026-06-08-phase-4-launch.md](docs/superpowers/plans/2026-06-08-phase-4-launch.md) | 实施 plan (6 task) |
 
-## v2.0 4 层目录结构 / v2.0 4-Layer Directory Structure
+## 4 层目录结构 / 4-Layer Directory Structure
 
 ```
 emotion_spirit/
@@ -331,7 +332,7 @@ emotion_spirit/
 │   ├── config.py              # 配置常量
 │   ├── knowledge.py           # 13 维人格知识库
 │   ├── persona_labels_db.py   # 3072 KB loader
-│   ├── kb/                    # KB 数据 (v2.0 新, 跟 plugin 一起分发)
+│   ├── kb/                    # KB 数据 (跟 plugin 一起分发)
 │   │   └── persona_labels_db.json  # 2.74 MB, 3072 entries (B=16, C=160, D=2896)
 │   ├── label_mapper.py        # 标签 → 参数双向映射
 │   └── plugin_factory.py      # 插件装配入口
@@ -396,16 +397,16 @@ emotion_spirit/
 
 **依赖方向**: `L0 ← L1 ← L2 ← L3` (严格单向, `test_layer_dependency_no_reverse` enforce)
 
-## v2.0 → v1.x 版本映射 / Versioning
+## 项目规模 / Project Scale
 
-| v1.0.0 (2026-06) | v2.0 (2026-06) | v1.x (历史) | 变化 |
-|----------------|----------------|------------|------|
-| 104 modules (58 core + 46 sylanne) | 30 modules | 38 modules 平铺 | sylanne 内嵌 |
-| 885 tests | 612 tests | ~250 tests | 持续增长 |
-| SylannEngine 内嵌 | 外部依赖 | 外部依赖 | 零外部依赖 |
-| LLM LifeSimulator | stub | 无 | v3.0 LLM 生活模拟 |
-| on_llm_response | 无 | 无 | v3.0 bot 回复记忆 |
-| 13 维人格 | 12 维 | 11 维 | v1.7 +gossip_tendency |
+| 指标 | 数值 |
+|------|------|
+| 模块 | 109 (58 core + 46 sylanne + 5 migrations) |
+| 测试 | 886 passed, 0 failures |
+| 人格维度 | 13 维 |
+| 外部依赖 | 0 (仅依赖 AstrBot) |
+| Python | >= 3.11 |
+| AstrBot | >= 4.9.2 |
 
 ## ⭐ Star History
 
@@ -427,7 +428,7 @@ emotion_spirit/
 4. Russell, J. A., & Mehrabian, A. (1977). *Evidence for a three-factor theory of emotions*. Journal of Research in Personality. (PAD 模型)
 5. Jung, C. G. (1968). *The Archetypes and the Collective Unconscious*. Princeton University Press. (阴影 / 投射 / 自性)
 
-v2.0 Phase 3 三元力学 (natural / social / individual) 灵感来源:
+三元力学 (natural / social / individual) 灵感来源:
 - 社会生态学 (Bronfenbrenner 1979): 微观 / 中观 / 宏观系统
 - 道德基础理论 (Haidt 2007): 多基础道德心理学
 - 自我决定理论 (Deci & Ryan 2000): 自主 / 胜任 / 关联

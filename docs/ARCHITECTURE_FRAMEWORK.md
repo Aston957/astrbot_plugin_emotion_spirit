@@ -655,7 +655,7 @@ emotion_spirit/                          # 总根: 5 个 root 文件 + 6 个子�
 
 **功能**:**emotion_spirit 对外暴露的稳定 API**。
 - 其他插件可以 import 这里的函数
-- v2.0.0v1 标志 "public API stable"
+- v1.0.0 标志 "public API stable"
 
 **联系**:
 - **被** `main.py`, 外部插件
@@ -830,7 +830,7 @@ new_config, new_state = run_migrations(config, state)
 
 ### 7.2 `emotion_spirit/_version.py`
 
-**功能**:`__version__ = "3.0.0"`,PEP 440 兼容。
+**功能**:`__version__ = "1.0.0"`,PEP 440 兼容。
 
 **设计**:`pyproject.toml` 用 `dynamic = ["version"]` 从这里 attr 读。
 
@@ -859,7 +859,7 @@ new_config, new_state = run_migrations(config, state)
 - `persona` namespace
 - `pad_history` namespace(v1.2 schema v2)
 - `pad_trajectory` namespace
-- `memory_pools`(per-user)+ `social_graph`(v2.0 schema v3)
+- `memory_pools`(per-user)+ `social_graph`(schema v3)
 
 **设计**:
 - 存储在 AstrBot `data/plugin_data/emotion_spirit/` 目录(不是插件自身目录)

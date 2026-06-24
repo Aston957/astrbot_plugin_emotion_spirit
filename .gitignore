@@ -16,7 +16,7 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# v3.0.1 patch: editable install 在 deploy 目录生成,不能 commit
+# editable install 在 deploy 目录生成,不能 commit
 astrbot_plugin_emotion_spirit.egg-info/
 
 # AstrBot 本地运行时数据 (敏感配置 + temp 文件)

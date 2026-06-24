@@ -1,6 +1,6 @@
 name: Build Release Zip
 
-# 触发: 推送 v* 标签 (如 v2.0.0v1) → 自动 build slim zip → attach 到 GitHub Release
+# 触发: 推送 v* 标签 (如 v1.0.0) → 自动 build slim zip → attach 到 GitHub Release
 # 配合 .gitattributes 的 export-ignore, 16.7 MB 全量仓库缩水到 ~250 KB 用户包
 
 on:
@@ -24,8 +24,8 @@ jobs:
       - name: Extract version from tag
         id: version
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"        # refs/tags/v2.0.0v1 → v2.0.0v1
-          VERSION="${TAG#v}"                    # v2.0.0v1 → 2.0.0v1
+          TAG="${GITHUB_REF#refs/tags/}"        # refs/tags/v1.0.0 → v1.0.0
+          VERSION="${TAG#v}"                    # v1.0.0 → 1.0.0
           ZIP_NAME="astrbot-plugin-emotion-spirit-${VERSION}.zip"
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_OUTPUT
@@ -35,7 +35,7 @@ jobs:
 
       - name: Verify version consistency (tag == metadata.yaml == _version.py)
         run: |
-          # Tag version (refs/tags/v2.0.0 -> 2.0.0)
+          # Tag version (refs/tags/v1.0.0 -> 1.0.0)
           TAG="${GITHUB_REF#refs/tags/}"
           TAG_VERSION="${TAG#v}"
 

@@ -496,10 +496,10 @@ v3.0 加 bridge + R3 加 sylanne 后,`pyproject.toml` 的 `[tool.setuptools].pac
 
 | 指标 | 数值 |
 |---|---|
-| 版本 | v3.0.1 + Config Migration Framework |
+| 版本 | v1.0.0 |
 | LOC | 54,682+ |
 | 模块 | 109(58 core + 46 sylanne + 5 migrations) |
-| 测试 | **885 passed, 0 failures** |
+| 测试 | **886 passed, 0 failures** |
 | Git commits | 152+(main 上 7 个新:migration framework) |
 | 第三方运行时依赖 | 0(只依赖 AstrBot) |
 | Python 兼容性 | 3.11 / 3.13 |
@@ -670,7 +670,7 @@ v3.1 配置项改造移除了 2 个老配置 (`enable_life_simulator`, `life_sim
 
 ## 15. 一句话总结
 
-> **从 v1.0 的 500 行 main.py,经过 16 个版本、9 个 Phase、1 次安全事故、1 次生态 re-scope,到 v3.0.1 + Config Migration Framework 的 109 模块 / 885 测试 / 12 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
+> **从最初的 500 行 main.py,经过多个阶段的迭代开发,到 v1.0.0 正式发布的 109 模块 / 886 测试 / 12 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
 
 **最关键的 3 个转折点**:
 1. **v1.0.3 persona 持久化** — 解决"重启归零"根本问题,确立 namespace 模式

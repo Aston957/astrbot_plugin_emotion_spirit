@@ -3,7 +3,7 @@ name: CI
 # Trigger: every push to main + every pull request to main
 # Purpose: run the full test suite across Python 3.11/3.13 AND
 #          AstrBot 4.9.2 / 4.14.6 / 4.25.5 (R1 from ECOSYSTEM_EVAL_2026-06-13).
-# This is the PR-time test gate that the v2.0.0 release previously lacked.
+# This is the PR-time test gate for quality assurance.
 # The AstrBot matrix is the **breaking-change early warning**: if AstrBot
 # upstream changes command/handler/persistence semantics, we want CI red
 # BEFORE the user installs a new AstrBot and finds emotion_spirit broken.

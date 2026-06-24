@@ -1,14 +1,17 @@
 # emotion_spirit 用户手册
 
-> v3.0.0
+> v1.0.0
 
 ## 1. 快速开始
 
 ### 1.1 安装
 
-1. 确保已安装 AstrBot v4.9.2+ 和 SylannEngine 插件
-2. 将 `astrbot_plugin_emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/`
-3. 重启 AstrBot
+1. 确保已安装 AstrBot v4.9.2+
+2. 下载 `astrbot-plugin-emotion-spirit-1.0.0.zip` 并解压
+3. 将 `astrbot_plugin_emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/`
+4. 重启 AstrBot
+
+> SylannEngine 计算核心已内嵌（`sylanne`），无需单独安装外部插件。
 
 ### 1.2 首次启动
 
@@ -100,15 +103,16 @@
 
 **建议：** 根据个人偏好。如果觉得 bot 主动发消息打扰，可以关闭。
 
-### 3.5 生活模拟模式 (life_simulator_mode)
+### 3.5 生活模拟子模式
 
-| 模式 | 说明 |
-|------|------|
-| `both` | Mode A + Mode B 都开启（默认） |
-| `passive` | 仅 Mode A（空闲插入），关闭 Mode B（不主动发言） |
-| `silent` | 仅 Mode B（长沉默后才说话），关闭 Mode A（对话中不插入） |
+生活模拟分为两个独立模式，可在 WebUI 中分别开关：
 
-**注意：** Mode A/B 的实际调度尚未集成到生产流程，此配置项为预留。
+| 配置段 | 配置项 | 说明 |
+|--------|--------|------|
+| `life_simulator` | `enable_life_fragment` | Mode A: 对话中插入生活片段 |
+| `proactive_chat` | `enable_proactive_prompt` | Mode B: 长沉默后主动发起对话 |
+
+**建议：** 两个模式独立控制，可根据个人偏好分别开关。
 
 ---
 
@@ -200,7 +204,7 @@ A: 不会。关闭功能只是停止处理，已有数据保留在 `spirit_data.
 
 ### Q: 如何让 bot 不要主动发消息？
 
-A: 在配置中关闭 `enable_life_simulator`，或设置 `life_simulator_mode = silent`。
+A: 在 WebUI 配置中关闭 `proactive_chat.enable_proactive_prompt`（Mode B）。如果也不想在对话中插入生活片段，同时关闭 `life_simulator.enable_life_fragment`（Mode A）。
 
 ### Q: 人格分析结果不准确怎么办？
 

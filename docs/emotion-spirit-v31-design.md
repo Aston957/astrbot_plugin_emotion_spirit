@@ -6,15 +6,14 @@
 
 ## 1. 背景
 
-emotion_spirit 当前稳定版 v3.0.1(2026-06-13)。v3.0 期间完成 9 阶段合并(Phase A-I),
-产出 104 模块 + 856 tests。本 spec 描述 v3.0 → v3.1 方向。
+emotion_spirit 当前稳定版 v1.0.0(2026-06-24)。109 模块 + 886 tests。本 spec 描述未来方向。
 
-**v3.0 推后清单**(从 9 阶段合并中 deferred):
+**推后清单**:
 - Phase 5+ 实施(Dream Generator 已有 design,待实施)
 - MemoryPool 性能优化(flat 4-tier 索引待补)
 - Telemetry / 真实使用信号(无)
 - API 演化政策(无 deprecation 机制)
-- v3.0.1 patch 临时兼容(AstrBot v4.25 修了 10 bug,但 E2E 覆盖待补)
+- E2E 覆盖待补
 
 ## 2. v3.1 Goals
 

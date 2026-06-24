@@ -504,10 +504,10 @@ v3.0 加 bridge + R3 加 sylanne 后,`pyproject.toml` 的 `[tool.setuptools].pac
 
 | 指标 | 数值 |
 |---|---|
-| 版本 | v3.0.1 + Config Migration Framework |
+| 版本 | v1.0.0 |
 | LOC | 54,682+ |
 | 模块 | 109(58 core + 46 sylanne + 5 migrations) |
-| 测试 | **885 passed, 0 failures** |
+| 测试 | **886 passed, 0 failures** |
 | Git commits | 152+(main 上 7 个新:migration framework) |
 | 第三方运行时依赖 | 0(只依赖 AstrBot) |
 | Python 兼容性 | 3.11 / 3.13 |
@@ -694,7 +694,7 @@ v3.1 配置项改造移除了 2 个老配置 (`enable_life_simulator`, `life_sim
 
 ## 18. 一句话总结
 
-> **从 Phase 0 的 Superego 基础,经过 1.5/2.0/2.5/3.0 三个能力层(情绪/关系/力学),Phase 4 转型到 v2.0.0 完整发布,v3.0 大合并 9 个子项目,到 v3.0.1 + Config Migration Framework 的 109 模块 / 885 测试 / 12 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
+> **从 Phase 0 的 Superego 基础,经过多个阶段的迭代开发,到 v1.0.0 正式发布的 109 模块 / 886 测试 / 12 份 ADR / 0 第三方依赖的高质量 AstrBot 插件**。
 
 **最关键的 3 个 Phase 转折点**:
 1. **Phase 1.5 情绪概率分布** — 解决"情绪是确定性单值"的根本问题,确立 PAD 框架
