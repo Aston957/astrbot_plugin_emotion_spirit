@@ -5,590 +5,133 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
-## [3.0.1] — 2026-06-13
+## [1.0.0] — 2026-06-24
+
+> 首个正式版本。emotion_spirit 是 AstrBot 生态的情感计算插件，负责"自我 + 超我"层。
+> SylannEngine 计算核心已内嵌，零外部依赖。
+
+### Added
+
+#### 核心架构
+- **4 层目录结构**: `core/` (基础) / `memory/` (记忆) / `regulation/` (调控) / `output/` (输出)
+- **SylannEngine 内嵌**: 46 模块从 SylannEngine v2 内嵌到 `emotion_spirit/sylanne/`
+- **104 模块**: 58 core + 46 sylanne，886 tests
+
+#### 记忆系统
+- **4 层记忆池**: buffer / warm / cold / ghost，flat 存储
+- **统一记忆条目**: `UnifiedEntry` + `DecayModel` (Ebbinghaus 衰减)
+- **级联引擎**: `CascadeEngine` 倒排索引级联传播
+- **记忆采样器**: `MemorySampler` 人格加权多层采样 + 向量相似检索
+- **记忆崩溃系统**: 5 种 `CollapseArchetype` 行为模式
+- **情境衰减**: 人格因子 + 亲密关系 + 情感权重联合调制
+
+#### 人格系统
+- **13 维人格**: PAD 情感空间 + 10 维人格特质
+- **人格知识库**: 3072 条 persona labels (2.74 MB)
+- **人格漂移**: `PersonalityDrift` 13 维漂移引擎
+- **人格分析**: `PersonaAnalyzer` LLM 驱动的人格标签解析
+
+#### 超我调控
+- **良心追踪**: `ConscienceTracker` 滑动窗口 P95 归一化
+- **价值对齐**: `ValueAlignment` + `IdealSelf` + `ValueResistance`
+- **超我守卫**: `SuperegoGuard` 行为边界检查
+- **三元力学**: `ForceDynamics` 自然/社会/个体三力引擎
+
+#### 情绪表示
+- **PAD 分类**: 7 类基本情绪 + 4 类复合情绪
+- **情绪动态**: ambiguity / velocity / trajectory
+- **情绪突变检测**: `emotion_burst` 基于 velocity 阈值
+
+#### 生活模拟
+- **Mode A (LifeFragment)**: 对话中插入 LLM 生成的生活片段
+- **Mode B (ProactiveChat)**: 长沉默后主动注入 prompt 发起对话
+- **LLM 集成**: `LifeSimulator.configure(llm_caller=)` 注入 LLM callable
+
+#### 输出层
+- **12 个命令**: setup_* (4) / view_* (3) / reflect_* (5)
+- **Prompt 注入**: `PromptInjector` 组装 system prompt
+- **日记生成**: `DiaryWriter` 定时生成 + 手动触发
+- **叙事身份**: `NarrativeIdentity` 月度叙事弧
+- **预警系统**: `PredictiveSentinel` 13 信号早期预警
+- **阴影检测**: `ShadowDetector` 未符号化情绪模式
+
+#### Bot 回复记忆
+- **on_llm_response**: bot 回复写入 MemoryPool
+- **情绪提取**: 规则引擎提取 warm/apologetic/curious/detailed/neutral
+
+#### 配置系统
+- **8 个配置段**: persona_mode / auto_source / feature_toggles / llm_tier / memory_pool / life_simulator / proactive_chat / diary_schedule / emotion_sensitivity / sentinel_thresholds / safety_layer
+- **Config Migration Framework**: `@register_migration` 装饰器 + Runner + State 持久化
+- **Web API**: `POST /emotion_spirit/re_run_migration` 手动重跑迁移
+
+#### 桥接层
+- **EngineManager**: SylannEngine 生命周期管理
+- **PersonalityBridge**: 5D↔12D 人格映射
+- **HotPoolForwarder**: inject 信号 → MemoryPool 转发
+- **RealtimeDispatch**: 即时分段回复 + 打断检测
+- **RhythmLearner**: 节律学习
+
+### Changed
+
+- 无（首个版本）
 
 ### Fixed
 
-#### AstrBot v4.25.5 兼容性修复 (10 个 bug)
-- **Python 3.13**: AstrBot v4.25.5 要求 `requires-python >= 3.12`，升级到 Python 3.13
-- **Namespace package**: `pip install -e .` 注册 emotion_spirit 顶层包（v4.25.5 不再动 sys.path）
-- **命令签名校验**: handler `*args/**kwargs` 加类型注解（v4.25.5 反射校验参数）
-- **CommandFilter 命名冲突**: 12 个 filter 共享 `_handler` → 每个 handler 唯一 `__name__`
-- **Handler 调用语义**: async generator → 普通 coroutine（v4.25.5 pipeline 用 `await`）
-- **命令 description**: 12 个命令加 `desc=` 参数 + `__doc__` 双保险
-- **持久化 sentinel**: `_SENTINEL_PERSONA_IDS` 检测 `default`/`unknown`/`""` 占位符
-- **迁移 fallback**: `_migrate_old_spirit_data` 时 `_persona_initialized = False`
+- 无（首个版本）
 
 ### Tests
-- 818 → 818 tests (bug fix, 无新增)
 
-## [Unreleased]
+- **886 tests passed, 0 failures**
+- 覆盖: 记忆系统 / 人格系统 / 超我调控 / 情绪表示 / 生活模拟 / 输出层 / 迁移框架
 
-### Added
+### 兼容性
 
-#### Config Migration Framework (2026-06-24)
-- **`emotion_spirit/migrations/`** 通用配置迁移框架:
-  - `registry.py`: `@register_migration(from_version, to_version)` 装饰器注册迁移规则
-  - `state.py`: `MigrationState` 持久化迁移状态到 `data/migrations.json`（原子写盘）
-  - `runner.py`: `run_migrations()` 主逻辑，fail-soft 单条规则失败不阻塞
-  - `rules/v3_0_to_v3_1.py`: 2 条迁移规则（split_modes + rename）
-- **v3.0 → v3.1 迁移规则**:
-  - `split_life_simulator_modes`: `enable_life_simulator` + `life_simulator_mode` → per-mode 开关
-  - `rename_enable_proactive_chat`: `enable_proactive_chat` → `enable_proactive_prompt`
-- **Web API**: `POST /emotion_spirit/re_run_migration` 手动强制重跑迁移
-- **集成点**: `main.py __init__` 中在 `build_modules()` 之前运行迁移
-
-### Changed
-
-#### 配置项改造 (2026-06-24)
-- **6 个新配置段**: `memory_pool` / `life_simulator` / `proactive_chat` / `diary_schedule` / `emotion_sensitivity` / `sentinel_thresholds` / `safety_layer`
-- **删除死配置**: `feature_toggles.enable_life_simulator` / `feature_toggles.life_simulator_mode`
-- **Mode B 参数**: `LIFE_SIM_CONFIG` 新增 `density_threshold` / `density_window_hours` / `full_density_hours`
-- **修复**: `memory_pool.py` `cold_max=500` 硬编码 → `MEMORY_POOL_CONFIG["cold_max"]`
-- **`/view_status`**: 用新字段 `enable_life_fragment` / `enable_proactive_prompt` 显示
-
-### Tests
-- 885 tests passed, 0 failures（含 25 个新 migration tests）
-
-## [3.0.0] — 2026-06-12
-
-### Added
-
-#### Phase A: 统一记忆系统 (7 modules)
-- `UnifiedEntry`: 自包含记忆实体 + `compute_decay_factor()` 情境衰减
-- `DecayModel`: 双轴衰减函数 (Ebbinghaus)
-- `CascadeEngine`: 倒排索引级联传播
-- `CollapseArchetype`: 5 种崩溃行为模式
-- `SuppressionState`: 动态压抑系统
-- `MemorySampler`: 人格加权多层采样 + 向量相似检索
-
-#### Phase B: Bridge + Output 增强 (6 modules)
-- `EngineManager`: SylannEngine 生命周期管理
-- `PersonalityBridge`: 5D↔12D 人格映射
-- `HotPoolForwarder`: inject 信号 → MemoryPool 转发
-- `RealtimeDispatch`: 即时分段回复 + 打断检测
-- `RhythmLearner`: 节律学习
-- `BotDecision`: proactive_chat 适配器
-
-#### Phase C: 向量记忆空间
-- PAD 3D 向量 (`valence, arousal, dominance`)
-- `search_by_vector()`: 欧氏距离检索
-- CascadeEngine 4 分量 relevance: `0.3*tag + 0.25*entity + 0.25*text + 0.2*vector`
-- 混合距离: `0.6*cosine + 0.4*euclidean`
-
-#### Phase D: 记忆系统重构
-- MemoryPool flat 存储 (删除 per-user 分池)
-- participant 过滤视图 (`buffer_in(user_id)`)
-- 记忆崩溃系统: `check_collapse()` → 5 种 CollapseArchetype
-- 情境衰减: 人格因子 + 亲密关系 + 情感权重联合调制
-
-#### Phase E: 生产流程接入
-- 单写 MemoryPool (不再双写 UnifiedMemory)
-- 向量检索注入 PromptInjector
-- 崩溃检测接入 SurfaceHandler
-
-#### Phase F: sylanne_core 内嵌
-- 46 模块从 SylannEngine v2 复制到 `emotion_spirit/sylanne_core/`
-- `SylanneEngine.shared()` 共享实例模式
-- License MIT + SylannEngine 致谢
-
-#### Phase G: LLM LifeSimulator
-- `LifeEvent` 数据结构 (text/mood/urgency/wants_to_share/event_type)
-- `LifeEventType`: 7 种事件类型 (reading/walking/cooking/thinking/creating/resting/observing)
-- `LIFE_EVENT_WEIGHTS`: 事件类型 → valence/arousal/share_tendency
-- `configure(llm_caller=)`: 注入 LLM callable
-- `generate_life_prose()`: LLM 生成生活片段 (fallback 规则引擎)
-- `_store_event_to_memory()`: LifeEvent 写入 MemoryPool
-- `on_llm_request`: Mode A/B 触发检查 → LifeEvent 生成 → system_prompt 注入
-- `BotDecision.get_life_simulation_context()`: proactive_chat 上下文 API
-
-#### Phase H: on_llm_response
-- `on_llm_response` 钩子: bot 回复写入 MemoryPool (source_user="bot")
-- `_extract_bot_emotion()`: 规则情绪提取 (warm/apologetic/curious/detailed/neutral)
-- IntimacyTracker 更新 (vulnerability_delta for warm replies)
-
-### Changed
-- metadata.yaml: 移除 `requires_plugins` (sylanne_core 已内嵌)
-- `_conf_schema.json`: `/spirit_*` → `/setup_*/reflect_*` 命令名修正
-- README.md: 版本 v3.0.0, 测试数 856, 维度数修正, 目录结构更新
-- `_version.py`: 2.0.0 → 3.0.0
-- `public_api_stable.md`: 版本更新
-
-### Fixed
-- `_conf_schema.json` hint 文本引用已删除的 `/spirit_*` 命令
-- `metadata.yaml` 声明已不需要的外部插件依赖
-
-### Tests
-- 856 tests passed, 0 failures (从 612 增长到 856)
-
-## [Unreleased]
-
-### Added (Release Infrastructure)
-
-#### Slim Release Zip via .gitattributes + GitHub Actions (commit ef2c4f3)
-- **`.gitattributes`**: 新增 `export-ignore` 规则集, `git archive` 时自动排除:
-  - 开发/实验台: `tests/`、`verification/`、`output/`、`tools/`
-  - 文档: `docs/`、`public_api_stable.md`、`CHANGELOG.md`
-  - CI: `.github/`、`.git*`
-  - 缓存: `__pycache__/`、`.pytest_cache/`、`.hypothesis/`、`*.egg-info/`
-  - 开发专用: `conftest.py`、`dev-requirements.txt`、`test_no_stale_11dim_docstrings.sh`
-- **`.gitignore`**: 加 negation 规则让 `data/cmd_config.json` + `data/t2i_templates/*.html` 强制被 git 跟踪 (之前被忽略, 现需进 release zip)
-- **`.github/workflows/release.yml`**: 推送 `v*` 标签自动触发, 跑 `git archive --prefix=emotion_spirit/ --format=zip` → `astrbot-plugin-emotion-spirit-$VERSION.zip` → attach 到 GitHub Release
-- **体积**: 16.7 MB 全量仓库 → 234 KB 压缩后 / 3.26 MB 解压后 (zip 文件)
-- **本地验证**: 68 文件, 包含 main.py + metadata.yaml + emotion_spirit/ + data/ + README.md + LICENSE + pyproject.toml + requirements.txt, **不**包含 tests/verification/output/tools/docs/conftest/CHANGELOG/public_api_stable/__pycache__/.egg-info
-
-### Changed
-
-#### Plugin Rename: `astrbot_plugin_emotion_spirit` → `emotion_spirit` (commit ef2c4f3)
-- **`metadata.yaml`**: `name: astrbot_plugin_emotion_spirit` → `name: emotion_spirit`
-- **PyPI distribution name** (`pyproject.toml` 中 `name = "astrbot-plugin-emotion-spirit"`): **保持不变** (这是 pip 安装名, 跟 AstrBot 插件名是两个概念)
-- **影响**:
-  - AstrBot 插件列表显示 "emotion_spirit" (短)
-  - release zip 内顶层文件夹是 `emotion_spirit/` (而不是 `astrbot_plugin_emotion_spirit/`)
-  - 用户解压后得到 `emotion_spirit/` 文件夹, 直接拖到 AstrBot `data/plugins/` 即可
-- **破坏性**: 是 — 旧用户的工作目录/配置引用旧名的需手动迁移; 鉴于 v2.0.0v1 刚发, 影响窗口小
-
-### Documentation
-
-- **`README.md`**: 新增 "下载 / Download" 章节, 优先级排序:
-  1. GitHub Release slim zip (推荐, ~5 MB 解压, 只含运行所需)
-  2. `pip install -e .[dev]` (开发者)
-  3. 拖拽整个仓库 (不推荐, 16.7 MB 含开发资料)
-- 章节明确列出"zip 包含"和"zip 不包含"的文件清单
-
-### Added
-
-#### R2: v3.1+ 公开 spec ([`docs/emotion-spirit-v31-design.md`](docs/emotion-spirit-v31-design.md), 2026-06-14)
-- **6 大目标** 按优先级排序:
-  - P0: MemoryPool v2 索引优化(性能)
-  - P0: API deprecation policy(可维护性)
-  - P1: Telemetry opt-in(真实使用信号)
-  - P1: Phase 5+ Dream Generator 实施(新功能)
-  - P2: E2E + mutation testing(测试可信度)
-  - P2: PyPI 公开发布(突破私仓)
-- **Timeline**: v3.1.0 目标 2026-09-01(从 alpha.1 起 4 个里程碑)
-- **兼容性承诺**: 配置/数据/公开 API 100% 保持(只新增不删除)
-- **Status**: 📥 Proposed, 待评审 + 实施
-
-### Changed
-
-#### R3: `sylanne_core` → `sylanne` 重命名 (per [ADR-0008](docs/adr/0008-rename-sylanne-core-to-sylanne.md), 2026-06-14)
-- **`emotion_spirit/sylanne_core/`** → **`emotion_spirit/sylanne/`**: 物理隔离外部 Sylanne 插件, 消除 namespace 冲突风险
-- **`tests/sylanne_core/`** → **`tests/sylanne/`**: 测试目录同步重命名
-- **影响**:
-  - 公共 API: `from emotion_spirit.sylanne import SylanneEngine` (取代 `sylanne_core`)
-  - 旧路径 `emotion_spirit.sylanne_core` 已不可导入 (无 backward compat alias)
-- **新增测试**: `tests/test_namespace_isolation.py` (5 tests) 验证 namespace 隔离
-- **测试覆盖**: 856 → 861 tests, 0 regression, 全 861 通过
-- **破坏性**: 是 — 任何外部代码写 `emotion_spirit.sylanne_core` 会立即失败
-- **评估依据**: `ECOSYSTEM_EVAL_2026-06-13` R3 推荐 (单 plugin 范围内隐形 blocker)
-- **文档**: ADR-0008 记录决策; ADR-0002/0003/0005 引用更新; README/metadata.yaml/LICENSE 同步
-- **动机**: `sylanne` 比 `sylanne_core` 短 6 字符, 且与外部 `sylanne_alpha` 物理隔离
-
-## [2.0.0v1] - 2026-06-09
-
-> **里程碑**: Phase 3 闭环 + Phase 4 Launch 收尾 (5 commits + 1 debt cleanup, 591→612 tests, 0 回归)
-> **PEP 440**: `2.0.0.post1` (per `emotion_spirit/_version.py`)
-> **Branch**: `phase-4-launch` (基于 `30c-task2` @ `823be4f`)
-
-### Added (Phase 4 C1-C5 + C5.5)
-
-#### C1: ConscienceTracker B2 滑动窗口 P95 归一化 (commit 525b191)
-- `self._pressure` → `self._raw_pressure` (raw 累加器, 无上限, 累加器是真相源)
-- 加 `self._window: deque[float]`, 默认 200 帧 (env var `EMOTION_SPIRIT_PRESSURE_WINDOW` 可调)
-- `get_pressure()` 实施 P95 分位归一化, 冷启动 (< 10 帧) 返回 raw (degraded)
-- 修 3.0B 偏离 E (conscience_pressure 范围)
-- **8 新 tests** (591→599), 0 回归
-
-#### C2: Plugin Packaging (commit 26f3aaa)
-- `pyproject.toml`: setuptools >=80, python >=3.11, 0 第三方依赖 (除 astrbot)
-- `requirements.txt` + `dev-requirements.txt`
-- `metadata.yaml`: version 1.0.2v3 → 2.0.0v1, 新增 repo URL
-- 新增 `LICENSE` (MIT) + `emotion_spirit/py.typed` (PEP 561 marker)
-- `emotion_spirit/_version.py` (PEP 440 真相源, `__version__ = "2.0.0.post1"`)
-- `emotion_spirit/__init__.py` 暴露 `__version__` (Python 惯例)
-- `.gitignore` 加 `*.egg-info/` / `build/` / `dist/`
-- **3 新 tests** (599→602), 0 回归
-- **PEP 440 偏离** (per spec §12.2 C2 偏离 #1): `version = "2.0.0v1"` 字面被 pip 拒绝, 实施 `dynamic = ["version"]` + `attr = "emotion_spirit._version.__version__"` 绕过
-
-#### C3: Public API Markers (commit 27d4daa)
-- 38 modules 加 `__all__` (AST-aligned 实际 class/def 名, per spec §12.2 C3 偏离 #2)
-- `public_api_stable.md` (中英双栏 stable/internal/deprecated 三表)
-- `emotion_spirit/_v1_compat.py` 兼容垫片 (含 `DeprecationWarning`)
-- `emotion_spirit/__init__.py` 加 `_DeprecatedImportFinder` hook (C3 阶段 REDIRECTS 空, C4 填)
-- `pyproject.toml` `filterwarnings` 配 `ignore::DeprecationWarning:emotion_spirit`
-- **6 新 tests** (602→608), 0 回归
-- **Module count 偏离** (per spec §12.2 C3 偏离 #1): 39 → 38 (排除 `_version.py` C2 + `_v1_compat.py` C3)
-
-#### C4: 4-Layer Dir Restructure (commit 985bf3f)
-- 37 modules `git mv` 到 `emotion_spirit/{core|memory|regulation|output}/` (`store.py` 留根)
-- 29 test files `git mv` 到 `tests/{core|memory|regulation|output}/`
-- 4 sub-package `__init__.py` 含 `__all__` (L0=6, L1=7, L2=11, L3=13)
-- `tools/migrate_v1_imports_to_v2.py` 全局替换 import path (4 categories: from-form + import-form + module-internal `from .X` + string literal)
-- `pyproject.toml` `packages` list 扩展到 5
-- `_DeprecatedImportFinder.REDIRECTS` 填 37 mapping (C3 留空 → C4 填)
-- `emotion_spirit/core/persona_labels_db.py` KB path 修复 (4→5 levels up after migration)
-- `.gitignore` 调 `!emotion_spirit/output/`
-- **3 新 tests** (608→611), 0 回归
-- **依赖方向严格单向**: `L0 ← L1 ← L2 ← L3` (test_layer_dependency_no_reverse enforce)
-- **spec 偏离** (per spec §12.2 C4 偏离): 37 modules vs spec 38; 30 test files vs spec 39; migration 4 categories 扩展; AST test 替代 substring; KB path fix
-
-#### C5: Marketing Materials (commit 95b0ddb)
-- 厚 `README.md` (283 行中英双段, v2.0 视角重写, 5 mockup 引用, 4 sub-package 路径, 13 维人格, 12 命令表)
-- `docs/theory.md` (218 行, 8 章节理论依据, 23 篇参考文献)
-- `public_api_stable.md` 完善 (163 行, 7 stable + 12 internal + 37 deprecated redirect mapping + 维护协议)
-- `docs/mockups/5 HTML` (chat-transcript-intimacy / chat-transcript-trauma / spirit-status-output / personality-timeline / architecture-diagram)
-- 0 新 tests (612 不变, 内容生产)
-
-#### C5.5: Pre-existing Tech Debt Cleanup (commit b0123ab)
-- `main.py` 29 处 `from .emotion_spirit.X` 双重 prefix 相对导入 → `from emotion_spirit.X` 绝对导入
-- `conftest.py` 删 `_ensure_main_module()` 合成包 hack (`_emotion_spirit_plugin_for_tests`), 简化为 4 行 docstring
-- 0 新 tests, 0 回归 (612/612)
-- 修复: emotion_spirit 是已 installed package (per C2 packaging), 绝对导入在 production + test 双 work, 无需 hack
-- **spec 偏离** (per spec §12.2 C4 偏离 #6): C4 spec review 发现, 推到 C6 前清理, user 2026-06-09 选 "C5 inline 一起修" 提前清理
-
-### Changed
-
-#### v1.x ConscienceTracker 语义变更 (per Phase 4 C1)
-- **v1.x**: `ConscienceTracker.get_pressure()` 返回 `min(1.0, max(0.0, raw))` (hard-clip)
-- **v2.0**: 返回 `min(1.0, raw / P95(sliding_window))` (滑动窗口 P95 分位归一化)
-- **契约保持**: 返回值仍 ∈ [0, 1] (ForceDynamics 消费契约不变)
-- **语义变化**: "持续 50 次小冲突" 跟 "持续 1 次大冲突" 现在有差异 (v1.x 完全 clip 后无差异)
-- **稳定性**: 跨会话可比, 极端事件不主导归一化
-
-#### v1.x Import Path 自动 Redirect (per Phase 4 C3+C4)
-- `emotion_spirit.{module}` → `emotion_spirit.{layer}.{module}` (37 mappings, C4 实施)
-- 触发 `DeprecationWarning` (codebase 内部卫生, 不视为用户过渡, v1 无外部用户)
-- `_v1_compat.py` 提供 v1 字段 shim (`_conscience_pressure_old` 同样 DeprecationWarning)
-
-#### 4 层目录重构 (per Phase 4 C4)
-- 38 modules 从平铺结构迁到 4 sub-packages: `core` (L0 基础) / `memory` (L1 状态) / `regulation` (L2 调控) / `output` (L3 输出)
-- 依赖方向严格单向, 跟"基础-状态-调控-输出"4 层 mental model 对应
-- `test_layer_dependency_no_reverse` enforce
-
-### Compatibility
-
-- **0 破坏性 API 变更** (PublicAPI 7 stable API 跨 minor 稳定)
-- `__version__` 暴露: `python -c "import emotion_spirit; print(emotion_spirit.__version__)"` 返回 `2.0.0.post1`
-- `pip install -e .[dev]` 干净 (per C2 pyproject + LICENSE)
-- `python -c "import emotion_spirit; from emotion_spirit.regulation.superego import ConscienceTracker; print(ConscienceTracker().get_pressure())"` 正常返回 [0, 1]
-- 内部迁移工具: `python tools/migrate_v1_imports_to_v2.py` (一次性, 留在 tools/)
-- 旧 import path 仍可导入 (自动 redirect + DeprecationWarning)
-- AstrBot 4.9.2+ 兼容 (跟 v1.x 相同)
-
-### Tests
-- **总测试数**: 591 (Phase 3 闭环) → **612** (v2.0.0v1) (+21: C1 +8, C2 +3, C3 +6, C4 +3, C5 +0, C5.5 +0)
-- **回归**: 0 (all phases)
-- **新增覆盖**: 滑动窗口 P95 归一化, modern packaging, `__all__` markers, 4 层依赖方向, 真实 quantile 数学
-- **新测试文件**: `tests/regulation/test_conscience_tracker_quantile.py` (C1, 9 tests), `tests/test_packaging.py` (C2, 3 tests), `tests/test_public_api_markers.py` (C3, 6 tests), `tests/test_dir_structure.py` (C4, 3 tests)
-
-### Spec Deviations
-
-- C2 偏离 3 条 (PEP 440 / test 扩展 / packages 暂列 1)
-- C3 偏离 5 条 (module count / `__all__` AST-aligned / version test / `_v1_compat` skip / test rearrange)
-- C4 偏离 6 条 (37 vs 38 modules / 30 vs 39 tests / migration 4 categories / AST test / KB path fix / pre-existing debt 推迟)
-- 3 关闭: 3.0B 偏离 E (conscience_pressure 范围, per C1)
-
-### Phase 4 Launch Commit Chain
-
-| Commit | SHA (first 7) | 描述 |
-|--------|--------------|------|
-| C1 | `525b191` | feat(conscience_tracker): quantile-normalized pressure |
-| C2 | `26f3aaa` | chore(packaging): pyproject.toml + requirements + metadata v2.0 |
-| C3 | `27d4daa` | feat(public_api): `__all__` markers + public_api_stable.md + v1 deprecation warnings |
-| C4 | `985bf3f` | refactor: 4-layer dir restructure (37 modules relocated) |
-| C5 | `95b0ddb` | docs(marketing): 厚 README + 3 受众文档 + 5 mockup + theory.md |
-| C5.5 | `b0123ab` | fix(import): replace double-prefix relative imports with absolute (debt cleanup) |
-| C6 | `e7b6146` | chore(release): CHANGELOG v2.0.0v1 section |
-| post-merge | `e1abf1a` | fix(command-ns): 命令 ns 化 + commands.py v2 path 修复 (v2.0.0v1 patch) |
-
-### Out of Scope (推 Phase 3.5+ 或 v2.1+)
-- 3.0B 偏离 D (body_state 跟 personality 分离的 spec 化)
-- 3.0B 偏离 F (DriftSimulator Part E 跳过)
-- 3.0C 偏离 D (30→30 而非 31)
-- 3.0C 偏离 G (D 等级 94.3% 提升)
-- 3.0C 偏离 H (M8 spec deviation)
-- 力学河流 (multi-timestep ForceState snapshot)
-- 内心独白 (multi-force simultaneous voice)
-- Steppenwolf 漂移叙事
-- GUI 调参 / override baseline 持久化
-- **PyPI 发布** (本 spec 仅 AstrBot-native)
-- **i18n framework** (中英双段已够)
-- **数据持久化路径迁移** (AstrBot handbook §8 推荐 `data/plugin_data/<name>/`, emotion_spirit 继续自管 JSON, 推 Phase 3.5+ 评估)
-
-## [1.3.0] - 2026-06-05
-
-### Changed
-- **compute_ambiguity 重构**：从 Shannon entropy / log(K) 改为 `1 - max(p)`
-- **原因**：v1.2 真实数据仿真发现，8 个 SCENARIOS 的 ambiguity 全部偏高（0.74-0.91），区分度极差
-- **效果**：
-  - 8 个场景 ambiguity 范围 0.74-0.91 → **0.34-0.64**
-  - spread 0.17（高位无意义）→ **0.30**（真实差异）
-  - 计算复杂度 O(K) log → **O(K) 比较**（-50%）
-  - intimacy_growth 0.793 → **0.339**（最确定）
-  - trauma 0.870 → **0.639**（最模糊）
-  - daily_neutral (0.403) < conflict (0.541) ✓ 符合直觉
-
-### Compatibility
-- 0 破坏性 API 变更
-- `emotion_ambiguity` 字段名不变
-- `get_emotion_state()` 11 字段不变
-- 范围 [0, 1] 不变
-- 消费者集成方式不变
-
-### Tests
-- 5 单元测试断言更新
-- 2 真实场景集成测试新增（`test_real_scenarios_ambiguity.py`）
-- 总测试：252 → **254 passed**
-
-### Commits
-- `f9ab5a6` refactor: compute_ambiguity → 1 - max(p)
-- `62d1a85` test: add real-scenarios ambiguity spread verification
-- `5014229` docs+test: v1.3 ambiguity redesign docs
-
-### Documentation
-- Spec: `docs/superpowers/specs/2026-06-05-emotion-ambiguity-redesign-design.md`
-- Plan: `docs/superpowers/plans/2026-06-05-emotion-ambiguity-redesign.md`
-- Architecture: `docs/architecture.md` section 7.7
+- **Python**: >= 3.11
+- **AstrBot**: >= 4.9.2, < 5
+- **平台**: aiocqhttp / telegram / qq_official
+- **外部依赖**: 0（仅依赖 AstrBot）
 
 ---
 
-## [1.2.1] - 2026-06-05
+## Archive (开发历史)
 
-### Added
-- **`VELOCITY_BURST_THRESHOLD = 0.05` 配置常量**
-- **`emotion_burst: bool` 字段** (SemanticSignals)
-- **burst 事件检测**：基于 `emotion_velocity`，`config.VELOCITY_BURST_THRESHOLD = 0.05`（基于参数扫描仿真 Pareto 最优）
+> 以下为开发过程中的版本记录，已整合到 v1.0.0 中。
 
-### Tests
-- 2 新增 burst 检测单元测试
-- 总测试：250 → **252 passed**
+### v3.0.1 (2026-06-13) — AstrBot v4.25.5 兼容性修复
+- 10 个 bug fix: Python 3.13 / namespace package / 命令签名 / handler 语义 / 持久化 sentinel
 
-### Commits
-- `d6d9dc3` feat: add VELOCITY_BURST_THRESHOLD + emotion_burst event (v1.2+)
+### v3.0.0 (2026-06-12) — Phase A-I 大合并
+- Phase A: 统一记忆系统 (7 modules)
+- Phase B: Bridge + Output 增强 (6 modules)
+- Phase C: 向量记忆空间
+- Phase D: 记忆系统重构
+- Phase E: 生产流程接入
+- Phase F: sylanne_core 内嵌
+- Phase G: LLM LifeSimulator
+- Phase H: on_llm_response
+- Phase I: 集成 + 发布
 
-### Why
-所有真实场景 (conflict/boundary/cascading/trauma) `|Δvalence| > 0.4` 远超 0.05 阈值，0 假阳性 + 100% 检出。
+### v2.0.0v1 (2026-06-09) — Phase 4 Launch
+- C1: ConscienceTracker B2 滑动窗口 P95 归一化
+- C2: Plugin Packaging (pyproject.toml)
+- C3: Public API Markers (__all__)
+- C4: 4-Layer Dir Restructure
+- C5: Marketing Materials
+- C5.5: Pre-existing Tech Debt Cleanup
 
----
+### v1.3.0 (2026-06-05) — compute_ambiguity 重构
+- 从 Shannon entropy / log(K) 改为 `1 - max(p)`
 
-## [1.2.0] - 2026-06-05
+### v1.2.0 (2026-06-05) — 情绪动态表示
+- emotion_ambiguity / emotion_velocity / emotion_trajectory
 
-### Added (Phase 2: 情绪动态表示)
-- **`emotion_ambiguity: float`** - Shannon 熵归一化（v1.3 已重构）
-- **`emotion_velocity: dict | None`** - `{valence, arousal, dominance, dt}` 瞬时变化率
-- **`emotion_trajectory: list`** - 最近 8 帧 (v, a, d, t) 时序
-- **公开 API 扩展**：
-  - `get_emotion_state()`: 9 → **11 字段** (+emotion_ambiguity +emotion_velocity)
-  - `get_emotion_trajectory(session_key)`: 新增高级 API
-- **SpiritStore schema v2**：`pad_history` / `pad_trajectory` 命名空间
-- **5 min 定时写 + dirty flag**：避免每帧序列化
-- **per-session 状态在 SurfaceConsumer 内部**：`dict[session_id, deque]`
-- **新配置常量**：
-  - `TRAJECTORY_WINDOW = 8`（环形缓冲大小）
-  - `PAD_SAVE_INTERVAL_SECONDS = 300`（持久化间隔）
-- **`consume(surface, session_id=None)`**：可选 session_id 参数
+### v1.1.1 (2026-06-05) — 情绪表示升级
+- PAD 概率分布 + 派生字段
 
-### Changed
-- `build_emotion_payload()` 共享层加 2 字段（v1.1.2 DRY 重构的延续）
-- `diary_writer._format_emotion_block()` 注入 ambiguity/velocity
-- `life_simulator.check_mode_a()` payload 加 2 字段
-- `main.py` 记忆 tag 用 `pad_primary` 替代 `pad_label`（v1.1.1）
-
-### Key Decisions
-1. **保持 PAD raw**（不引入 PAD EMA）— 0 破坏性变更，velocity 从 raw 算
-2. **5 min 定时写**（不是每帧写）— 平衡性能与断电恢复
-3. **N=8 + 可配置 + trajectory 高级 API**— 隐私分层，trajectory 不进 get_emotion_state
-
-### Privacy Boundary
-- **暴露** ✅: pad_* + emotion_ambiguity + emotion_velocity + 身体 4 字段
-- **高级 API 暴露**（需 opt-in）: emotion_trajectory
-- **不暴露** ❌: damage_* / intimacy_* / conscience_* / EMA 内部状态 / hot pool
-
-### Performance
-- 每帧总开销 ~4-6.5μs（v1.3 后 4μs）
-- 100 session 内存 ~50KB
-- **CPU 占用 < 0.01%**
-
-### Compatibility
-- 0 破坏性变更
-- 老 spirit_data.json 自动迁移到 schema v2
-- `consume(surface)` 不传 session_id 仍工作（向后兼容）
-
-### Tests
-- 9 个新单元测试 (5 ambiguity + 4 velocity)
-- 1 个 SemanticSignals 默认值测试
-- 5 个 SurfaceConsumer 集成测试
-- 11 个 SpiritStore v2 测试
-- 4 个 main.py 公开 API 测试
-- 2 个消费者集成测试
-- 总测试：218 → **250 passed**
-
-### Commits (8 total)
-- `b60bfed` Task 1: compute_ambiguity
-- `f1f6fae` Task 2: compute_velocity
-- `addb469` Task 3: config 常量
-- `26a27a1` Task 4: SemanticSignals +3 字段
-- `d80fece` Task 5: SurfaceConsumer 集成
-- `d1c9870` Task 6: SpiritStore v2
-- `d78392e` Task 7: 公开 API 扩展
-- `8685c01` Task 8: 消费者集成
-- `d40178a` docs: v1.2 architecture
-
-### Documentation
-- Spec: `docs/superpowers/specs/2026-06-05-emotion-dynamics-design.md`
-- Plan: `docs/superpowers/plans/2026-06-05-emotion-dynamics.md`
-- Memory: `emotion-spirit-v12-design.md`
+### v1.0.3 (2026-06-05) — persona 持久化
+- SpiritStore persona namespace + /setup_relabel
 
 ---
-
-## [1.1.2] - 2026-06-05
-
-### Changed
-- **DRY 重构**：提取 `build_emotion_payload()` 到 `emotion_classifier.py` 作为单一数据源
-- `diary_writer._format_emotion_block()` 调用共享 payload，再 dict→text 格式化
-- `life_simulator` 删除本地 `_build_emotion_payload()`，改用 import
-
-### Performance
-- 4 文件变更：+136 -26 = +110 行
-- **生产代码净减少 14 行**（-23 -19 + 28）
-- 新增防御性拷贝（`dict(signals.pad_distribution)`）
-- 单一数据源：未来加字段只需改 emotion_classifier.py
-
-### Tests
-- 4 新增 build_emotion_payload 单元测试
-- 总测试：214 → **218 passed**
-
-### Commits
-- `d97984b` refactor: extract build_emotion_payload to emotion_classifier (v1.1.2 DRY)
-
----
-
-## [1.1.1] - 2026-06-05
-
-### Added (Phase 1: 情绪表示升级)
-- **`emotion_spirit/emotion_classifier.py`** 新模块
-  - `CATEGORICAL_REGIONS` 7 类基本情绪 PAD 边界
-  - `COMPOUND_REGIONS` 4 类复合情绪（sad_excitement / angry_despair / joyful_anxiety / sad_calm）
-  - `EMOTION_ZH` 11 个中文标签
-  - 3 个核心函数：`classify_distribution` / `classify_primary_secondary` / `render_description`
-- **`SemanticSignals` 扩展 4 字段**：
-  - `pad_distribution: dict[str, float]`
-  - `pad_primary: str`
-  - `pad_secondary: str | None`
-  - `pad_intensity: float`
-- **公开 API**（`EmotionSpiritPlugin`）：
-  - `get_emotion_state()` 主 API（含懒渲染 description）
-  - `get_body_state()` 重命名自 `get_emotion_values`
-- **`diary_writer`** 接受 `signals: SemanticSignals | None` 参数
-- **`life_simulator`** Mode A/B payload 加结构化情绪数据
-- **`main.py` 记忆 tag** 改用 `pad_primary` 替代 `pad_label`（更稳定）
-
-### Architecture Principle
-- **数据驱动 + 最小必要公开**：LLM 消费者读结构化数据，description 仅供人类
-- **隐私边界**：不暴露 damage/intimacy/conscience 等敏感数据
-- **公开 API 总数**：2 个（emotion + body）
-
-### Key Decisions
-- 删除：`get_emotion_snapshot`（内部零调用）
-- 重命名：`get_emotion_values → get_body_state`（名字更准确）
-- 不加：`get_latest_signals()` 暴露全量 60+ 字段
-- 保留：`pad_label` + `pad_confidence` 字段（向后兼容）
-- 严格规则：`top1 > 0.5 AND ratio > 2.5` 在 classify 和 render 中**必须一致**
-
-### Tests
-- 13 单元测试 (emotion_classifier)
-- 6 集成测试 (emotion_integration)
-- 3 新增 (diary_writer)
-- 4 新增 (life_simulator)
-- 总测试：188 → **214 passed**
-
-### Documentation
-- Spec: `docs/superpowers/specs/2026-06-05-emotion-representation-design.md`
-- Plan: `docs/superpowers/plans/2026-06-05-emotion-representation.md`
-
----
-
-## [1.0.4] - 2026-06-05
-
-### Removed
-- **死代码清理**：v1.0.3 留下的 manual 模式残留（`persona_mode` 已无 "manual" 选项）
-- 7 处清理：~40 行
-  - `self._manual_personas` / `self._active_manual_persona` 死属性
-  - `_get_persona_params` 步骤 2 检查
-  - `spirit_detail` / `spirit_personas` / `spirit_switch` / `spirit_init` 的 manual 分支
-
-### Performance
-- main.py 从 ~1662 行减到 1635 行
-- 行为不变
-
-### Tests
-- 总测试：**188/188 passed**（无新增）
-
-### Commits
-- `1f26611` chore: baseline v1.0.4 state
-
----
-
-## [1.0.3] - 2026-06-05
-
-### Added
-- **persona 持久化**：`_persona_initialized` 和 `_labels` 不再只存内存
-  - `SpiritStore` 新增 `persona` namespace 键（5 字段 schema）
-  - 3 个新方法：`_is_persona_initialized()` / `_load_persona_state()` / `_migrate_old_spirit_data()`
-  - `/spirit_init` 完成后写入 persona 键
-  - `initialize()` 中调用 `_load_persona_state()` 恢复
-- **`/spirit_relabel` 指令**：两阶段调整 5 轴标签
-  - 阶段 1: `/spirit_relabel` → 显示警告（列出清除/保留字段）
-  - 阶段 2: `/spirit_relabel confirm <5个标签>` → 执行重置
-  - 副作用：清除 6 个超我层键，保留记忆层
-- **迁移策略（方案 B）**：老 spirit_data.json 无 persona 键 → 自动用默认 labels + 警告用户
-
-### Changed (破坏性变更)
-- **删除 manual 模式**：
-  - `_migrate_old_config()` / `_load_manual_personas_from_config()` / `_init_manual_persona()` 全部删除
-  - `persona_mode` 选项从 `["auto", "manual", "disabled"]` 改为 `["auto", "disabled"]`
-  - `_conf_schema.json` 移除 `manual_personas` 字段
-- **`/spirit_switch` 行为变更**：切 persona 时重置超我层（baseline 依赖 labels）+ 持久化新 persona
-
-### Key Design Philosophy
-- "参数驱动，非标签驱动"（来自 design-weight-differentiation.md）
-- 5 轴标签只在**初始值**影响 11 维人格参数
-- 11 维 baseline 是"吸引子中心"，current_personality 漂移值是"行为策略"
-- `/spirit_relabel` 改变 labels → 必须重算 11 维 baseline → **保留 11 维漂移值**
-
-### Tests
-- 14 新增 test_init_persistence
-- 总测试：174 → **188 passed**
-
-### Documentation
-- Spec: `docs/superpowers/specs/2026-06-05-persona-init-persistence-design.md`
-- Plan: `docs/superpowers/plans/2026-06-05-persona-init-persistence.md`
-
----
-
-## [1.0.2v3] - 之前
-
-基线版本，v1.0.3 之前的所有变更未在此详细记录。
-
----
-
-## 总结
-
-| 版本 | 主要变化 | 测试 | 提交 |
-|------|---------|------|------|
-| v3.0.1 | AstrBot v4.25.5 兼容性修复 (10 bug) | 818 | 2 |
-| v3.0.0 | Phase A-I 全部完成 + sylanne 内嵌 | 856 | - |
-| v1.3 | compute_ambiguity 改 1 - max(p) | 254 | 3 |
-| v1.2.1 | VELOCITY_BURST_THRESHOLD + emotion_burst | 252 | 1 |
-| v1.2.0 | 情绪动态表示 (ambiguity/velocity/trajectory) | 250 | 8 |
-| v1.1.2 | DRY 重构 (build_emotion_payload 共享层) | 218 | 1 |
-| v1.1.1 | 情绪表示升级 (概率分布 + 派生) | 214 | 12 |
-| v1.0.4 | 死代码清理 | 188 | 1 |
-| v1.0.3 | persona 持久化 + 2 阶段 relabel | 188 | 14 |
-| v1.0.2v3 | 基线 | - | - |
-
-**v1.0.3 → v1.3 总变化**：66 测试新增（188→254，+35%），32 commits，0 破坏性 API 变更。
 
 ## 链接
 
@@ -596,3 +139,4 @@
 - [docs/architecture.md](docs/architecture.md) - 架构文档
 - [docs/superpowers/specs/](docs/superpowers/specs/) - 设计规格
 - [docs/superpowers/plans/](docs/superpowers/plans/) - 实施计划
+- [docs/DEVELOPMENT_HISTORY.md](docs/DEVELOPMENT_HISTORY.md) - 完整开发历史
