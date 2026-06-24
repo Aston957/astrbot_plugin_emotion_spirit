@@ -624,8 +624,8 @@ class EmotionSpiritPlugin(Star):
         # 注册 Web API 端点 (migration re-run)
         self._setup_web_apis()
 
-        asyncio.get_event_loop().call_later(2.0, self._connect_engine_sync)
-        asyncio.get_event_loop().call_later(3.0, lambda: asyncio.ensure_future(self._verify_llm_chain()))
+        asyncio.get_running_loop().call_later(2.0, self._connect_engine_sync)
+        asyncio.get_running_loop().call_later(3.0, lambda: asyncio.ensure_future(self._verify_llm_chain()))
 
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
@@ -652,7 +652,7 @@ class EmotionSpiritPlugin(Star):
                 self._retry_count = getattr(self, '_retry_count', 0) + 1
                 if self._retry_count < 3:
                     logger.info("emotion_spirit: LLM provider 不可用, %d 秒后重试...", 5 * self._retry_count)
-                    asyncio.get_event_loop().call_later(5.0 * self._retry_count, self._connect_engine_sync)
+                    asyncio.get_running_loop().call_later(5.0 * self._retry_count, self._connect_engine_sync)
                 else:
                     logger.warning("emotion_spirit: LLM provider 不可用, SylannEngine 降级")
                     self._engine = None
