@@ -45,19 +45,19 @@ class NamespaceRouter:
         return self._name
 
     def command(self, sub: str, *, help_text: str = "") -> Callable:
-        """装饰器: 注册子命令到 ns。
+        """装饰器: 注册子命令到 ns (仅内部路由, 不重复注册到 AstrBot)。
 
         用法:
             @ns.command("init", help_text="初始化人格")
             async def cmd_init(event, *args, **kwargs):
                 ...
+
+        Note: AstrBot 命令注册由 main.py 的 _ns_command 工厂负责,
+        此处仅做内部路由表维护, 避免双重注册。
         """
         def decorator(handler: Callable) -> Callable:
             self._commands[sub] = (handler, help_text)
-            # 用 astrbot filter 注册 (生产环境)
-            full_name = f"{self._name}_{sub}"
-            wrapped = _astrbot_filter.command(full_name)(handler)
-            return wrapped
+            return handler
         return decorator
 
     def list_commands(self) -> list[tuple[str, str]]:
