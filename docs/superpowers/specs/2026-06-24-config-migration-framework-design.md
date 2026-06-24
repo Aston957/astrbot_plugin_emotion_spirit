@@ -2,7 +2,7 @@
 title: Config Migration Framework Design (v3.0 → v3.1+)
 date: 2026-06-24
 status: approved
-author: emotion_spirit team
+author: Aston957
 ---
 
 # Config Migration Framework Design

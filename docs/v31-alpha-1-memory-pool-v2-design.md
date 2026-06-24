@@ -1,7 +1,7 @@
 # v3.1-alpha.1 — MemoryPool v2 索引优化设计
 
 > **状态**:📥 Proposed(per ADR-0010,2026-07-15 alpha.1 实施)
-> **作者**:emotion_spirit team
+> **作者**:Aston957
 > **日期**:2026-06-15
 > **目标发布**:`v3.1.0-alpha.1` (2026-07-15)
 > **依赖**:ADR-0010 (release 流程), ADR-0011 (依赖图), v3.1 spec §3.1

@@ -35,7 +35,7 @@ AstrBot 插件市场是一个**中心化注册表**，数据源在：
 name: emotion_spirit
 display_name: "Emotion Spirit"
 desc: "长期记忆、人格演化与超我调控 — SylannEngine 内嵌的自我层 (v3.0.1)"
-author: "emotion_spirit"
+author: "Aston957"
 version: "3.0.1"
 repo: "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
 support_platforms: [aiocqhttp, telegram, qq_official]
@@ -200,7 +200,7 @@ CI 通过后，仓库维护者会 review 并 merge PR。
   "emotion-spirit": {
     "display_name": "Emotion Spirit",
     "desc": "长期记忆、人格演化与超我调控 — SylannEngine 内嵌的自我层 (v3.0.1)",
-    "author": "emotion_spirit",
+    "author": "Aston957",
     "repo": "https://github.com/Aston957/astrbot_plugin_emotion_spirit",
     "tags": [],
     "stars": 0,
