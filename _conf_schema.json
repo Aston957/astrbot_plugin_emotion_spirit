@@ -35,24 +35,217 @@
         "default": true,
         "hint": "月度叙事弧生成。关闭后 bot 不再生成月度自我叙事"
       },
-      "enable_life_simulator": {
-        "description": "自主生活模拟",
-        "type": "bool",
-        "default": true,
-        "hint": "关闭后 bot 变为纯被动响应，不会主动发起对话"
-      },
-      "life_simulator_mode": {
-        "description": "生活模拟模式",
-        "type": "string",
-        "options": ["both", "passive", "silent"],
-        "default": "both",
-        "hint": "both=空闲插入+长沉默后发言; passive=仅空闲插入; silent=仅长沉默后发言。仅在自主生活开启时生效"
-      },
       "enable_surface_logging": {
         "description": "Surface 数据日志 (Phase 1 观察期用)",
         "type": "bool",
         "default": false,
         "hint": "记录每轮 Surface 数据到 CSV。包含 13 维人格 + tension + 良心压力 + 安全层。session_id 自动 SHA256 匿名化。日志自动清理 7 天前数据。"
+      }
+    }
+  },
+  "llm_tier": {
+    "description": "分级 LLM 配置（留空使用 AstrBot 默认 LLM）",
+    "type": "object",
+    "hint": "为不同功能指定不同的 LLM Provider，留空则使用 AstrBot 全局默认",
+    "items": {
+      "engine_provider_id": {
+        "description": "SylannEngine 情感评估",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "SylannEngine 的情感计算使用的 LLM Provider"
+      },
+      "life_sim_provider_id": {
+        "description": "生活模拟生成",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "LifeSimulator 生活片段生成使用的 LLM Provider"
+      },
+      "analyzer_provider_id": {
+        "description": "人格标签解析",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "/setup_init 时解析人格标签使用的 LLM Provider"
+      }
+    }
+  },
+  "memory_pool": {
+    "description": "记忆池容量配置（修改后需重启生效）",
+    "type": "object",
+    "hint": "调整记忆池各层容量上限",
+    "items": {
+      "warm_max": {
+        "description": "温记忆最大条数",
+        "type": "int",
+        "default": 500,
+        "hint": "温记忆池容量上限。超过后最旧条目降级到冷记忆"
+      },
+      "cold_max": {
+        "description": "冷记忆最大条数",
+        "type": "int",
+        "default": 2000,
+        "hint": "冷记忆池容量上限。超过后最旧条目过期"
+      },
+      "ghost_max": {
+        "description": "幽灵记忆最大条数",
+        "type": "int",
+        "default": 50,
+        "hint": "幽灵记忆池容量上限"
+      }
+    }
+  },
+  "life_simulator": {
+    "description": "Mode A: 生活内容生成（对话中插入生活片段）",
+    "type": "object",
+    "hint": "控制 bot 在对话中插入生活片段的行为",
+    "items": {
+      "enable_life_fragment": {
+        "description": "启用生活片段插入",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后 bot 在对话空闲时会生成并插入生活片段"
+      },
+      "mode_a_idle_seconds": {
+        "description": "空闲触发秒数",
+        "type": "int",
+        "default": 60,
+        "hint": "对话空闲多少秒后触发生活片段生成"
+      },
+      "mode_a_max_turns": {
+        "description": "单次最大轮数",
+        "type": "int",
+        "default": 15,
+        "hint": "单次生活片段对话最大轮数"
+      }
+    }
+  },
+  "proactive_chat": {
+    "description": "Mode B: 主动对话注入（长沉默后主动发起对话）",
+    "type": "object",
+    "hint": "控制 bot 在用户长时间未说话时主动发起对话",
+    "items": {
+      "enable_proactive_prompt": {
+        "description": "启用主动对话注入",
+        "type": "bool",
+        "default": true,
+        "hint": "开启后 bot 会在用户长时间未说话时主动注入 prompt 发起对话"
+      },
+      "mode_b_min_hours": {
+        "description": "最小触发间隔（小时）",
+        "type": "float",
+        "default": 2.0,
+        "hint": "距离上次对话至少多少小时后才触发主动对话"
+      },
+      "mode_b_max_hours": {
+        "description": "最大触发间隔（小时）",
+        "type": "float",
+        "default": 4.0,
+        "hint": "超过此时间未对话则强制触发主动对话"
+      },
+      "mode_b_cooldown_after_trigger_minutes": {
+        "description": "触发后冷却时间（分钟）",
+        "type": "int",
+        "default": 30,
+        "hint": "主动对话触发后多少分钟内不再触发"
+      },
+      "mode_b_density_threshold": {
+        "description": "交互密度阈值",
+        "type": "float",
+        "default": 0.0,
+        "hint": "交互密度低于此值时才触发主动对话（0=总是触发）"
+      },
+      "mode_b_density_window_hours": {
+        "description": "交互密度计算窗口（小时）",
+        "type": "float",
+        "default": 24.0,
+        "hint": "计算交互密度的时间窗口"
+      },
+      "mode_b_full_density_hours": {
+        "description": "满密度时间（小时）",
+        "type": "float",
+        "default": 1.0,
+        "hint": "在此时间内有持续交互则密度为 1.0"
+      }
+    }
+  },
+  "diary_schedule": {
+    "description": "日记生成时间配置",
+    "type": "object",
+    "hint": "控制 bot 何时自动生成日记",
+    "items": {
+      "schedule_hours": {
+        "description": "生成时间点",
+        "type": "string",
+        "default": "14,22",
+        "hint": "每天几点生成日记，逗号分隔的小时数（24h 制）"
+      }
+    }
+  },
+  "emotion_sensitivity": {
+    "description": "情绪灵敏度配置",
+    "type": "object",
+    "hint": "调整情绪检测的灵敏度",
+    "items": {
+      "velocity_burst_threshold": {
+        "description": "情绪突变阈值",
+        "type": "float",
+        "default": 0.05,
+        "hint": "|Δvalence| 或 |Δarousal| 超过此值记为情绪突变"
+      }
+    }
+  },
+  "sentinel_thresholds": {
+    "description": "预警系统阈值配置",
+    "type": "object",
+    "hint": "调整预警系统的触发阈值",
+    "items": {
+      "warning_threshold": {
+        "description": "警告阈值",
+        "type": "int",
+        "default": 3,
+        "hint": "达到此阈值时触发警告级别预警"
+      },
+      "critical_threshold": {
+        "description": "严重阈值",
+        "type": "int",
+        "default": 5,
+        "hint": "达到此阈值时触发严重级别预警"
+      }
+    }
+  },
+  "safety_layer": {
+    "description": "安全层配置",
+    "type": "object",
+    "hint": "控制安全层的行为和阈值",
+    "items": {
+      "enabled": {
+        "description": "启用安全层",
+        "type": "bool",
+        "default": true,
+        "hint": "关闭后安全层不参与 prompt 注入"
+      },
+      "pressure_rise_threshold": {
+        "description": "压力上升阈值",
+        "type": "float",
+        "default": 0.6,
+        "hint": "良心压力上升超过此值时触发安全层干预"
+      },
+      "conflict_cluster_count": {
+        "description": "冲突聚集数量",
+        "type": "int",
+        "default": 3,
+        "hint": "在时间窗口内达到此冲突次数时触发安全层"
+      },
+      "guard_reflex_count": {
+        "description": "防御反射次数",
+        "type": "int",
+        "default": 2,
+        "hint": "在时间窗口内达到此防御反射次数时触发安全层"
+      },
+      "critical_max_per_day": {
+        "description": "每日严重触发上限",
+        "type": "int",
+        "default": 3,
+        "hint": "24 小时内最多触发几次严重级别安全层干预"
       }
     }
   }
