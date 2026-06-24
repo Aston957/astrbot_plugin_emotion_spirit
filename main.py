@@ -11,6 +11,7 @@ AstrBot 插件入口 (Phase B, P3-1 拆分后)。
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -83,6 +84,10 @@ class EmotionSpiritPlugin(Star):
         self._config = config or {}
         self._engine: Any = None
 
+        # 跑 config migration (必须在 build_modules 之前, 否则老 config 升级后
+        # build_modules 用的是旧 schema 字段, 整个 plugin 用错配置跑)
+        self._config = self._run_config_migration_and_reload(self._config)
+
         # 数据目录
         data_dir = Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit"
 
@@ -116,6 +121,92 @@ class EmotionSpiritPlugin(Star):
         self._safety_level: str = "normal"
         self._safety_note: str | None = None
         self._repair_advice: str | None = None
+
+    # ═══ Config Migration ═══
+
+    def _run_config_migration_and_reload(self, config: dict) -> dict:
+        """从 cmd_config.json 读 config, 跑 migration, 写回, 返回新 config.
+
+        即使 AstrBot 已经把 config 传给我们, 我们仍然从文件读:
+        1. AstrBot 传入的 config 可能不是最新 (缓存)
+        2. 写盘需要文件路径
+        """
+        from emotion_spirit.migrations import run_migrations, MigrationState
+        config_path = (
+            Path(get_astrbot_data_path())
+            / "config"
+            / "astrbot_plugin_emotion_spirit_config.json"
+        )
+        data_dir = (
+            Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit"
+        )
+
+        if not config_path.exists():
+            return config
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                file_config = json.load(f)
+            state = MigrationState(data_dir).load_or_init()
+            new_config, new_state = run_migrations(file_config, state)
+
+            # 写盘顺序: config 先, state 后. 这样如果 state.save 失败,
+            # 下次启动会重跑 migration (幂等), 不会丢数据
+            if new_config != file_config:
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(new_config, f, ensure_ascii=False, indent=2)
+                logger.info(
+                    "Config migration applied, saved %s", config_path
+                )
+            new_state.save()
+
+            # 合并: 用文件的新 config 覆盖 AstrBot 传入的
+            return new_config
+        except Exception as e:
+            logger.warning(
+                "Config migration failed: %s, using AstrBot-passed config", e
+            )
+            return config
+
+    # ═══ Web API 端点 ═══
+
+    def _setup_web_apis(self) -> None:
+        """注册 Web API 端点 (本次只加 migration 端点)."""
+        self.context.register_web_api(
+            route="emotion_spirit/re_run_migration",
+            view_handler=self._api_re_run_migration,
+            methods=["POST"],
+            desc="手动重跑 config migration",
+        )
+
+    async def _api_re_run_migration(self, **kwargs):
+        """POST /emotion_spirit/re_run_migration — 强制重跑 migration."""
+        from emotion_spirit.migrations import run_migrations, MigrationState
+        from quart import jsonify as quart_jsonify
+        try:
+            config_path = (
+                Path(get_astrbot_data_path())
+                / "config"
+                / "astrbot_plugin_emotion_spirit_config.json"
+            )
+            data_dir = (
+                Path(get_astrbot_data_path()) / "plugin_data" / "emotion_spirit"
+            )
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            state = MigrationState(data_dir).load_or_init()
+            new_config, new_state = run_migrations(config, state, force=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(new_config, f, ensure_ascii=False, indent=2)
+            new_state.save()
+            return quart_jsonify({
+                "status": "ok",
+                "config": new_config,
+                "state": new_state.to_dict(),
+            })
+        except Exception as e:
+            logger.warning("Manual re-run migration failed: %s", e)
+            return quart_jsonify({"status": "error", "msg": str(e)}), 500
 
     # ═══ Persona State Setup ═══
 
@@ -529,6 +620,9 @@ class EmotionSpiritPlugin(Star):
             self._superego_guard = SuperegoGuard(
                 self._conscience, self._alignment, self._ideal, self._current_persona,
             )
+
+        # 注册 Web API 端点 (migration re-run)
+        self._setup_web_apis()
 
         asyncio.get_event_loop().call_later(2.0, self._connect_engine_sync)
         asyncio.get_event_loop().call_later(3.0, lambda: asyncio.ensure_future(self._verify_llm_chain()))

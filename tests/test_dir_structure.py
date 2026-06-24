@@ -67,14 +67,16 @@ def test_no_v1_import_paths_remain():
     #         emotion_spirit.store (root helper)
     v2_layer_prefixes = ("emotion_spirit.core.", "emotion_spirit.memory.",
                          "emotion_spirit.regulation.", "emotion_spirit.output.",
-                         "emotion_spirit.bridge.", "emotion_spirit.sylanne.")
+                         "emotion_spirit.bridge.", "emotion_spirit.sylanne.",
+                         "emotion_spirit.migrations.")
     v2_root_modules = {"emotion_spirit", "emotion_spirit.layer",
                        "emotion_spirit._version", "emotion_spirit._v1_compat",
                        "emotion_spirit.store",
                        # sub-package roots 本身也是 v2 合法路径 (from X.layer import Y)
                        "emotion_spirit.core", "emotion_spirit.memory",
                        "emotion_spirit.regulation", "emotion_spirit.output",
-                       "emotion_spirit.bridge", "emotion_spirit.sylanne"}
+                       "emotion_spirit.bridge", "emotion_spirit.sylanne",
+                       "emotion_spirit.migrations"}
 
     def is_v2_path(s: str) -> bool:
         if s in v2_root_modules:
