@@ -144,7 +144,7 @@ class EmotionSpiritPlugin(Star):
             return config
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, "r", encoding="utf-8-sig") as f:
                 file_config = json.load(f)
             state = MigrationState(data_dir).load_or_init()
             new_config, new_state = run_migrations(file_config, state)
