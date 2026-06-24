@@ -301,7 +301,8 @@ class ForceDynamics:
         知道"压力源是 ConscienceTracker" (而不是别的 scalar)。
         """
         pressure = (
-            conscience_tracker.get_pressure() if conscience_tracker is not None else 0.0
+            max(0.0, min(1.0, conscience_tracker.get_pressure()))
+            if conscience_tracker is not None else 0.0
         )
         return self.compute(
             personality, body_state=body_state, conscience_pressure=pressure,
