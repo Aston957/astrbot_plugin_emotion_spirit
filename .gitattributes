@@ -50,6 +50,7 @@ dev-requirements.txt         export-ignore
 /docs/                       export-ignore
 public_api_stable.md         export-ignore
 CHANGELOG.md                 export-ignore
+STRUCTURE_REPORT.md          export-ignore
 
 # --- CI / build automation ---
 /.github/**                  export-ignore
