@@ -1425,8 +1425,9 @@ def test_life_sim_v2_config_exists():
     assert "events_per_day_min" in LIFE_SIM_V2_CONFIG
     assert "events_per_day_max" in LIFE_SIM_V2_CONFIG
     assert "adaptation_threshold" in LIFE_SIM_V2_CONFIG
-    assert "view_schedule_enabled" in LIFE_SIM_V2_CONFIG
-    assert LIFE_SIM_V2_CONFIG["view_schedule_enabled"] is True
+    assert "enable_proactive_prompt" in LIFE_SIM_V2_CONFIG
+    assert "sleep_start_hour" in LIFE_SIM_V2_CONFIG
+    assert "sleep_end_hour" in LIFE_SIM_V2_CONFIG
 
 
 # ═══════════════════════════════════════════════════════════════════════

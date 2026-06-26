@@ -9,7 +9,6 @@ __all__ = [
     "MEMORY_POOL_CONFIG",
     "UNIFIED_MEMORY_CONFIG",
     "INTIMACY_CONFIG",
-    "LIFE_SIM_CONFIG",
     "DIARY_CONFIG",
     "SENTINEL_CONFIG",
     "SUPEREGO_CONFIG",
@@ -112,25 +111,15 @@ INTIMACY_CONFIG: dict[str, float | dict] = {
 }
 
 
-# ═══ Life Sim ═══
-LIFE_SIM_CONFIG: dict[str, float] = {
-    "mode_a_idle_seconds": 60,
-    "mode_a_max_turns": 15,
-    "mode_b_min_hours": 2.0,
-    "mode_b_max_hours": 4.0,
-    "mode_b_cooldown_after_trigger_minutes": 30,
-}
-
-
 # ═══ LifeSimulator v2 ═══
 LIFE_SIM_V2_CONFIG: dict[str, int | float | bool] = {
     "plan_generate_hour": 2,
     "events_per_day_min": 3,
     "events_per_day_max": 5,
     "adaptation_threshold": 0.3,
-    "llm_random_events_min": 1,
-    "llm_random_events_max": 2,
-    "view_schedule_enabled": True,
+    "enable_proactive_prompt": True,
+    "sleep_start_hour": 23,
+    "sleep_end_hour": 7,
 }
 
 

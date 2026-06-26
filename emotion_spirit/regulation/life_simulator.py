@@ -18,7 +18,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, TYPE_CHECKING
 
-from ..core.config import LIFE_SIM_CONFIG
+# v1 Mode A/B defaults (deprecated, kept for backward compat)
+_LIFE_SIM_V1_DEFAULTS = {
+    "mode_a_idle_seconds": 60,
+    "mode_a_max_turns": 15,
+    "mode_b_min_hours": 2.0,
+    "mode_b_max_hours": 4.0,
+    "mode_b_cooldown_after_trigger_minutes": 30,
+}
 from ..output.surface_consumer import SemanticSignals
 
 if TYPE_CHECKING:
@@ -171,7 +178,7 @@ class LifeSimulator:
         """用户消息到达时调用。重置 Mode B 计时。"""
         self._turn_count += 1
         self._last_interaction = time.time()
-        self._mode_b_cooldown = LIFE_SIM_CONFIG["mode_b_cooldown_after_trigger_minutes"] * 60
+        self._mode_b_cooldown = _LIFE_SIM_V1_DEFAULTS["mode_b_cooldown_after_trigger_minutes"] * 60
 
     # ═══════════════════════════════════════════════════════════════════
     # Phase G: LLM 生活片段生成
@@ -264,16 +271,16 @@ class LifeSimulator:
     ) -> dict[str, Any] | None:
         """检查 Mode A 触发条件。返回事件或 None。"""
         idle_seconds = time.time() - self._last_interaction
-        max_turns = int(LIFE_SIM_CONFIG["mode_a_max_turns"])
+        max_turns = int(_LIFE_SIM_V1_DEFAULTS["mode_a_max_turns"])
 
-        if idle_seconds >= LIFE_SIM_CONFIG["mode_a_idle_seconds"] or self._turn_count >= max_turns:
+        if idle_seconds >= _LIFE_SIM_V1_DEFAULTS["mode_a_idle_seconds"] or self._turn_count >= max_turns:
             self._turn_count = 0
             p = personality if personality is not None else _DEFAULT_PERSONALITY
             samples = self._sampler.sample(p, k=3)
             if samples:
                 return {
                     "type": "mode_a",
-                    "trigger": "idle" if idle_seconds >= LIFE_SIM_CONFIG["mode_a_idle_seconds"] else "turn_limit",
+                    "trigger": "idle" if idle_seconds >= _LIFE_SIM_V1_DEFAULTS["mode_a_idle_seconds"] else "turn_limit",
                     "memories": [
                         {
                             "text": s.entry.text,
@@ -332,7 +339,7 @@ class LifeSimulator:
             return None
 
         self._last_mode_b = now
-        self._mode_b_cooldown = LIFE_SIM_CONFIG["mode_b_cooldown_after_trigger_minutes"] * 60
+        self._mode_b_cooldown = _LIFE_SIM_V1_DEFAULTS["mode_b_cooldown_after_trigger_minutes"] * 60
 
         p = personality if personality is not None else _DEFAULT_PERSONALITY
         samples = self._sampler.sample(p, k=3)
@@ -366,7 +373,7 @@ class LifeSimulator:
 
     def _mode_b_interval(self, density: float) -> float:
         """Mode B 触发间隔 (秒)。"""
-        base = LIFE_SIM_CONFIG["mode_b_min_hours"] * 3600
+        base = _LIFE_SIM_V1_DEFAULTS["mode_b_min_hours"] * 3600
         # 根据交互密度动态调整: 密度越高，间隔越短
         return max(3600, base * (1 - 0.3 * (1 - density)))
 
@@ -786,11 +793,21 @@ class LifeSimulatorV2:
         recent_memories = recent_memories or []
         yesterday_events = yesterday_events or []
 
-        # 模板事件 (2-3 个)
-        template_events = self.generate_plan_template(personality, n=2)
+        # 模板事件 (3 个基础)
+        template_events = self.generate_plan_template(personality, n=3)
 
-        # LLM 随机事件 (0-2 个)
+        # LLM 随机事件 (1-2 个)
         llm_events = await self.generate_plan_llm(personality, recent_memories, yesterday_events)
+
+        # LLM 失败时补充 1 个模板事件
+        if not llm_events:
+            extra = self.generate_plan_template(personality, n=1)
+            # 排除已有的 activity
+            existing = {e.activity for e in template_events}
+            for e in extra:
+                if e.activity not in existing:
+                    llm_events.append(e)
+                    break
 
         # 组合
         all_events = template_events + llm_events
