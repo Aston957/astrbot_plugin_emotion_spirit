@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .utils import clamp
+
 
 # ═══ 基线 (Default ISTJ 安全型) ═══
 
@@ -135,10 +137,6 @@ LABEL_OPTIONS: dict[str, list[str]] = {
     "conflict_style": ["攻击型", "回避型", "顺应型", "合作型"],
     "time_focus": ["活在过去", "活在当下", "活在未来"],
 }
-
-
-def clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
-    return max(lo, min(hi, value))
 
 
 def labels_to_personality(labels: dict[str, str]) -> dict[str, dict[str, float]]:

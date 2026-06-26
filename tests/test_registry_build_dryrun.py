@@ -143,8 +143,8 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility N (provides=[]) 也被装配. Phase 0 Task 3: 34 instances
-    # (30 instantiable + 4 utility)
+    # 所以 utility N (provides=[]) 也被装配. Phase 0 Task 5: 39 instances
+    # (34 instantiable + 5 utility)
     assert len(real) == 39, f"expected 39 instances, got {len(real)}"
 
 

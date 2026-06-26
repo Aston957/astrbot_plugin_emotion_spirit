@@ -15,14 +15,13 @@ from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
 from .unified_entry import UnifiedEntry
-from .decay_model import DecayModel
 from .cascade_engine import CascadeEngine
 from ..core.registry import register
 
 if TYPE_CHECKING:
     from .memory_pool import MemoryPool
 
-_clamp = DecayModel.clamp
+from ..core.utils import clamp as _clamp
 
 __all__ = ["MemorySampler", "SampledMemory"]
 

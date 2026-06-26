@@ -17,6 +17,7 @@ from typing import Any
 
 from astrbot.api import logger
 from ..core.config import BUFFER_POOL_CONFIG, MEMORY_POOL_CONFIG
+from ..core.utils import clamp
 from .unified_entry import UnifiedEntry
 from .decay_model import DecayModel
 from .cascade_engine import CascadeEngine
@@ -670,7 +671,7 @@ class MemoryPool:
         arousal = body_state.get("arousal", 0.5)
         shift = (arousal - 0.5) * 0.1
         for entry in entries:
-            entry.temperature = self._decay.clamp(entry.temperature + shift, 0.0, 1.0)
+            entry.temperature = clamp(entry.temperature + shift, 0.0, 1.0)
 
     def mean_temperature(self) -> float:
         entries = self.all_entries()

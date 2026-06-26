@@ -14,14 +14,13 @@ Phase 0 Task 5: +cascade_engine, +decay_model, +suppression,
 Spec deviation (vs plan Step 4.4):
 - Plan 期望 30 → 31 (additive), 实际仍 30。persona_labels_db 是数据 loader, 不是
   plugin module — 不应加 @register (Step 1.1 决策), 也不能空挂一个 fake spec。
-- registry test 期望保持 39 modules / 25 instantiable (实际值, 不需改)。
+- registry test 期望保持 39 modules / 34 instantiable (实际值, 不需改)。
 - 加 import 的实际价值: 模块在 import emotion_spirit 时被 hot-load, Phase 4 L2 DI
   接入时 force_state_from_persona_id / force_state_from_persona_id_with_conscience
   已经被模块系统知道, 不需要 re-import。
 """
 import sys
 import warnings
-import importlib
 import importlib.abc
 import importlib.util
 

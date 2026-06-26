@@ -54,7 +54,7 @@ def test_plugin_factory_can_disable_module():
     assert "store" in modules
 
 
-def test_plugin_factory_default_config_lists_all_25():
+def test_plugin_factory_default_config_lists_all_34():
     """default_config() 列出 34 个有 provides 的模块 (utility 5 不在内)。
 
     Phase 3.0B Task 3: 25 → 26 (+body_state, 25 instantiable + 1 body_state = 26

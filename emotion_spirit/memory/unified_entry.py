@@ -15,9 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from .decay_model import DecayModel
-
-_clamp = DecayModel.clamp
+from ..core.utils import clamp as _clamp
 
 __all__ = ["UnifiedEntry"]
 

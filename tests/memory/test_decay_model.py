@@ -74,7 +74,7 @@ def test_ghost_no_thermal_decay():
 
 def test_clamp_utility():
     """clamp() restricts values to [lo, hi]."""
-    dm = DecayModel()
-    assert dm.clamp(1.5, 0, 1) == 1.0
-    assert dm.clamp(-0.5, 0, 1) == 0.0
-    assert dm.clamp(0.5, 0, 1) == 0.5
+    from emotion_spirit.core.utils import clamp
+    assert clamp(1.5, 0, 1) == 1.0
+    assert clamp(-0.5, 0, 1) == 0.0
+    assert clamp(0.5, 0, 1) == 0.5

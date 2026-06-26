@@ -88,7 +88,6 @@ class EngineManager:
         if self._engine is None:
             return None
         try:
-            import asyncio
             # process() 可能是 async 也可能是 sync
             result = self._engine.process(session_id, text)
             if hasattr(result, "__await__"):

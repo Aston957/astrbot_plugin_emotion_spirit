@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 
 from ..core.registry import register
+from ..core.utils import clamp
 
 __all__ = ["DecayModel"]
 
@@ -28,11 +29,6 @@ class DecayModel:
 
     # Base thermal decay time constant (seconds)
     THERMAL_BASE_TAU: float = 2 * 3600  # 2 hours
-
-    @staticmethod
-    def clamp(value: float, lo: float, hi: float) -> float:
-        """Restrict value to [lo, hi]."""
-        return max(lo, min(hi, value))
 
     def memory_retention(
         self,
