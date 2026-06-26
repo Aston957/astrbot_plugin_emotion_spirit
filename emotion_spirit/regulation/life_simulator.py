@@ -878,19 +878,23 @@ class LifeSimulatorV2:
         # 组合
         all_events = template_events + llm_events
 
-        # 分配到时间段 (确保不重复 slot)
-        used_slots: set[str] = set()
+        # 分配到时间段 (确保不重复 approximate_time)
+        slot_pool = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "17:00", "18:00", "19:00", "21:00"]
+        used_times: set[str] = set()
         for e in all_events:
-            if e.time_slot in used_slots:
-                # 找一个空 slot
-                for slot in ["morning", "afternoon", "evening", "night"]:
-                    if slot not in used_slots:
-                        e.time_slot = slot
-                        # 更新 approximate_time 以匹配新 slot
-                        slot_times = {"morning": "09:00", "afternoon": "14:00", "evening": "18:00", "night": "21:00"}
-                        e.approximate_time = slot_times.get(slot, e.approximate_time)
+            if e.approximate_time in used_times:
+                # 找一个空闲时间
+                for t in slot_pool:
+                    if t not in used_times:
+                        e.approximate_time = t
+                        # 同步更新 time_slot
+                        hour = int(t.split(":")[0])
+                        if hour < 12: e.time_slot = "morning"
+                        elif hour < 17: e.time_slot = "afternoon"
+                        elif hour < 22: e.time_slot = "evening"
+                        else: e.time_slot = "night"
                         break
-            used_slots.add(e.time_slot)
+            used_times.add(e.approximate_time)
 
         # 按 approximate_time 排序 (actual time string, not slot order)
         all_events.sort(key=lambda e: e.approximate_time)

@@ -964,8 +964,8 @@ def test_v2_generate_daily_plan_events_sorted_by_time():
     assert order_values == sorted(order_values)
 
 
-def test_v2_generate_daily_plan_no_slot_collisions():
-    """No two events share the same time slot."""
+def test_v2_generate_daily_plan_no_time_collisions():
+    """No two events share the same approximate_time."""
     sim = _make_sim_v2()
     async def mock_llm(system_prompt, user_prompt):
         return '[{"time": "afternoon", "activity": "逛街", "mood": "开心"}]'
@@ -974,10 +974,8 @@ def test_v2_generate_daily_plan_no_slot_collisions():
     personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
                    "agreeableness": 0.5, "neuroticism": 0.5}
     plan = _run_async(sim.generate_daily_plan(personality))
-    slots = [e.time_slot for e in plan.events]
-    # Allow duplicates only if there are more events than 4 slots
-    if len(plan.events) <= 4:
-        assert len(slots) == len(set(slots)), f"Duplicate slots found: {slots}"
+    times = [e.approximate_time for e in plan.events]
+    assert len(times) == len(set(times)), f"Duplicate times found: {times}"
 
 
 def test_v2_generate_daily_plan_dream_seed():
