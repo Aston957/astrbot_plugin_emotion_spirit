@@ -20,6 +20,8 @@ __all__ = [
     "RHYTHM_LEARNER_CONFIG",
     "REALTIME_DISPATCH_CONFIG",
     "LIFE_SIM_V2_CONFIG",
+    "REFLEX_LEARNER_CONFIG",
+    "DREAM_CONFIG",
 ]
 
 
@@ -231,4 +233,22 @@ REALTIME_DISPATCH_CONFIG: dict[str, float | int] = {
     "chars_per_second": 7.5,             # 打字速度 (字符/秒)
     "resumption_gap_hours": 2,           # 对话恢复间隔 (小时)
     "max_breakpoints_per_session": 10,   # 每 session 最大断点数
+}
+
+
+# ═══ ReflexLearner ═══
+REFLEX_LEARNER_CONFIG: dict[str, float] = {
+    "learning_rate": 0.01,
+    "delta_min": -0.2,
+    "delta_max": 0.2,
+    "behavior_engaged_seconds": 300.0,
+    "behavior_ignored_seconds": 7200.0,
+}
+
+
+# ═══ Dream Generator ═══
+DREAM_CONFIG: dict[str, float | int] = {
+    "deep_sleep_llm_enabled": True,
+    "sleep_deprivation_base_chance": 0.1,
+    "dream_rounds_per_3h": 1,
 }
