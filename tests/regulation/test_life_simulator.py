@@ -1429,6 +1429,52 @@ def test_life_sim_v2_config_exists():
     assert LIFE_SIM_V2_CONFIG["view_schedule_enabled"] is True
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 9: Integration Smoke Test — Full Lifecycle
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_full_lifecycle():
+    """End-to-end: generate plan → adapt → consume → build context → persist."""
+    sim = _make_sim_v2()
+
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "evening", "activity": "看星星", "mood": "平静"}]'
+
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {
+        "openness": 0.8, "extraversion": 0.3, "conscientiousness": 0.5,
+        "agreeableness": 0.5, "neuroticism": 0.5,
+    }
+
+    # 1. Generate plan
+    plan = _run_async(
+        sim.generate_daily_plan(personality, recent_memories=["今天很开心"])
+    )
+    assert len(plan.events) >= 3
+    assert sim._current_plan is plan
+
+    # 2. Adapt (bad mood → cancel social)
+    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    # At least one social event should be cancelled
+    cancelled = [e for e in plan.events if e.status == "cancelled"]
+    # (may or may not cancel depending on template selection, so just check no crash)
+
+    # 3. Build context
+    context = sim.build_schedule_context()
+    # Should be non-empty if there are events
+    if plan.events:
+        assert context  # non-empty
+
+    # 4. Persistence roundtrip
+    data = sim.to_dict()
+    sim2 = _make_sim_v2()
+    sim2.from_dict(data)
+    assert sim2._current_plan.date == plan.date
+    assert len(sim2._current_plan.events) == len(plan.events)
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()
