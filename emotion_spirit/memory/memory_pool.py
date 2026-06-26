@@ -110,7 +110,7 @@ class MemoryPool:
         )
         self._next_id += 1
         self.buffer.append(entry)
-        self._entries[entry.id] = entry
+        self._build_index(entry)
         self._dirty = True
 
         # 直通幽灵
@@ -496,9 +496,10 @@ class MemoryPool:
 
     def _promote_to_warm(self, entry: UnifiedEntry) -> UnifiedEntry:
         old_id = entry.id
+        old_tags, old_text = list(entry.tags), entry.text
         entry.id = entry.id.replace("buf_", "mem_")
         if old_id != entry.id:
-            self._entries.pop(old_id, None)
+            self._clean_entry_index(old_id, old_tags, old_text)
         entry.tier = "warm"
         self.warm.append(entry)
         self._dirty = True
@@ -507,9 +508,10 @@ class MemoryPool:
 
     def _promote_to_cold(self, entry: UnifiedEntry) -> UnifiedEntry:
         old_id = entry.id
+        old_tags, old_text = list(entry.tags), entry.text
         entry.id = entry.id.replace("buf_", "cold_")
         if old_id != entry.id:
-            self._entries.pop(old_id, None)
+            self._clean_entry_index(old_id, old_tags, old_text)
         entry.tier = "cold"
         self.cold.append(entry)
         self._dirty = True
@@ -518,18 +520,37 @@ class MemoryPool:
 
     def _form_ghost(self, entry: UnifiedEntry) -> UnifiedEntry:
         old_id = entry.id
+        old_tags, old_text = list(entry.tags), entry.text
         entry.id = entry.id.replace("buf_", "ghost_")
         if old_id != entry.id:
-            self._entries.pop(old_id, None)
+            self._clean_entry_index(old_id, old_tags, old_text)
         entry.tier = "ghost"
         entry.is_ghost = True
         self.ghosts.append(entry)
-        self._entries[entry.id] = entry
         self._dirty = True
+        self._build_index(entry)
         ghost_max = int(MEMORY_POOL_CONFIG["ghost_max"])
         if len(self.ghosts) > ghost_max:
+            evicted = self.ghosts[:-ghost_max]
             self.ghosts = self.ghosts[-ghost_max:]
+            for victim in evicted:
+                self._remove_entry(victim)
         return entry
+
+    def _clean_entry_index(self, entry_id: str, tags: list, text: str) -> None:
+        """Remove stale index entries for a given ID (before re-indexing with a new ID)."""
+        self._entries.pop(entry_id, None)
+        self._vector_index.pop(entry_id, None)
+        for tag in tags:
+            if tag in self._tag_index:
+                self._tag_index[tag] = [e for e in self._tag_index[tag] if e.id != entry_id]
+                if not self._tag_index[tag]:
+                    del self._tag_index[tag]
+        for word in _tokenize(text):
+            if word in self._text_index:
+                self._text_index[word] = [e for e in self._text_index[word] if e.id != entry_id]
+                if not self._text_index[word]:
+                    del self._text_index[word]
 
     def _build_index(self, entry: UnifiedEntry) -> None:
         for tag in entry.tags:

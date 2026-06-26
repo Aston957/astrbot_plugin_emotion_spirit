@@ -150,7 +150,6 @@ def test_recall_chinese_keyword():
     """recall() finds Chinese text via 2-gram index."""
     pool = MemoryPool()
     pool.add("我今天很开心", 0.8, 0.5, ["mood"], "user")
-    pool._build_index(pool.buffer[0])
     results = pool.recall("开心")
     assert len(results) > 0
 
