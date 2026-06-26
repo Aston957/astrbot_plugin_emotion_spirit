@@ -65,6 +65,18 @@
         "type": "string",
         "_special": "select_provider",
         "hint": "/setup_init 时解析人格标签使用的 LLM Provider"
+      },
+      "dream_provider_id": {
+        "description": "深度睡眠梦境",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "梦境生成使用的 LLM Provider（定时任务，建议用便宜模型）"
+      },
+      "reflection_provider_id": {
+        "description": "反思引擎",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "反思引擎使用的 LLM Provider（每日 2 次，建议用便宜模型）"
       }
     }
   },
@@ -90,80 +102,6 @@
         "type": "int",
         "default": 50,
         "hint": "幽灵记忆池容量上限"
-      }
-    }
-  },
-  "life_simulator": {
-    "description": "Mode A: 生活内容生成（对话中插入生活片段）",
-    "type": "object",
-    "hint": "控制 bot 在对话中插入生活片段的行为",
-    "items": {
-      "enable_life_fragment": {
-        "description": "启用生活片段插入",
-        "type": "bool",
-        "default": true,
-        "hint": "开启后 bot 在对话空闲时会生成并插入生活片段"
-      },
-      "mode_a_idle_seconds": {
-        "description": "空闲触发秒数",
-        "type": "int",
-        "default": 60,
-        "hint": "对话空闲多少秒后触发生活片段生成"
-      },
-      "mode_a_max_turns": {
-        "description": "单次最大轮数",
-        "type": "int",
-        "default": 15,
-        "hint": "单次生活片段对话最大轮数"
-      }
-    }
-  },
-  "proactive_chat": {
-    "description": "Mode B: 主动对话注入（长沉默后主动发起对话）",
-    "type": "object",
-    "hint": "控制 bot 在用户长时间未说话时主动发起对话",
-    "items": {
-      "enable_proactive_prompt": {
-        "description": "启用主动对话注入",
-        "type": "bool",
-        "default": true,
-        "hint": "开启后 bot 会在用户长时间未说话时主动注入 prompt 发起对话"
-      },
-      "mode_b_min_hours": {
-        "description": "最小触发间隔（小时）",
-        "type": "float",
-        "default": 2.0,
-        "hint": "距离上次对话至少多少小时后才触发主动对话"
-      },
-      "mode_b_max_hours": {
-        "description": "最大触发间隔（小时）",
-        "type": "float",
-        "default": 4.0,
-        "hint": "超过此时间未对话则强制触发主动对话"
-      },
-      "mode_b_cooldown_after_trigger_minutes": {
-        "description": "触发后冷却时间（分钟）",
-        "type": "int",
-        "default": 30,
-        "hint": "主动对话触发后多少分钟内不再触发"
-      },
-      "mode_b_density_threshold": {
-        "description": "交互密度阈值",
-        "type": "float",
-        "default": 0.0,
-        "hint": "交互密度低于此值时才触发主动对话（0=总是触发）"
-      },
-      "mode_b_density_window_hours": {
-        "description": "交互密度计算窗口（小时）",
-        "type": "float",
-        "default": 24.0,
-        "hint": "计算交互密度的时间窗口"
-      },
-      "mode_b_full_density_hours": {
-        "description": "满密度时间（小时）",
-        "type": "float",
-        "default": 1.0,
-        "hint": "在此时间内有持续交互则密度为 1.0"
       }
     }
   },
@@ -246,6 +184,99 @@
         "type": "int",
         "default": 3,
         "hint": "24 小时内最多触发几次严重级别安全层干预"
+      }
+    }
+  },
+  "life_sim_v2": {
+    "description": "LifeSimulator v2: 日程规划系统",
+    "type": "object",
+    "hint": "控制 bot 的日程规划行为（2am 生成明天日程，对话中适应调整）",
+    "items": {
+      "plan_generate_hour": {
+        "description": "日程生成时间（24h 制）",
+        "type": "int",
+        "default": 2,
+        "hint": "每天几点生成第二天的日程计划"
+      },
+      "events_per_day_min": {
+        "description": "每天最少事件数",
+        "type": "int",
+        "default": 3,
+        "hint": "日程中至少包含几个事件"
+      },
+      "events_per_day_max": {
+        "description": "每天最多事件数",
+        "type": "int",
+        "default": 5,
+        "hint": "日程中最多包含几个事件"
+      },
+      "adaptation_threshold": {
+        "description": "情绪变化触发调整阈值",
+        "type": "float",
+        "default": 0.3,
+        "hint": "情绪变化幅度超过此值时触发日程调整"
+      },
+      "enable_proactive_prompt": {
+        "description": "允许 bot 主动说话",
+        "type": "bool",
+        "default": true,
+        "hint": "关闭后 bot 不会主动发起对话（仅回复用户消息）"
+      },
+      "sleep_start_hour": {
+        "description": "睡眠开始时间（24h 制）",
+        "type": "int",
+        "default": 23,
+        "hint": "bot 进入睡眠模式的时间（影响梦境生成）"
+      },
+      "sleep_end_hour": {
+        "description": "睡眠结束时间（24h 制）",
+        "type": "int",
+        "default": 7,
+        "hint": "bot 结束睡眠模式的时间"
+      }
+    }
+  },
+  "dream": {
+    "description": "梦境系统",
+    "type": "object",
+    "hint": "控制 bot 的梦境生成行为",
+    "items": {
+      "deep_sleep_llm_enabled": {
+        "description": "启用深度睡眠梦境（LLM 生成）",
+        "type": "bool",
+        "default": true,
+        "hint": "关闭后深度睡眠梦境不生成（节省 token）"
+      },
+      "sleep_deprivation_base_chance": {
+        "description": "睡眠剥夺梦境基础概率",
+        "type": "float",
+        "default": 0.1,
+        "hint": "每条消息触发睡眠剥夺梦境的基础概率（会被人格和情绪调制）"
+      }
+    }
+  },
+  "reflex_learner": {
+    "description": "行为反馈系统",
+    "type": "object",
+    "hint": "控制 bot 的自我学习行为（根据用户反馈调整门控阈值）",
+    "items": {
+      "learning_rate": {
+        "description": "学习速率",
+        "type": "float",
+        "default": 0.01,
+        "hint": "每次反馈调整门控阈值的步长（越大越敏感）"
+      },
+      "behavior_engaged_seconds": {
+        "description": "用户续聊判定秒数",
+        "type": "float",
+        "default": 300.0,
+        "hint": "用户在此时间内回复视为策略有效（+1）"
+      },
+      "behavior_ignored_seconds": {
+        "description": "用户忽略判定秒数",
+        "type": "float",
+        "default": 7200.0,
+        "hint": "用户超过此时间未回复视为策略失败（-1）"
       }
     }
   }
