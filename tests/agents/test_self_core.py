@@ -31,7 +31,7 @@ def test_cognitive_agent_defaults():
     agent = CognitiveAgent(bus)
     assert agent.perceive({}) == {}
     assert agent.gate({}) == SKIP
-    assert asyncio.get_event_loop().run_until_complete(agent.act("sk", RULE, {})) is None
+    assert asyncio.run(agent.act("sk", RULE, {})) is None
 
 
 def test_cognitive_agent_emit():
@@ -133,7 +133,7 @@ def test_self_core_register():
 def test_self_core_run_cycle():
     sc = SelfCore()
     sc.register(DummyAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert "safe" in result.flags
@@ -142,7 +142,7 @@ def test_self_core_run_cycle():
 def test_self_core_skip():
     sc = SelfCore()
     sc.register(DummyAgent(sc.bus, mode=SKIP))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.flags == []
@@ -153,7 +153,7 @@ def test_self_core_phase_filter():
     sc = SelfCore()
     sc.register(DummyAgent(sc.bus))
     # DummyAgent phases=(PRE,), request POST -> should produce empty
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, POST)
     )
     assert result.flags == []
@@ -175,7 +175,7 @@ def test_llm_budget():
             return AgentIntent(source="life", flags=["idle"], payload={"src": "l"})
     sc.register(LLM1(sc.bus))
     sc.register(LLM2(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     # Both should still produce intents (one via LLM, one downgraded to RULE)
@@ -204,7 +204,7 @@ def test_compose_flag_filtering():
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="flagger", flags=["safe", "not_a_real_flag", "hurt"])
     sc.register(FlagAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert "safe" in result.flags
@@ -222,7 +222,7 @@ def test_compose_confidence_weighted():
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="conf", confidence_hint=0.8, priority=0.6)
     sc.register(ConfAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.confidence == pytest.approx(0.8)
@@ -238,7 +238,7 @@ def test_compose_affect_weighted():
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="aff", affect={"valence": 0.5}, priority=1.0)
     sc.register(AffAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.values["valence"] == pytest.approx(0.5)
@@ -262,7 +262,7 @@ def test_compose_group_heat_max():
             return AgentIntent(source="gh2", group_heat=0.7, payload={"gh": 2})
     sc.register(GH1(sc.bus))
     sc.register(GH2(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert len(result.carried) == 2
@@ -278,7 +278,7 @@ def test_compose_carried_payloads():
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="pay", payload={"key": "value"})
     sc.register(PayAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.carried["pay"] == {"key": "value"}
@@ -294,7 +294,7 @@ def test_agent_act_exception_is_caught():
         async def act(self, sk, m, p, phase=PRE):
             raise RuntimeError("oops")
     sc.register(BadAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.flags == []
@@ -312,7 +312,7 @@ def test_agent_perceive_exception_is_caught():
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="badp")
     sc.register(BadPerceiveAgent(sc.bus))
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
     assert result.flags == []

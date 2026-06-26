@@ -9,9 +9,10 @@ Reference: docs/DREAM_GENERATOR_DESIGN.md
 
 from __future__ import annotations
 
-import random
 import time
 from typing import Any, Awaitable, Callable, TYPE_CHECKING
+
+from ..core.config import DREAM_CONFIG
 
 if TYPE_CHECKING:
     from ..memory.memory_pool import MemoryPool
@@ -88,7 +89,7 @@ class DreamGenerator:
           x0.8 if conscientiousness > 0.7
         Capped at 1.0.
         """
-        p = 0.1
+        p = DREAM_CONFIG.get("sleep_deprivation_base_chance", 0.1)
         if temperature > 0.7:
             p *= 2.0
         if cascade_active:
@@ -118,10 +119,12 @@ class DreamGenerator:
         events = "\n".join(f"- {e}" for e in (recent_events or [])[:3]) or "（暂无）"
         tone = self._personality_tone(personality)
 
+        seed_line = f"梦境主题: {dream_seed}\n" if dream_seed else ""
         prompt = (
             f"你正在做梦。以下是你最近的记忆和今天发生的事:\n"
             f"记忆:\n{memories}\n"
             f"今天的事:\n{events}\n"
+            f"{seed_line}"
             f"你的人格基调: {tone}\n"
             f"请写一段 5-8 句的梦境叙事。不要提及你是 AI。"
         )

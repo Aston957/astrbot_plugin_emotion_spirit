@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..core.config import REFLEX_LEARNER_CONFIG
+
 __all__ = ["ReflexLearner", "ReflexLearnerStore"]
 
 
@@ -58,9 +60,9 @@ class ReflexLearner:
         ("relationship", "relationship_update_threshold"),
     ]
 
-    def __init__(self, store: ReflexLearnerStore, learning_rate: float = 0.01) -> None:
+    def __init__(self, store: ReflexLearnerStore, learning_rate: float | None = None) -> None:
         self._store = store
-        self._lr = learning_rate
+        self._lr = learning_rate if learning_rate is not None else REFLEX_LEARNER_CONFIG.get("learning_rate", 0.01)
 
     @property
     def store(self) -> ReflexLearnerStore:
@@ -85,12 +87,14 @@ class ReflexLearner:
 def compute_behavior(gap_seconds: float) -> float:
     """Compute behavior signal from user response gap.
 
-    +1.0 = user replied within 5 min (strategy effective)
-     0.0 = uncertain (5 min -- 2 hours)
-    -1.0 = user ignored (2+ hours)
+    +1.0 = user replied within engaged threshold (strategy effective)
+     0.0 = uncertain (between engaged and ignored)
+    -1.0 = user ignored (beyond ignored threshold)
     """
-    if gap_seconds <= 300:
+    engaged = REFLEX_LEARNER_CONFIG.get("behavior_engaged_seconds", 300.0)
+    ignored = REFLEX_LEARNER_CONFIG.get("behavior_ignored_seconds", 7200.0)
+    if gap_seconds <= engaged:
         return 1.0
-    if gap_seconds >= 7200:
+    if gap_seconds >= ignored:
         return -1.0
     return 0.0

@@ -888,7 +888,6 @@ class EmotionSpiritPlugin(Star):
             "user_id": user_id,
         }
         composed = await self._self_core.run_cycle(user_id, surface_with_phase, "pre")
-        # Use composed.flags, composed.values, composed.carried in prompt injection below
 
         await self._flush_inject_queue()
 
@@ -963,6 +962,26 @@ class EmotionSpiritPlugin(Star):
             schedule_ctx = self._life_sim_v2.build_schedule_context()
             if schedule_ctx:
                 context = f"[今日日程] {schedule_ctx}\n\n{context}" if context else f"[今日日程] {schedule_ctx}"
+
+        # v1.1.0B: Agent PRE cycle 结果注入
+        if composed:
+            agent_parts = []
+            if composed.flags:
+                agent_parts.append(f"信号: {','.join(composed.flags)}")
+            if composed.carried:
+                for source, payload in composed.carried.items():
+                    if source == "memory" and "recalled_memories" in payload:
+                        memories = "; ".join(payload["recalled_memories"][:3])
+                        agent_parts.append(f"相关记忆: {memories}")
+                    elif source == "relationship" and "segment" in payload:
+                        agent_parts.append(f"关系: {payload.get('segment', '')}")
+                    elif source == "life" and "plan_adaptations" in payload:
+                        adaptations = payload["plan_adaptations"]
+                        if adaptations:
+                            agent_parts.append(f"日程调整: {len(adaptations)} 项")
+            if agent_parts:
+                agent_ctx = "[内部状态] " + " | ".join(agent_parts)
+                context = f"{agent_ctx}\n\n{context}" if context else agent_ctx
 
         if context:
             logger.debug(

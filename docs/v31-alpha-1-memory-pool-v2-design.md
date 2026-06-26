@@ -289,7 +289,105 @@ def test_v3_to_v4_migration_preserves_data():
 
 ---
 
-## 9. 相关文档
+## 9. 补充: alpha.1 顺带修复的工程问题 (2026-06-26 review)
+
+以下问题在 alpha.1 CompositeIndex 重构时**顺带修复**（不额外增加 timeline）：
+
+### 9.1 _find_entry_by_id() O(n) → O(1)
+
+```python
+# 现在: 每次遍历全部 entries
+def _find_entry_by_id(self, entry_id):
+    for e in self.all_entries():
+        if e.id == entry_id:
+            return e
+
+# alpha.1: CompositeIndex.entries 是 dict[str, UnifiedEntry]
+# _find_entry_by_id 直接查 dict，O(1)
+```
+
+### 9.2 _remove_entry() O(n) → O(1)
+
+```python
+# 现在: list.remove() 是 O(n)
+def _remove_entry(self, entry):
+    for tier_list in (self.buffer, self.warm, self.cold, self.ghosts):
+        if entry in tier_list:
+            tier_list.remove(entry)
+
+# alpha.1: CompositeIndex 用 dict 管理 entry_id → tier 映射
+# 删除 = dict.pop()，O(1)
+```
+
+### 9.3 all_entries() 每次分配新列表 → 缓存 + dirty flag
+
+```python
+# 现在: 每次创建新列表
+def all_entries(self):
+    return self.buffer + self.warm + self.cold + self.ghosts
+
+# alpha.1: 加 _all_entries_cache + _dirty flag
+# tick()/add() 后设 dirty=True，下次 all_entries() 时重建缓存
+```
+
+### 9.4 _text_index 中文分词
+
+```python
+# 现在: 按空格分词，中文无效
+for word in entry.text.split():
+    self._text_index.setdefault(word, []).append(entry)
+
+# alpha.1 方案: character 2-gram（零依赖，不引入 jieba）
+def _tokenize(self, text: str) -> list[str]:
+    # 英文: 按空格分词
+    # 中文: character 2-gram
+    tokens = text.split()
+    for i in range(len(text) - 1):
+        gram = text[i:i+2]
+        if not gram.isspace():
+            tokens.append(gram)
+    return tokens
+```
+
+**注意**: 语义召回（embedding）和 reconsolidation 是**新功能**，不在 alpha.1 范围内，见 §10。
+
+---
+
+## 10. 后续版本规划 (alpha.2 / beta.1)
+
+### 10.1 语义召回 (embedding) — alpha.2
+
+```python
+# 目标: 用向量相似度替代纯关键词匹配
+# 用户说"我最近心情不好" → 能匹配到"情绪低落"的记忆
+
+async def recall_semantic(self, query_text: str, k: int = 5):
+    query_vec = await self._embedding(query_text)
+    return self.search_by_vector(query_vec, top_k=k)
+
+# 依赖: 需要注入 embedding 函数 (configure 时传入)
+# 可选: 用 AstrBot 的 provider.embedding 或本地模型
+```
+
+### 10.2 Reconsolidation (记忆再巩固) — beta.1
+
+```python
+# 目标: 每次 recall 时，根据当前情绪重写记忆 (Bower 1981)
+# 开心时回忆 → 记忆变得更正面
+# 难过时回忆 → 记忆变得更负面
+# boundary_permeability 高时 → 产生虚假记忆效应
+
+def reconsolidate(self, entry: UnifiedEntry, current_mood: dict):
+    mood_valence = current_mood.get("valence", 0.0)
+    permeability = current_mood.get("boundary_permeability", 0.5)
+    # 情绪一致 → 强化 (mood-congruent recall)
+    # 情绪不一致 + 高 permeability → 扭曲 (false memory)
+    ...
+```
+
+---
+
+## 11. 相关文档
 
 * [ADR-0010](0010-v31-release-process.md) — 5-phase release 流程
 * [ADR-0011](0011-workflow-dependency-graph.md) — 18 flow 依赖图
