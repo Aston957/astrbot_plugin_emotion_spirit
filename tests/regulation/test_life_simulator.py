@@ -1029,6 +1029,185 @@ def test_v2_generate_daily_plan_date_is_tomorrow():
     assert plan.date == tomorrow
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 5: Plan Adaptation (Rule-Based + Personality Modulation)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_adapt_cancel_social_on_bad_mood():
+    """Emotion drop + social event -> cancel social event."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", flexibility=0.3),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    # Emotion dropped significantly
+    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    cancelled = [a for a in actions if a["action"] == "cancel"]
+    assert len(cancelled) >= 1
+    assert cancelled[0]["event_id"] == "e2"  # social event cancelled
+
+
+def test_v2_adapt_no_cancel_on_good_mood():
+    """Good mood -> no cancellation."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    actions = sim.adapt_plan(emotion_delta=0.3, cascade_active=False, boundary_pressure=0.0)
+    assert actions == []
+
+
+def test_v2_adapt_high_neuroticism_lower_threshold():
+    """High neuroticism -> more likely to cancel."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="出门见人", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.9, "conscientiousness": 0.3},
+    )
+    sim._current_plan = plan
+    # Small emotion drop, but high neuroticism should still trigger
+    actions = sim.adapt_plan(emotion_delta=-0.2, cascade_active=False, boundary_pressure=0.0)
+    assert any(a["action"] == "cancel" for a in actions)
+
+
+def test_v2_adapt_cascade_cancels_outdoor():
+    """cascade_active -> cancel all outdoor events."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", flexibility=0.3),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.8),
+            PlannedEvent(id="e3", time_slot="evening", approximate_time="18:00",
+                         activity="散步", category="template", flexibility=0.7),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    actions = sim.adapt_plan(emotion_delta=0.0, cascade_active=True, boundary_pressure=0.0)
+    cancelled_ids = {a["event_id"] for a in actions if a["action"] == "cancel"}
+    assert "e2" in cancelled_ids  # 逛商场 cancelled
+    assert "e3" in cancelled_ids  # 散步 cancelled
+    assert "e1" not in cancelled_ids  # 看书 (not outdoor) kept
+
+
+def test_v2_adapt_boundary_pressure_cancels_social():
+    """boundary_pressure > 0.7 -> cancel social events."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", flexibility=0.5),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="和朋友聊天", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    actions = sim.adapt_plan(emotion_delta=0.0, cascade_active=False, boundary_pressure=0.8)
+    cancelled_ids = {a["event_id"] for a in actions if a["action"] == "cancel"}
+    assert "e2" in cancelled_ids  # social cancelled
+    assert "e1" not in cancelled_ids  # non-social kept
+
+
+def test_v2_adapt_no_plan_returns_empty():
+    """No current plan -> returns empty list."""
+    sim = _make_sim_v2()
+    actions = sim.adapt_plan(emotion_delta=-1.0, cascade_active=True, boundary_pressure=1.0)
+    assert actions == []
+
+
+def test_v2_adapt_low_flexibility_protects_event():
+    """Events with flexibility < 0.3 cannot be cancelled."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.1),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=True, boundary_pressure=0.9)
+    # flexibility=0.1 < 0.3, so event should NOT be cancelled
+    assert actions == []
+
+
+def test_v2_adapt_high_conscientiousness_resists_cancel():
+    """High conscientiousness raises threshold, making cancellation harder."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="出门见人", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.3, "conscientiousness": 0.9},
+    )
+    sim._current_plan = plan
+    # Small emotion drop — high conscientiousness should resist
+    actions = sim.adapt_plan(emotion_delta=-0.15, cascade_active=False, boundary_pressure=0.0)
+    assert actions == []
+
+
+def test_v2_adapt_records_adaptation_log():
+    """Cancellations are recorded in plan.adaptations."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    assert len(plan.adaptations) >= 1
+    assert plan.adaptations[0]["action"] == "cancel"
+    assert plan.adaptations[0]["event_id"] == "e1"
+    assert "timestamp" in plan.adaptations[0]
+
+
+def test_v2_adapt_cancelled_event_status_updated():
+    """Cancelled events have status='cancelled' and cancellation_reason set."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", flexibility=0.8),
+        ],
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
+    )
+    sim._current_plan = plan
+    sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    assert plan.events[0].status == "cancelled"
+    assert plan.events[0].cancellation_reason is not None
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()

@@ -825,6 +825,89 @@ class LifeSimulatorV2:
         self._current_plan = plan
         return plan
 
+    # ── Plan adaptation (Task 5) ────────────────────────────────────────
+
+    # 户外活动关键词
+    _OUTDOOR_KEYWORDS = {"逛商场", "出门", "散步", "跑步", "去咖啡店", "出门见人", "公园"}
+    # 社交活动关键词
+    _SOCIAL_KEYWORDS = {"和朋友", "出门见人", "逛商场", "去咖啡店", "聊天"}
+
+    def adapt_plan(
+        self,
+        emotion_delta: float = 0.0,
+        cascade_active: bool = False,
+        boundary_pressure: float = 0.0,
+    ) -> list[dict]:
+        """根据当前状态调整计划。返回调整动作列表。
+
+        规则:
+        1. 情绪下降 + 社交事件 → 取消
+        2. cascade_active → 取消户外事件
+        3. boundary_pressure > 0.7 → 取消社交事件
+
+        人格调制:
+        - neuroticism 高 → 阈值降低 (更容易取消)
+        - conscientiousness 高 → 阈值提高 (更坚持计划)
+        """
+        if not self._current_plan:
+            return []
+
+        personality = self._current_plan.personality_snapshot
+        neuroticism = personality.get("neuroticism", 0.5)
+        conscientiousness = personality.get("conscientiousness", 0.5)
+
+        # 基础阈值，被人格调制
+        base_threshold = 0.3
+        # neuroticism 高 → 阈值降低 (更容易取消)
+        # conscientiousness 高 → 阈值提高 (更坚持计划)
+        threshold = base_threshold * (
+            1.0 - 0.7 * (neuroticism - 0.5) + 0.3 * (conscientiousness - 0.5)
+        )
+        threshold = max(0.1, min(0.6, threshold))
+
+        actions: list[dict] = []
+        for event in self._current_plan.events:
+            if event.status != "planned":
+                continue
+
+            should_cancel = False
+            reason = ""
+
+            # 规则 1: 情绪下降 + 社交事件 → 取消
+            if emotion_delta < -threshold:
+                if any(kw in event.activity for kw in self._SOCIAL_KEYWORDS):
+                    should_cancel = True
+                    reason = "情绪下降，不想社交"
+
+            # 规则 2: cascade_active → 取消户外事件
+            if cascade_active:
+                if any(kw in event.activity for kw in self._OUTDOOR_KEYWORDS):
+                    should_cancel = True
+                    reason = "情绪连锁反应，需要独处"
+
+            # 规则 3: boundary_pressure 高 → 取消社交事件
+            if boundary_pressure > 0.7:
+                if any(kw in event.activity for kw in self._SOCIAL_KEYWORDS):
+                    should_cancel = True
+                    reason = "边界压力过高"
+
+            # flexibility 检查: 只有 flexibility 足够高才能取消
+            if should_cancel and event.flexibility < 0.3:
+                should_cancel = False  # 不可改变的事件
+
+            if should_cancel:
+                event.status = "cancelled"
+                event.cancellation_reason = reason
+                self._current_plan.adaptations.append({
+                    "event_id": event.id,
+                    "action": "cancel",
+                    "reason": reason,
+                    "timestamp": time.time(),
+                })
+                actions.append({"action": "cancel", "event_id": event.id, "reason": reason})
+
+        return actions
+
     # ── LLM random event generation (Task 3) ──────────────────────────
 
     _LLM_PLAN_PROMPT = """你是一个生活模拟器。根据以下信息，为角色规划 1-2 个随机生活事件。
