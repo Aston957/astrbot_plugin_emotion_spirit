@@ -892,30 +892,6 @@ class EmotionSpiritPlugin(Star):
 
         await self._flush_inject_queue()
 
-        # v1.1.0A: 日程调整 (情绪变化驱动)
-        if hasattr(self, '_life_sim_v2') and self._life_sim_v2._current_plan:
-            try:
-                signals = self._latest_signals.get(user_id)
-                if signals is not None:
-                    emotion_delta = getattr(signals, 'emotion_velocity', 0.0)
-                    cascade = self._pool.cascade_active()
-                    bp = 0.0
-                    body_state = getattr(signals, 'body_state', None)
-                    if body_state and isinstance(body_state, dict):
-                        bp = body_state.get('boundary_pressure', 0.0)
-                    personality = self._get_current_personality_dict()
-                    adaptations = self._life_sim_v2.adapt_plan(
-                        emotion_delta=emotion_delta,
-                        cascade_active=cascade,
-                        boundary_pressure=bp,
-                    )
-                    if adaptations:
-                        logger.info(
-                            "emotion_spirit: 日程调整 %d 个事件", len(adaptations),
-                        )
-            except Exception:
-                logger.debug("emotion_spirit: adapt_plan error", exc_info=True)
-
         # Phase G: LifeSimulator LLM 生活片段生成
         # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
         _life_event_inject = ""
@@ -1272,6 +1248,11 @@ class EmotionSpiritPlugin(Star):
         # v1.1.0A: LifeSimulator v2 持久化
         self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
         self._store.set("last_plan_date", self._last_plan_date)
+        # v1.1.0B: ReflexLearner + DreamGenerator persistence
+        if hasattr(self, '_reflex_store'):
+            self._store.set("reflex_deltas", self._reflex_store.to_dict())
+        if hasattr(self, '_dream_generator') and hasattr(self._dream_generator, 'to_dict'):
+            self._store.set("dream_state", self._dream_generator.to_dict())
 
     # ═══ 公开 API (v1.1.1 + v1.2 扩展) — 保持向后兼容结构 ═══
     # 注: PublicAPI 网关提供 flat 结构 (B6.10), 这里保留 nested "pad"/"distribution" 结构
