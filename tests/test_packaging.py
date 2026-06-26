@@ -78,13 +78,18 @@ def test_no_third_party_imports():
         for p in emotion_spirit_dir.rglob("*.py")
         if p.stem != "__init__"
     }
+    # 收集 emotion_spirit/ 下所有含 __init__.py 的 package 目录名
+    local_packages = {
+        p.parent.name
+        for p in emotion_spirit_dir.rglob("__init__.py")
+    }
     # repo-root 下的 .py 也算本地 (例如 main.py)
     repo_root_modules = {
         p.stem
         for p in REPO_ROOT.glob("*.py")
         if p.stem != "__init__"
     }
-    local_top_levels = local_modules | repo_root_modules | {
+    local_top_levels = local_modules | local_packages | repo_root_modules | {
         "emotion_spirit", "core", "memory", "regulation", "output",
         "bridge", "sylanne",
     }
