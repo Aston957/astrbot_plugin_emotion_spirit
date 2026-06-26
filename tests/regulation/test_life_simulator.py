@@ -1285,6 +1285,52 @@ def test_v2_build_schedule_context_multiple_planned_in_slot():
     assert "听音乐" in context
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 7: Persistence (to_dict/from_dict) for LifeSimulatorV2
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_persistence_roundtrip():
+    """to_dict → from_dict preserves all data."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=1234567890.0,
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", status="done"),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="llm_random", status="cancelled",
+                         cancellation_reason="情绪下降"),
+        ],
+        personality_snapshot={"openness": 0.8},
+        adaptations=[{"event_id": "e2", "action": "cancel", "reason": "情绪下降"}],
+        dream_seed="看书, 逛商场",
+    )
+    sim._current_plan = plan
+
+    data = sim.to_dict()
+    sim2 = _make_sim_v2()
+    sim2.from_dict(data)
+
+    assert sim2._current_plan is not None
+    assert sim2._current_plan.date == "2026-06-27"
+    assert len(sim2._current_plan.events) == 2
+    assert sim2._current_plan.events[0].activity == "看书"
+    assert sim2._current_plan.events[1].status == "cancelled"
+    assert sim2._current_plan.dream_seed == "看书, 逛商场"
+
+
+def test_v2_persistence_no_plan():
+    """to_dict/from_dict when no plan is set."""
+    sim = _make_sim_v2()
+    data = sim.to_dict()
+    assert "current_plan" not in data
+
+    sim2 = _make_sim_v2()
+    sim2.from_dict(data)
+    assert sim2._current_plan is None
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()

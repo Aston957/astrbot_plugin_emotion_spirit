@@ -867,6 +867,22 @@ class LifeSimulatorV2:
 
         return "。".join(parts) + "。" if parts else ""
 
+    # ── Persistence (Task 7) ───────────────────────────────────────────
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize LifeSimulatorV2 state for persistence."""
+        data: dict[str, Any] = {}
+        if self._current_plan:
+            data["current_plan"] = self._current_plan.to_dict()
+        return data
+
+    def from_dict(self, data: dict[str, Any]) -> None:
+        """Restore LifeSimulatorV2 state from persistence."""
+        from .life_plan import DailyPlan
+        plan_data = data.get("current_plan")
+        if plan_data:
+            self._current_plan = DailyPlan.from_dict(plan_data)
+
     # ── Plan adaptation (Task 5) ────────────────────────────────────────
 
     # 户外活动关键词
