@@ -253,13 +253,10 @@ class EmotionSpiritPlugin(Star):
         self._enable_narrative = toggles.get("enable_narrative", True)
         self._enable_surface_logging = toggles.get("enable_surface_logging", False)
 
-        # 新配置段: life_simulator (Mode A) + proactive_chat (Mode B)
-        life_sim_cfg = self._config.get("life_simulator", {})
-        proactive_cfg = self._config.get("proactive_chat", {})
-        self._enable_life_fragment = life_sim_cfg.get("enable_life_fragment", True)
-        self._enable_proactive_prompt = proactive_cfg.get("enable_proactive_prompt", True)
-        # 兼容: 只要有一个 mode 开启就算 life_sim 开启
-        self._enable_life = self._enable_life_fragment or self._enable_proactive_prompt
+        # v1.1.0A: life_sim_v2 配置 (合并旧 life_simulator + proactive_chat)
+        life_sim_v2_cfg = self._config.get("life_sim_v2", {})
+        self._enable_proactive_prompt = life_sim_v2_cfg.get("enable_proactive_prompt", True)
+        self._enable_life = True  # v2 always enabled when plugin is active
 
         # Phase 1 组件 (从 _modules 拿)
         self._consumer = self._modules["surface_consumer"]
@@ -953,10 +950,9 @@ class EmotionSpiritPlugin(Star):
                         **(signals.personality_deep or {}),
                         **(signals.personality_surface or {}),
                     }
-                    # Mode A: 生活片段插入 (enable_life_fragment)
-                    event_a = self._life_sim.check_mode_a(signals, personality_dict) if self._enable_life_fragment else None
-                    # Mode B: 主动对话注入 (enable_proactive_prompt)
-                    event_b = event_a or (self._life_sim.check_mode_b(signals, personality_dict) if self._enable_proactive_prompt else None)
+                    # v1 Mode A/B: 保留作为 fallback (v2 日程规划接管后可移除)
+                    event_a = self._life_sim.check_mode_a(signals, personality_dict) if self._life_sim else None
+                    event_b = event_a or (self._life_sim.check_mode_b(signals, personality_dict) if self._enable_proactive_prompt and self._life_sim else None)
                     if event_b:
                         life_event = await self._life_sim.generate_life_prose(
                             event_b,
