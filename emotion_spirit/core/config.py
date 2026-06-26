@@ -9,6 +9,9 @@ __all__ = [
     "MEMORY_POOL_CONFIG",
     "UNIFIED_MEMORY_CONFIG",
     "INTIMACY_CONFIG",
+    "INTIMACY_THRESHOLDS",
+    "SUPEREGO_THRESHOLDS",
+    "SHADOW_DETECTOR_CONFIG",
     "DIARY_CONFIG",
     "SENTINEL_CONFIG",
     "SUPEREGO_CONFIG",
@@ -108,6 +111,34 @@ INTIMACY_CONFIG: dict[str, float | dict] = {
     },
     "vulnerability_half_life_days": 14,
     "user_investment_half_life_days": 30,
+}
+
+
+# ═══ 亲密度阈值与权重 (T4 迁移: 提取自 intimacy.py 硬编码) ═══
+INTIMACY_THRESHOLDS: dict[str, float | int] = {
+    "inner_circle_threshold": 0.65,   # 4 段: inner_circle 段位分数下限
+    "friend_threshold": 0.40,         # 4 段: friend 段位分数下限
+    "promotion_inner_circle": 0.75,   # _compute_lifecycle: 亲密状态判定阈值
+    "warmth_bias_weight": 0.20,       # relationship_tone: inner_circle warmth_bias
+    "intimacy_pull_weight": 0.25,     # relationship_tone: inner_circle intimacy_pull
+    "vulnerability_weight": 0.20,     # _compute_lifecycle: vulnerability_exposure 权重
+    "investment_weight": 0.20,        # _compute_lifecycle: user_investment 权重
+    "temporal_depth_hours": 168,      # _compute_lifecycle: acquaintance 判定 (7 days)
+}
+
+
+# ═══ 超我阈值 (T4 迁移: 提取自 superego/resistance.py 硬编码) ═══
+SUPEREGO_THRESHOLDS: dict[str, float] = {
+    "alignment_resistance_factor": 0.6,    # resistance.compute: behavioral_shift = resistance * 0.6
+    "alignment_righteous_threshold": 0.85, # resistance._classify_tension: alignment_ratio 判定
+}
+
+
+# ═══ 阴影检测配置 (T4 迁移: 提取自 shadow_detector.py 硬编码) ═══
+SHADOW_DETECTOR_CONFIG: dict[str, float | int] = {
+    "echo_threshold": 0.2,             # detect: confirmation_bias rate 下限 (80%+ 被丢弃)
+    "echo_count_min": 5,               # detect: echo_pattern count 下限
+    "echo_count_divisor": 10,          # detect: echo_pattern confidence 分母
 }
 
 

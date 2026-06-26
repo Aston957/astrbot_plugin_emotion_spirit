@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .pattern_extractor import PatternExtractor
 
 
+from ..core.config import SHADOW_DETECTOR_CONFIG
 from ..core.registry import register
 
 
@@ -59,11 +60,11 @@ class ShadowDetector:
 
         # 1. 回声模式: 同标签在缓冲池反复出现但未确认
         for echo in self._signals.echo_patterns():
-            if echo["count"] >= 5 and echo.get("expired", 0) > echo.get("in_buffer", 0):
+            if echo["count"] >= SHADOW_DETECTOR_CONFIG["echo_count_min"] and echo.get("expired", 0) > echo.get("in_buffer", 0):
                 shadows.append({
                     "tag": echo["tag"],
                     "evidence": "echo_pattern",
-                    "confidence": min(1.0, echo["count"] / 10),
+                    "confidence": min(1.0, echo["count"] / SHADOW_DETECTOR_CONFIG["echo_count_divisor"]),
                     "suggestion": f"你一直在经历 {echo['tag']} 但无法消化",
                 })
 
@@ -80,7 +81,7 @@ class ShadowDetector:
         # 3. 确认偏差: 某标签被系统性丢弃
         bias = self._signals.confirmation_bias()
         for tag, rate in bias.items():
-            if rate < 0.2:  # 80%+ 被丢弃
+            if rate < SHADOW_DETECTOR_CONFIG["echo_threshold"]:  # 80%+ 被丢弃
                 shadows.append({
                     "tag": tag,
                     "evidence": "confirmation_bias",

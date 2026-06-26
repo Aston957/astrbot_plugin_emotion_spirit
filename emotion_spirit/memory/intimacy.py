@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .persona_profiles import get_intimacy_weights, get_intimacy_modulation
+from ..core.config import INTIMACY_THRESHOLDS
 from ..layer import per_user_only
 
 
@@ -152,8 +153,8 @@ class IntimacyTracker:
 
     # 4 段阈值 (基于 get_intimacy 分数 [0, 1])
     _SEGMENT_THRESHOLDS = (
-        (0.65, "inner_circle"),  # 深度共情
-        (0.40, "friend"),        # 朋友
+        (INTIMACY_THRESHOLDS["inner_circle_threshold"], "inner_circle"),  # 深度共情
+        (INTIMACY_THRESHOLDS["friend_threshold"], "friend"),              # 朋友
         (0.15, "acquaintance"),  # 熟人
         (0.0,  "stranger"),      # 陌生人
     )
@@ -206,9 +207,9 @@ class IntimacyTracker:
                 "relational_autonomy": -0.05,  # 适度依赖
             },
             "inner_circle": {
-                "warmth_bias": 0.20,
+                "warmth_bias": INTIMACY_THRESHOLDS["warmth_bias_weight"],
                 "expression_drive": 0.15,
-                "intimacy_pull": 0.25,
+                "intimacy_pull": INTIMACY_THRESHOLDS["intimacy_pull_weight"],
                 "relational_autonomy": -0.10,  # 深度共情
             },
         }
@@ -219,14 +220,14 @@ class IntimacyTracker:
         intimacy = (
             profile.temporal_depth / max(1.0, profile.temporal_depth + 720) * 0.3
             + min(1.0, profile.repair_history / 10.0) * 0.3
-            + min(1.0, profile.vulnerability_exposure) * 0.2
-            + min(1.0, profile.user_investment) * 0.2
+            + min(1.0, profile.vulnerability_exposure) * INTIMACY_THRESHOLDS["vulnerability_weight"]
+            + min(1.0, profile.user_investment) * INTIMACY_THRESHOLDS["investment_weight"]
         )
-        if intimacy > 0.75 and profile.repair_history >= 5:
+        if intimacy > INTIMACY_THRESHOLDS["promotion_inner_circle"] and profile.repair_history >= 5:
             return "intimate"
         if intimacy > 0.5 and profile.repair_history >= 2:
             return "close"
-        if intimacy > 0.2 and profile.temporal_depth >= 168:
+        if intimacy > 0.2 and profile.temporal_depth >= INTIMACY_THRESHOLDS["temporal_depth_hours"]:
             return "acquaintance"
         return "stranger"
 

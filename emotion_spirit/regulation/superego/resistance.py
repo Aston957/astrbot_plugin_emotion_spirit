@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ...core.config import SUPEREGO_CONFIG
+from ...core.config import SUPEREGO_CONFIG, SUPEREGO_THRESHOLDS
 from ...memory.persona_profiles import get_value_behaviors, get_narrative
 
 
@@ -96,7 +96,7 @@ class ValueResistance:
             conflict_values, aligned_values, current_personality,
         )
 
-        behavioral_shift = resistance * 0.6
+        behavioral_shift = resistance * SUPEREGO_THRESHOLDS["alignment_resistance_factor"]
         if tension_type == "righteous":
             behavioral_shift *= 0.3
 
@@ -170,7 +170,7 @@ class ValueResistance:
         # 坚持型: 同时有对齐和冲突，且对齐比例足够高 (v2: 条件判断)
         if aligned_values and conflict_values:
             alignment_ratio = aligned_strength / total if total > 0 else 0.0
-            if alignment_ratio >= 0.85:  # v2: 提高阈值，减少和平场景误判为 righteous
+            if alignment_ratio >= SUPEREGO_THRESHOLDS["alignment_righteous_threshold"]:  # v2: 提高阈值，减少和平场景误判为 righteous
                 return "righteous"
             # 对齐比例不足，fall through 到普通 tension 分类
 

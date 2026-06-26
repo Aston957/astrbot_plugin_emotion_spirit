@@ -279,5 +279,92 @@
         "hint": "用户超过此时间未回复视为策略失败（-1）"
       }
     }
+  },
+  "intimacy_thresholds": {
+    "description": "亲密度判定阈值",
+    "type": "object",
+    "hint": "调整亲密度段位判定和生命周期阈值",
+    "items": {
+      "inner_circle_threshold": {
+        "description": "inner_circle 段位分数下限",
+        "type": "float",
+        "default": 0.65,
+        "hint": "亲密度分数 >= 此值进入 inner_circle 段"
+      },
+      "friend_threshold": {
+        "description": "friend 段位分数下限",
+        "type": "float",
+        "default": 0.40,
+        "hint": "亲密度分数 >= 此值进入 friend 段"
+      },
+      "promotion_inner_circle": {
+        "description": "升级到 intimate 生命周期阈值",
+        "type": "float",
+        "default": 0.75,
+        "hint": "_compute_lifecycle 判定 intimate 状态所需亲密度分数"
+      },
+      "temporal_depth_hours": {
+        "description": "时间深度阈值（小时）",
+        "type": "int",
+        "default": 168,
+        "hint": "temporal_depth >= 此值才能升 acquaintance 生命周期 (默认 7 天)"
+      },
+      "warmth_bias_weight": {
+        "description": "inner_circle 段 warmth_bias 增量",
+        "type": "float",
+        "default": 0.20,
+        "hint": "inner_circle 关系色调中 warmth_bias 的增量值"
+      },
+      "intimacy_pull_weight": {
+        "description": "inner_circle 段 intimacy_pull 增量",
+        "type": "float",
+        "default": 0.25,
+        "hint": "inner_circle 关系色调中 intimacy_pull 的增量值"
+      },
+      "vulnerability_weight": {
+        "description": "_compute_lifecycle vulnerability_exposure 权重",
+        "type": "float",
+        "default": 0.20,
+        "hint": "生命周期计算中 vulnerability_exposure 的加权"
+      },
+      "investment_weight": {
+        "description": "_compute_lifecycle user_investment 权重",
+        "type": "float",
+        "default": 0.20,
+        "hint": "生命周期计算中 user_investment 的加权"
+      }
+    }
+  },
+  "superego_thresholds": {
+    "description": "超我系统阈值",
+    "type": "object",
+    "hint": "调整超我价值抵抗计算的判定阈值",
+    "items": {
+      "alignment_resistance_factor": {
+        "description": "行为漂移因子",
+        "type": "float",
+        "default": 0.6,
+        "hint": "resistance.compute 中 behavioral_shift = resistance * 此值"
+      },
+      "alignment_righteous_threshold": {
+        "description": "righteous 判定阈值",
+        "type": "float",
+        "default": 0.85,
+        "hint": "aligned/total 对齐比例 >= 此值判定为 righteous tension"
+      }
+    }
+  },
+  "shadow_detector": {
+    "description": "阴影检测配置",
+    "type": "object",
+    "hint": "调整阴影检测器的判定阈值",
+    "items": {
+      "echo_threshold": {
+        "description": "确认偏差丢弃率阈值",
+        "type": "float",
+        "default": 0.2,
+        "hint": "confirmation_bias rate 低于此值视为系统性丢弃"
+      }
+    }
   }
 }
