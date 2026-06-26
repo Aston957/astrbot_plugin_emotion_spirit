@@ -13,6 +13,7 @@ import time
 from typing import Any, Awaitable, Callable, TYPE_CHECKING
 
 from ..core.config import DREAM_CONFIG
+from ..core.registry import register
 
 if TYPE_CHECKING:
     from ..memory.memory_pool import MemoryPool
@@ -21,6 +22,12 @@ if TYPE_CHECKING:
 __all__ = ["DreamGenerator"]
 
 
+@register(
+    name="dream_generator",
+    provides=["DreamGenerator"],
+    depends_on=["memory_pool", "memory_sampler"],
+    param_wire={"memory_pool": "memory_pool", "memory_sampler": "sampler"},
+)
 class DreamGenerator:
     """Dream system: deep sleep (LLM) + sleep deprivation (template).
 

@@ -17,6 +17,7 @@ from typing import Any, TYPE_CHECKING
 from .unified_entry import UnifiedEntry
 from .decay_model import DecayModel
 from .cascade_engine import CascadeEngine
+from ..core.registry import register
 
 if TYPE_CHECKING:
     from .memory_pool import MemoryPool
@@ -34,6 +35,12 @@ class SampledMemory:
     score: float
 
 
+@register(
+    name="memory_sampler",
+    provides=["MemorySampler"],
+    depends_on=["memory_pool"],
+    param_wire={"memory_pool": "memory"},
+)
 class MemorySampler:
     """Personality-weighted multi-layer memory sampler."""
 

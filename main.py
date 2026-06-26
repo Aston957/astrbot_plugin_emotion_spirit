@@ -338,16 +338,13 @@ class EmotionSpiritPlugin(Star):
         self._self_core.register(LifeAgent(self._self_core.bus, self._life_sim_v2))
         self._last_bot_reply_time: dict[str, float] = {}  # for ReflexLearner behavior signal
 
-        # v1.1.0B: ReflexLearner
-        from emotion_spirit.memory.reflex_learner import ReflexLearner, ReflexLearnerStore
-        self._reflex_store = ReflexLearnerStore()
-        self._reflex_learner = ReflexLearner(self._reflex_store)
+        # v1.1.0B: ReflexLearner (Phase 0 T3: @register 化, 从 _modules 取)
+        self._reflex_store = self._modules["reflex_learner_store"]
+        self._reflex_learner = self._modules["reflex_learner"]
         self._self_core.set_store(self._reflex_store)
 
-        # v1.1.0B: DreamGenerator
-        from emotion_spirit.regulation.dream_generator import DreamGenerator
-        from emotion_spirit.memory.memory_sampler import MemorySampler
-        self._dream_generator = DreamGenerator(self._pool, MemorySampler(self._pool))
+        # v1.1.0B: DreamGenerator (Phase 0 T3: @register 化, 从 _modules 取)
+        self._dream_generator = self._modules["dream_generator"]
         self._dream_generator.configure(llm_caller=self._get_llm_callable())
 
         # Phase 2.5: 关系人格

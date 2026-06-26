@@ -27,11 +27,12 @@ from .core import knowledge, label_mapper, persona_labels_db, plugin_factory
 from .memory import (
     memory_pool, intimacy, relationship_personality,
     persona_profiles, social_graph, topic_privacy, meaning_reservoir,
+    memory_sampler, reflex_learner,
 )
 from .regulation import (
     superego, superego_guard, pattern_extractor, shadow_detector,
     life_simulator, personality_drift, counterfactual, persona_analyzer,
-    persona_report_parser, force_dynamics, body_state,
+    persona_report_parser, force_dynamics, body_state, dream_generator,
 )
 from .output import (
     emotion_classifier, surface_consumer, diary_writer, prompt_injector,

@@ -9,14 +9,17 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 30 模块 @register (Phase 3.0B Task 3: +body_state)
+import emotion_spirit  # noqa: F401  # 触发 34 模块 @register (Phase 0 Task 3: +dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler)
 from emotion_spirit.core.registry import ModuleRegistry, build
 from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
 def test_dry_run_30_modules_no_error():
-    """dry_run 走 30 模块依赖图检查, 0 错误。"""
-    assert len(ModuleRegistry.get_all()) == 30, f"expected 30 modules, got {len(ModuleRegistry.get_all())}"
+    """dry_run 走 34 模块依赖图检查, 0 错误。
+
+    Phase 0 Task 3: 30 → 34 (+dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler).
+    """
+    assert len(ModuleRegistry.get_all()) == 34, f"expected 34 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -131,6 +134,7 @@ def test_dry_run_then_real_build_consistent():
     """dry_run 跟真装配 module 集合一致。
 
     Phase 3.0B Task 3: 29 → 30 (+body_state 真装配, 25 instantiable + 5 utility? 待 verify).
+    Phase 0 Task 3: 30 → 34 (+dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler).
     """
     config = default_config(
         data_dir="/tmp/test_consistent",
@@ -139,9 +143,9 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility N (provides=[]) 也被装配. Phase 3.0B Task 3: 30 instances
-    # (26 instantiable + 4 utility, or 25 + 5 utility, 等)
-    assert len(real) == 30, f"expected 30 instances, got {len(real)}"
+    # 所以 utility N (provides=[]) 也被装配. Phase 0 Task 3: 34 instances
+    # (30 instantiable + 4 utility)
+    assert len(real) == 34, f"expected 34 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════

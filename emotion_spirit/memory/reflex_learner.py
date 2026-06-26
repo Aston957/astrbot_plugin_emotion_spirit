@@ -12,10 +12,16 @@ from __future__ import annotations
 from typing import Any
 
 from ..core.config import REFLEX_LEARNER_CONFIG
+from ..core.registry import register
 
 __all__ = ["ReflexLearner", "ReflexLearnerStore"]
 
 
+@register(
+    name="reflex_learner_store",
+    provides=["ReflexLearnerStore"],
+    depends_on=[],
+)
 class ReflexLearnerStore:
     """Persistent store for learned gate deltas.
 
@@ -42,6 +48,12 @@ class ReflexLearnerStore:
         self._deltas = {k: dict(v) for k, v in data.items() if isinstance(v, dict)}
 
 
+@register(
+    name="reflex_learner",
+    provides=["ReflexLearner"],
+    depends_on=["reflex_learner_store"],
+    param_wire={"reflex_learner_store": "store"},
+)
 class ReflexLearner:
     """Zero-LLM behavior feedback: adjust gate thresholds based on user response.
 
