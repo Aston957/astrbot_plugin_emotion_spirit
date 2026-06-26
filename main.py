@@ -721,6 +721,32 @@ class EmotionSpiritPlugin(Star):
                     "emotion_spirit: 日程已生成 %s, %d 个事件",
                     plan.date, len(plan.events),
                 )
+
+                # v1.1.0B: 深度睡眠梦境生成
+                if hasattr(self, '_dream_generator') and self._dream_generator._llm:
+                    try:
+                        sleep_hours = 6.0  # 默认 6 小时睡眠
+                        rounds = self._dream_generator.compute_dream_rounds(sleep_hours, personality)
+                        dream_seed = plan.dream_seed or ""
+                        recent_events = [e.activity for e in plan.events if e.status == "done"]
+                        dream = await self._dream_generator.generate_deep_sleep_dream(
+                            personality=personality,
+                            dream_seed=dream_seed,
+                            recent_events=recent_events,
+                        )
+                        if dream:
+                            # 梦境写入 MemoryPool
+                            self._pool.add(
+                                text=f"[梦境] {dream[:200]}",
+                                raw_weight=0.4,
+                                phi=0.2,
+                                tags=["dream", "deep_sleep"],
+                                source_user="dream_generator",
+                            )
+                            logger.info("emotion_spirit: 深度睡眠梦境已生成 (%d 轮)", rounds)
+                    except Exception:
+                        logger.debug("emotion_spirit: 深度睡眠梦境生成失败", exc_info=True)
+
                 self._save_if_dirty()
 
             except asyncio.CancelledError:
@@ -860,6 +886,30 @@ class EmotionSpiritPlugin(Star):
                 self._rhythm_learner.observe_user_message(user_id, text, _time.time(), intimacy)
             except Exception:
                 pass
+
+        # v1.1.0B: 睡眠剥夺梦境检查 (概率触发)
+        if hasattr(self, '_dream_generator'):
+            try:
+                personality = self._get_current_personality_dict()
+                chance = self._dream_generator.compute_sleep_deprivation_chance(
+                    personality=personality,
+                    temperature=self._pool.mean_temperature(),
+                    cascade_active=self._pool.cascade_active(),
+                )
+                import random as _random
+                if _random.random() < chance:
+                    dream = self._dream_generator.generate_sleep_deprivation_dream(personality)
+                    if dream:
+                        self._pool.add(
+                            text=f"[梦境] {dream[:200]}",
+                            raw_weight=0.3,
+                            phi=0.15,
+                            tags=["dream", "sleep_deprived"],
+                            source_user="dream_generator",
+                        )
+                        logger.info("emotion_spirit: 睡眠剥夺梦境: %s", dream[:50])
+            except Exception:
+                logger.debug("emotion_spirit: 睡眠剥夺梦境检查失败", exc_info=True)
 
         self._last_texts[user_id] = text
         if len(self._last_texts) > 100:
