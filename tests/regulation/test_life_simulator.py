@@ -1208,6 +1208,83 @@ def test_v2_adapt_cancelled_event_status_updated():
     assert plan.events[0].cancellation_reason is not None
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 6: Schedule Context Injection
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_build_schedule_context():
+    """build_schedule_context() returns human-readable schedule string."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", status="done"),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", status="cancelled",
+                         cancellation_reason="情绪下降"),
+            PlannedEvent(id="e3", time_slot="evening", approximate_time="18:00",
+                         activity="画画", category="template", status="planned"),
+        ],
+    )
+    sim._current_plan = plan
+    # Mock current time to evening
+    import datetime
+    evening_ts = datetime.datetime(2026, 6, 27, 19, 0).timestamp()
+    context = sim.build_schedule_context(now=evening_ts)
+    assert "看书" in context  # done
+    assert "逛商场" in context  # cancelled
+    assert "情绪下降" in context  # cancellation reason
+    assert "画画" in context  # current planned
+
+
+def test_v2_build_schedule_context_empty():
+    """No plan → empty string."""
+    sim = _make_sim_v2()
+    assert sim.build_schedule_context() == ""
+
+
+def test_v2_build_schedule_context_only_done():
+    """Plan with only done events, no current slot events."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", status="done"),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="画画", category="template", status="done"),
+        ],
+    )
+    sim._current_plan = plan
+    import datetime
+    evening_ts = datetime.datetime(2026, 6, 27, 19, 0).timestamp()
+    context = sim.build_schedule_context(now=evening_ts)
+    assert "看书" in context
+    assert "画画" in context
+
+
+def test_v2_build_schedule_context_multiple_planned_in_slot():
+    """Multiple planned events in the current slot all appear."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="evening", approximate_time="18:00",
+                         activity="画画", category="template", status="planned"),
+            PlannedEvent(id="e2", time_slot="evening", approximate_time="19:00",
+                         activity="听音乐", category="template", status="planned"),
+        ],
+    )
+    sim._current_plan = plan
+    import datetime
+    evening_ts = datetime.datetime(2026, 6, 27, 19, 0).timestamp()
+    context = sim.build_schedule_context(now=evening_ts)
+    assert "画画" in context
+    assert "听音乐" in context
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()

@@ -825,6 +825,48 @@ class LifeSimulatorV2:
         self._current_plan = plan
         return plan
 
+    # ── Schedule context injection (Task 6) ─────────────────────────────
+
+    def build_schedule_context(self, now: float | None = None) -> str:
+        """将日程注入 system_prompt。
+
+        返回人类可读的字符串，包含:
+        - 当前时段计划事件
+        - 已取消事件 (含原因)
+        - 已完成事件 (最近 2 个)
+        无计划时返回空字符串。
+        """
+        from .life_plan import _time_to_slot
+        if not self._current_plan:
+            return ""
+        if now is None:
+            now = time.time()
+
+        current_slot = _time_to_slot(now)
+        current_events = [
+            e for e in self._current_plan.events
+            if e.time_slot == current_slot and e.status == "planned"
+        ]
+        done_events = [e for e in self._current_plan.events if e.status == "done"]
+        cancelled_events = [
+            e for e in self._current_plan.events if e.status == "cancelled"
+        ]
+
+        parts: list[str] = []
+        if current_events:
+            activities = ", ".join(e.activity for e in current_events)
+            parts.append(f"你现在计划做: {activities}")
+        if cancelled_events:
+            reasons = ", ".join(
+                f"{e.activity}(因为{e.cancellation_reason})" for e in cancelled_events
+            )
+            parts.append(f"今天取消了: {reasons}")
+        if done_events:
+            done = ", ".join(e.activity for e in done_events[-2:])
+            parts.append(f"今天已经做了: {done}")
+
+        return "。".join(parts) + "。" if parts else ""
+
     # ── Plan adaptation (Task 5) ────────────────────────────────────────
 
     # 户外活动关键词
