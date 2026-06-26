@@ -9,10 +9,16 @@ Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md §3.4
 from __future__ import annotations
 
 from .unified_entry import UnifiedEntry
+from ..core.registry import register
 
 __all__ = ["CascadeEngine"]
 
 
+@register(
+    name="cascade_engine",
+    provides=["CascadeEngine"],
+    depends_on=[],
+)
 class CascadeEngine:
     """Cascade propagation engine with inverted indexes."""
 

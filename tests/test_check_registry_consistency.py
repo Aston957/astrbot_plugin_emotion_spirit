@@ -1,10 +1,11 @@
 """Tests for tools/check_registry_consistency.py (B6.x CI gate)。
 
-正向测试: 静态扫描应该 34 模块全 pass, exit 0。
+正向测试: 静态扫描应该 39 模块全 pass, exit 0。
 (dry_run 测试在 tests/test_registry_build_dryrun.py, 互补覆盖)
 
 Phase 3.0B Task 3: 29 → 30 (+body_state)
 Phase 0 Task 3: 30 → 34 (+dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler)
+Phase 0 Task 5: 34 → 39 (+cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector)
 """
 from __future__ import annotations
 import sys
@@ -26,11 +27,11 @@ def test_check_registry_consistency_passes():
     )
     assert result.returncode == 0, f"scan failed: stdout={result.stdout}, stderr={result.stderr}"
     assert "PASS" in result.stdout
-    assert "34 modules" in result.stdout
+    assert "39 modules" in result.stdout
 
 
-def test_check_registry_consistency_covers_all_34_specs():
-    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 34 个 specs。
+def test_check_registry_consistency_covers_all_39_specs():
+    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 39 个 specs。
 
     直接在测试进程内验证 _check_module_consistency 不抛错。
     """

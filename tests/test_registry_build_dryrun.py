@@ -1,6 +1,6 @@
 """Phase B6.x 集成测试: dry_run + 真装配 (P3-7 L2 DI 验证)。
 
-28 模块全跑 registry.build() 0 错误 + 多实例拆 sub 正确。
+39 模块全跑 registry.build() 0 错误 + 多实例拆 sub 正确。
 """
 from __future__ import annotations
 import sys
@@ -9,17 +9,17 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 34 模块 @register (Phase 0 Task 3: +dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler)
+import emotion_spirit  # noqa: F401  # 触发 39 模块 @register (Phase 0 Task 5: +cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector)
 from emotion_spirit.core.registry import ModuleRegistry, build
 from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
 def test_dry_run_30_modules_no_error():
-    """dry_run 走 34 模块依赖图检查, 0 错误。
+    """dry_run 走 39 模块依赖图检查, 0 错误。
 
-    Phase 0 Task 3: 30 → 34 (+dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler).
+    Phase 0 Task 5: 34 → 39 (+cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector).
     """
-    assert len(ModuleRegistry.get_all()) == 34, f"expected 34 modules, got {len(ModuleRegistry.get_all())}"
+    assert len(ModuleRegistry.get_all()) == 39, f"expected 39 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -145,7 +145,7 @@ def test_dry_run_then_real_build_consistent():
     # build() 默认 enabled=True for registry modules not in config,
     # 所以 utility N (provides=[]) 也被装配. Phase 0 Task 3: 34 instances
     # (30 instantiable + 4 utility)
-    assert len(real) == 34, f"expected 34 instances, got {len(real)}"
+    assert len(real) == 39, f"expected 39 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -233,3 +233,80 @@ def test_cycle_detection_raises_runtime_error():
         ModuleRegistry._registry.clear()
         for name, spec in saved.items():
             ModuleRegistry._registry[name] = spec
+
+
+# ════════════════════════════════════════════════════════════════════
+# Phase 0 Task 5: utility module registration spec tests
+# ════════════════════════════════════════════════════════════════════
+
+
+def test_cascade_engine_registered():
+    """cascade_engine is registered with provides=["CascadeEngine"], depends_on=[]."""
+    spec = ModuleRegistry.get_all()["cascade_engine"]
+    assert spec.provides == ["CascadeEngine"]
+    assert spec.depends_on == []
+    assert spec.name == "cascade_engine"
+
+
+def test_decay_model_registered():
+    """decay_model is registered with provides=["DecayModel"], depends_on=[]."""
+    spec = ModuleRegistry.get_all()["decay_model"]
+    assert spec.provides == ["DecayModel"]
+    assert spec.depends_on == []
+    assert spec.name == "decay_model"
+
+
+def test_suppression_registered():
+    """suppression is registered with provides=["SuppressionState"], depends_on=[]."""
+    spec = ModuleRegistry.get_all()["suppression"]
+    assert spec.provides == ["SuppressionState"]
+    assert spec.depends_on == []
+    assert spec.name == "suppression"
+
+
+def test_collapse_archetype_registered():
+    """collapse_archetype (Enum) is registered with provides=[] (data type, not instantiable)."""
+    spec = ModuleRegistry.get_all()["collapse_archetype"]
+    assert spec.provides == []
+    assert spec.depends_on == []
+    assert spec.name == "collapse_archetype"
+
+
+def test_collapse_archetype_selector_registered():
+    """collapse_archetype_selector is registered with provides=["CollapseArchetypeSelector"], depends_on=[]."""
+    spec = ModuleRegistry.get_all()["collapse_archetype_selector"]
+    assert spec.provides == ["CollapseArchetypeSelector"]
+    assert spec.depends_on == []
+    assert spec.name == "collapse_archetype_selector"
+
+
+def test_memory_sampler_registered():
+    """memory_sampler is registered with depends_on=["memory_pool"], param_wire."""
+    spec = ModuleRegistry.get_all()["memory_sampler"]
+    assert spec.provides == ["MemorySampler"]
+    assert spec.depends_on == ["memory_pool"]
+    assert spec.param_wire == {"memory_pool": "memory"}
+    assert spec.name == "memory_sampler"
+
+
+def test_utility_modules_consistency_check_passes():
+    """All 5 new utility modules pass consistency check."""
+    from tools.check_registry_consistency import _check_module_consistency
+
+    utility_names = [
+        "cascade_engine", "decay_model", "suppression",
+        "collapse_archetype", "collapse_archetype_selector",
+    ]
+    for name in utility_names:
+        spec = ModuleRegistry.get_all()[name]
+        errs = _check_module_consistency(
+            spec.module_class.__module__, name,
+            {
+                "depends_on": spec.depends_on,
+                "param_wire": spec.param_wire,
+                "config_keys": spec.config_keys,
+                "provides_classes": spec.provides_classes,
+            },
+            spec.module_class,
+        )
+        assert errs == [], f"{name} has consistency issues: {errs}"

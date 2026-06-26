@@ -7,4 +7,5 @@ __all__ = [
     "personality_drift", "shadow_detector", "pattern_extractor",
     "life_simulator", "persona_analyzer", "persona_report_parser",
     "counterfactual", "life_plan", "dream_generator",
+    "collapse_archetype",
 ]

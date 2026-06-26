@@ -9,12 +9,18 @@ Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md §7
 from __future__ import annotations
 import math
 from .decay_model import DecayModel
+from ..core.registry import register
 
 _clamp = DecayModel.clamp
 
 __all__ = ["SuppressionState"]
 
 
+@register(
+    name="suppression",
+    provides=["SuppressionState"],
+    depends_on=[],
+)
 class SuppressionState:
     """Dynamic suppression level computation."""
 

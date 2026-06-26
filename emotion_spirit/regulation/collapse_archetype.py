@@ -9,7 +9,19 @@ Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md §6
 from __future__ import annotations
 from enum import Enum
 
+from ..core.registry import register
+
 __all__ = ["CollapseArchetype", "CollapseArchetypeSelector"]
+
+
+@register(
+    name="collapse_archetype",
+    provides=[],
+    depends_on=[],
+)
+class _ModuleMarker:
+    """模块标记 (CollapseArchetype 是 Enum, 不可被 DI 实例化)。"""
+    pass
 
 
 class CollapseArchetype(Enum):
@@ -21,6 +33,11 @@ class CollapseArchetype(Enum):
     COLD = "cold"           # Intellectualize (Vaillant Intellectualization, Lazarus Problem-focused)
 
 
+@register(
+    name="collapse_archetype_selector",
+    provides=["CollapseArchetypeSelector"],
+    depends_on=[],
+)
 class CollapseArchetypeSelector:
     """Selects collapse archetype based on personality via BAS/BIS model."""
 
