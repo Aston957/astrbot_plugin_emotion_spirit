@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from ..output.buffer_signals import BufferSignals
     from ..memory.meaning_reservoir import MeaningReservoir
     from ..output.surface_consumer import SurfaceConsumer
+    from .life_plan import PlannedEvent, DailyPlan
 
 from ..output.emotion_classifier import build_emotion_payload  # v1.1.2: 共享层
 from ..memory.memory_sampler import MemorySampler, SampledMemory
@@ -37,6 +38,7 @@ from ..core.registry import register
 
 __all__ = [
     "LifeSimulator",
+    "LifeSimulatorV2",
     "LifeEvent",
     "LifeEventType",
     "LIFE_EVENT_WEIGHTS",
@@ -711,3 +713,60 @@ class LifeSimulator:
                     event_type=e.get("event_type", ""),
                 )
             )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# LifeSimulatorV2 — template-based plan generation (zero LLM)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class LifeSimulatorV2:
+    """v2: 主动规划日程 + 实时根据对话调整。"""
+
+    def __init__(
+        self,
+        consumer: "SurfaceConsumer",
+        memory: "MemoryPool",
+        intimacy: "IntimacyTracker",
+        signals: "BufferSignals",
+        reservoir: "MeaningReservoir",
+    ) -> None:
+        self._consumer = consumer
+        self._memory = memory
+        self._sampler = MemorySampler(memory)
+        self._intimacy = intimacy
+        self._signals = signals
+        self._reservoir = reservoir
+        self._current_plan: "DailyPlan | None" = None
+        self._llm_caller: Callable[[str, str], Awaitable[str]] | None = None
+
+    def configure(self, llm_caller: Callable[[str, str], Awaitable[str]] | None = None) -> None:
+        self._llm_caller = llm_caller
+
+    def generate_plan_template(
+        self,
+        personality: dict[str, float],
+        n: int = 3,
+    ) -> list["PlannedEvent"]:
+        """按人格权重从模板库选择 n 个活动。"""
+        from .life_plan import PlannedEvent as _PlannedEvent, select_template_activities, _time_to_slot
+        import time as _time
+
+        activities = select_template_activities(personality, n=n)
+        time_slots = ["morning", "afternoon", "evening"]
+        slot_times = {"morning": "10:00", "afternoon": "14:00", "evening": "18:00"}
+
+        events = []
+        for i, (cat, activity) in enumerate(activities):
+            slot = time_slots[i % len(time_slots)]
+            # flexibility: routine=0.1, social=0.8, others=0.5
+            flex = {"routine": 0.1, "social": 0.8}.get(cat, 0.5)
+            events.append(_PlannedEvent(
+                id=f"tpl_{i}_{int(_time.time())}",
+                time_slot=slot,
+                approximate_time=slot_times.get(slot, "12:00"),
+                activity=activity,
+                category="template",
+                flexibility=flex,
+            ))
+        return events

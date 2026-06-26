@@ -25,6 +25,7 @@ from emotion_spirit.memory.meaning_reservoir import MeaningReservoir
 from emotion_spirit.regulation.life_simulator import (
     LifeSimulator, LifeEvent, LifeEventType, LIFE_EVENT_WEIGHTS,
 )
+from emotion_spirit.regulation.life_plan import PlannedEvent, PLAN_TEMPLATES
 
 DEFAULT_PERSONALITY = {
     "openness": 0.5,
@@ -671,6 +672,89 @@ def test_serialization_with_events():
     assert sim2._events[0].text == "test event"
     assert sim2._events[0].event_type == "reading"
     assert sim2._events[0].wants_to_share is True
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task 2: LifeSimulatorV2 — template-based plan generation
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _make_sim_v2():
+    """Helper: create a LifeSimulatorV2 instance."""
+    from emotion_spirit.regulation.life_simulator import LifeSimulatorV2
+    consumer = SurfaceConsumer()
+    pool = MemoryPool()
+    intimacy = IntimacyTracker()
+    signals = BufferSignals(pool)
+    reservoir = MeaningReservoir()
+    return LifeSimulatorV2(consumer, pool, intimacy, signals, reservoir)
+
+
+def test_v2_generate_template_plan():
+    """generate_plan_template() returns 2-3 events from templates."""
+    sim = _make_sim_v2()
+    personality = {"openness": 0.8, "extraversion": 0.3, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    events = sim.generate_plan_template(personality, n=3)
+    assert 2 <= len(events) <= 3
+    for e in events:
+        assert e.category == "template"
+        assert e.status == "planned"
+        assert e.time_slot in ("morning", "afternoon", "evening", "night")
+        assert e.activity  # non-empty
+
+
+def test_v2_template_respects_personality():
+    """High openness -> more creative/intellectual activities."""
+    sim = _make_sim_v2()
+    high_open = {"openness": 0.9, "extraversion": 0.2, "conscientiousness": 0.5,
+                 "agreeableness": 0.5, "neuroticism": 0.5}
+    # Run multiple times to check distribution
+    creative_count = 0
+    for _ in range(50):
+        events = sim.generate_plan_template(high_open, n=2)
+        for e in events:
+            if e.activity in PLAN_TEMPLATES.get("creative", []):
+                creative_count += 1
+    # With high openness, creative activities should appear more than 20% of the time
+    assert creative_count > 5, f"Creative count {creative_count} too low for high openness"
+
+
+def test_v2_template_returns_planned_events():
+    """Each event is a PlannedEvent with correct fields."""
+    sim = _make_sim_v2()
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    events = sim.generate_plan_template(personality, n=2)
+    for e in events:
+        assert isinstance(e, PlannedEvent)
+        assert e.id.startswith("tpl_")
+        assert e.approximate_time  # non-empty
+
+
+def test_v2_template_flexibility_by_category():
+    """routine activities get low flexibility, social gets high."""
+    sim = _make_sim_v2()
+    # We can't control which category is chosen, but we can verify the mapping
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    # Run many times to see different categories
+    flexibilities = set()
+    for _ in range(100):
+        events = sim.generate_plan_template(personality, n=3)
+        for e in events:
+            flexibilities.add(e.flexibility)
+    # Should have at least 2 different flexibility values (0.1 and 0.5, or 0.5 and 0.8)
+    assert len(flexibilities) >= 2, f"Expected varied flexibilities, got {flexibilities}"
+
+
+def test_v2_template_default_n():
+    """Default n=3 when not specified."""
+    sim = _make_sim_v2()
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    events = sim.generate_plan_template(personality)
+    assert len(events) >= 2  # at least 2 (may be less than 3 due to dedup)
 
 
 if __name__ == "__main__":
