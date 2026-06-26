@@ -8,4 +8,5 @@ __all__ = [
     "meaning_reservoir", "decay_model", "unified_entry",
     "cascade_engine", "suppression",
     "memory_sampler",
+    "reflex_learner",
 ]
