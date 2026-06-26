@@ -648,3 +648,30 @@ class CommandImpl:
                 lines.append(f"  {force_type}: {dims_str}")
 
         yield event.plain_result("\n".join(lines))
+
+    async def view_schedule(self, event: AstrMessageEvent) -> None:
+        """查看今天的日程计划。"""
+        life_sim_v2 = getattr(self._p, '_life_sim_v2', None)
+        if life_sim_v2 is None:
+            yield event.plain_result("LifeSimulator v2 未启用。")
+            return
+        plan = life_sim_v2._current_plan
+        if not plan:
+            yield event.plain_result("今天没有日程计划。")
+            return
+
+        lines = [f"📅 日程计划 ({plan.date})"]
+        for e in plan.events:
+            status_icon = {"planned": "⬜", "active": "🔵", "done": "✅",
+                          "cancelled": "❌", "replaced": "🔄"}.get(e.status, "❓")
+            line = f"  {status_icon} {e.approximate_time} {e.activity}"
+            if e.status == "cancelled" and e.cancellation_reason:
+                line += f" (取消原因: {e.cancellation_reason})"
+            if e.status == "replaced" and e.replacement:
+                line += f" → {e.replacement}"
+            lines.append(line)
+
+        if plan.adaptations:
+            lines.append(f"\n📝 调整记录: {len(plan.adaptations)} 次")
+
+        yield event.plain_result("\n".join(lines))

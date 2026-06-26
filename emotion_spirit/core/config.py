@@ -19,6 +19,7 @@ __all__ = [
     "VELOCITY_BURST_THRESHOLD",
     "RHYTHM_LEARNER_CONFIG",
     "REALTIME_DISPATCH_CONFIG",
+    "LIFE_SIM_V2_CONFIG",
 ]
 
 
@@ -116,6 +117,18 @@ LIFE_SIM_CONFIG: dict[str, float] = {
     "mode_b_min_hours": 2.0,
     "mode_b_max_hours": 4.0,
     "mode_b_cooldown_after_trigger_minutes": 30,
+}
+
+
+# ═══ LifeSimulator v2 ═══
+LIFE_SIM_V2_CONFIG: dict[str, int | float | bool] = {
+    "plan_generate_hour": 2,
+    "events_per_day_min": 3,
+    "events_per_day_max": 5,
+    "adaptation_threshold": 0.3,
+    "llm_random_events_min": 1,
+    "llm_random_events_max": 2,
+    "view_schedule_enabled": True,
 }
 
 

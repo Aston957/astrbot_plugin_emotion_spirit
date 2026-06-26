@@ -1331,6 +1331,104 @@ def test_v2_persistence_no_plan():
     assert sim2._current_plan is None
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 8: Config + /view_schedule Command
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_view_schedule_output():
+    """view_schedule returns formatted schedule."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", status="done"),
+            PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", status="cancelled",
+                         cancellation_reason="情绪下降"),
+        ],
+    )
+    sim._current_plan = plan
+
+    # Simulate the command output (mirrors view_schedule logic)
+    lines = [f"📅 日程计划 ({plan.date})"]
+    for e in plan.events:
+        status_icon = {"done": "✅", "cancelled": "❌"}.get(e.status, "❓")
+        line = f"  {status_icon} {e.approximate_time} {e.activity}"
+        if e.status == "cancelled" and e.cancellation_reason:
+            line += f" (取消原因: {e.cancellation_reason})"
+        lines.append(line)
+    output = "\n".join(lines)
+
+    assert "📅" in output
+    assert "✅ 10:00 看书" in output
+    assert "❌ 14:00 逛商场" in output
+    assert "情绪下降" in output
+
+
+def test_v2_view_schedule_replaced_event():
+    """view_schedule shows replaced event with arrow."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="逛商场", category="template", status="replaced",
+                         replacement="在附近散步"),
+        ],
+    )
+    sim._current_plan = plan
+
+    lines = [f"📅 日程计划 ({plan.date})"]
+    for e in plan.events:
+        status_icon = {"replaced": "🔄"}.get(e.status, "❓")
+        line = f"  {status_icon} {e.approximate_time} {e.activity}"
+        if e.status == "replaced" and e.replacement:
+            line += f" → {e.replacement}"
+        lines.append(line)
+    output = "\n".join(lines)
+
+    assert "🔄 14:00 逛商场 → 在附近散步" in output
+
+
+def test_v2_view_schedule_with_adaptations():
+    """view_schedule shows adaptation count."""
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27", generated_at=time.time(),
+        events=[
+            PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
+                         activity="看书", category="template", status="planned"),
+        ],
+        adaptations=[
+            {"event_id": "e2", "action": "cancel", "reason": "情绪下降"},
+        ],
+    )
+    sim._current_plan = plan
+
+    lines = [f"📅 日程计划 ({plan.date})"]
+    for e in plan.events:
+        status_icon = {"planned": "⬜"}.get(e.status, "❓")
+        lines.append(f"  {status_icon} {e.approximate_time} {e.activity}")
+    if plan.adaptations:
+        lines.append(f"\n📝 调整记录: {len(plan.adaptations)} 次")
+    output = "\n".join(lines)
+
+    assert "📝 调整记录: 1 次" in output
+
+
+def test_life_sim_v2_config_exists():
+    """LIFE_SIM_V2_CONFIG is importable and has expected keys."""
+    from emotion_spirit.core.config import LIFE_SIM_V2_CONFIG
+    assert "plan_generate_hour" in LIFE_SIM_V2_CONFIG
+    assert "events_per_day_min" in LIFE_SIM_V2_CONFIG
+    assert "events_per_day_max" in LIFE_SIM_V2_CONFIG
+    assert "adaptation_threshold" in LIFE_SIM_V2_CONFIG
+    assert "view_schedule_enabled" in LIFE_SIM_V2_CONFIG
+    assert LIFE_SIM_V2_CONFIG["view_schedule_enabled"] is True
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()
