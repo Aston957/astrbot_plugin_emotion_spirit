@@ -1,9 +1,9 @@
-"""v3.0.0 集成测试 — Phase I 端到端验证。
+"""v3.0.0 集成测试 — Phase I 端到端验证 (T2: v1 LifeSimulator 测试已移除)。
 
 测试 v3.0.0 的核心数据流:
 1. MemoryPool flat 存储 + participant 过滤
-2. LifeSimulator LLM 生活片段生成 + MemoryPool 写入
-3. BotDecision proactive 上下文注入
+2. LifeSimulator LLM 生活片段生成 + MemoryPool 写入 (T2: removed, v1 deleted)
+3. BotDecision proactive 上下文注入 (T2: removed, v1 deleted)
 4. on_llm_response 情绪提取
 5. 版本一致性
 """
@@ -79,92 +79,15 @@ class TestMemoryPoolFlat:
         assert u1_entries[0].text == "msg1"
 
 
-# ═══ 2. LifeSimulator + MemoryPool 写入 ═══
+# ═══ 2. LifeSimulator + MemoryPool 写入 (v1 Phase G — removed in T2) ═══
+# Tests for v1 generate_life_prose() removed; v1 method bodies deleted from
+# emotion_spirit/regulation/life_simulator.py. v2 (LifeSimulatorV2) handles
+# daily plan generation separately.
 
 
-class TestLifeSimMemoryWrite:
-    """Phase G: LifeEvent 生成后写入 MemoryPool。"""
-
-    def test_fallback_generates_and_stores(self):
-        """无 LLM 时 fallback 生成 LifeEvent 并写入 MemoryPool。"""
-        sim, pool, _, _, _ = _make_sim()
-        pool.add("existing", 0.5, 0.5, ["test"], "user1")
-
-        event_dict = {
-            "type": "mode_a",
-            "trigger": "idle",
-            "memories": [{"text": "test", "layer": "buffer", "temperature": 0.5, "emotional_weight": 0.5, "tags": ["test"]}],
-            "state_narrative": "你现在相对平静。",
-            "signals": {},
-        }
-
-        result = _run_async(sim.generate_life_prose(event_dict))
-        assert result is not None
-        assert isinstance(result, LifeEvent)
-        # MemoryPool 应有原 1 条 + 新 1 条 life_event
-        assert len(pool.buffer) == 2
-        life_entries = [e for e in pool.buffer if "life_event" in e.tags]
-        assert len(life_entries) == 1
-
-    def test_llm_generates_and_stores(self):
-        """有 LLM 时生成 LifeEvent 并写入 MemoryPool。"""
-        sim, pool, _, _, _ = _make_sim()
-
-        async def mock_llm(sys_prompt, user_prompt):
-            return '{"activity": "在看书", "thought": "很有趣", "mood": "愉快", "wants_to_share": true, "urgency": 0.3}'
-
-        sim.configure(llm_caller=mock_llm)
-
-        event_dict = {
-            "type": "mode_b",
-            "subtype": "life_event",
-            "memories": [],
-            "state_narrative": "你现在相对平静。",
-            "signals": {"pad": {"valence": 0.5, "arousal": 0.3}},
-            "emotion": None,
-        }
-
-        result = _run_async(sim.generate_life_prose(event_dict))
-        assert result is not None
-        assert "看书" in result.text
-        assert result.wants_to_share is True
-        assert len(pool.buffer) == 1
-        assert "life_event" in pool.buffer[0].tags
-
-
-# ═══ 3. BotDecision proactive 上下文 ═══
-
-
-class TestBotDecisionLifeEvent:
-    """Phase G: get_life_simulation_context() 返回 LifeEvent 上下文。"""
-
-    def test_full_pipeline(self):
-        """LifeSimulator → BotDecision 上下文注入完整链路。"""
-        sim, pool, _, _, _ = _make_sim()
-        bd = BotDecisionMaker()
-        bd.configure_proactive_deps(memory_pool=pool, life_simulator=sim)
-
-        # 无事件时返回空
-        assert bd.get_life_simulation_context("user1") == ""
-
-        # 生成事件
-        event_dict = {
-            "type": "mode_a",
-            "trigger": "idle",
-            "memories": [{"text": "test", "layer": "buffer", "temperature": 0.5, "emotional_weight": 0.5, "tags": ["test"]}],
-            "state_narrative": "你现在相对平静。",
-            "signals": {},
-        }
-        _run_async(sim.generate_life_prose(event_dict))
-
-        # 有事件时返回上下文
-        ctx = bd.get_life_simulation_context("user1")
-        assert ctx  # 非空
-        assert "[生活片段]" in ctx
-
-        # should_suppress_proactive 正常工作
-        suppress, reason = bd.should_suppress_proactive("user1")
-        assert isinstance(suppress, bool)
+# ═══ 3. BotDecision proactive 上下文 (v1 Phase G — removed in T2) ═══
+# TestBotDecisionLifeEvent removed; depends on v1 generate_life_prose which
+# no longer exists on LifeSimulator stub.
 
 
 # ═══ 4. on_llm_response 情绪提取 ═══

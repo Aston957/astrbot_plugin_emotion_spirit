@@ -938,39 +938,7 @@ class EmotionSpiritPlugin(Star):
 
         await self._flush_inject_queue()
 
-        # Phase G: LifeSimulator LLM 生活片段生成
-        # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
-        _life_event_inject = ""
-        if self._life_sim is not None:
-            try:
-                # 读取当前会话的缓存 signals (由 SurfaceHandler.consume 写入)
-                signals = self._latest_signals.get(user_id)
-                if signals is not None:
-                    personality_dict = {
-                        **(signals.personality_deep or {}),
-                        **(signals.personality_surface or {}),
-                    }
-                    # v1 Mode A/B: 保留作为 fallback (v2 日程规划接管后可移除)
-                    event_a = self._life_sim.check_mode_a(signals, personality_dict) if self._life_sim else None
-                    event_b = event_a or (self._life_sim.check_mode_b(signals, personality_dict) if self._enable_proactive_prompt and self._life_sim else None)
-                    if event_b:
-                        life_event = await self._life_sim.generate_life_prose(
-                            event_b,
-                            persona_desc=self._current_persona.get("label", "") if self._current_persona else "",
-                            personality=personality_dict,
-                        )
-                        if life_event is not None:
-                            # 消费 life event 并格式化为 prompt 注入文本
-                            consumed = self._life_sim.consume_life_event()
-                            if consumed is not None:
-                                parts = [f"[生活片段] 你刚才{consumed.text}"]
-                                if consumed.mood and consumed.mood != "neutral":
-                                    parts.append(f"（心情: {consumed.mood}）")
-                                if consumed.wants_to_share:
-                                    parts.append("这件事你想分享给朋友")
-                                _life_event_inject = "，".join(parts) + "。"
-            except Exception:
-                logger.debug("emotion_spirit: life_sim tick error", exc_info=True)
+        # v2 (LifeSimulatorV2) handles plan injection in build_schedule_context()
 
         if self._persona_mode == "disabled":
             return
@@ -999,11 +967,7 @@ class EmotionSpiritPlugin(Star):
             repair_advice=self._repair_advice,
             gossip_tendency=gossip_tendency,
         )
-        # Phase G: 生活片段注入 (在常规 context 之前)
-        if _life_event_inject:
-            context = f"{_life_event_inject}\n\n{context}" if context else _life_event_inject
-
-        # v1.1.0A: 日程注入 (在生活片段之后、常规 context 之前)
+        # v1.1.0A: 日程注入 (LifeSimulatorV2 handles plan injection)
         if hasattr(self, '_life_sim_v2') and self._life_sim_v2._current_plan:
             schedule_ctx = self._life_sim_v2.build_schedule_context()
             if schedule_ctx:
