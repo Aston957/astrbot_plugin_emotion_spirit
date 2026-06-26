@@ -28,7 +28,18 @@ __all__ = [
     "GLOBAL_USER_ID",
     "UnifiedEntry",
     "MemoryPool",
+    "_tokenize",
 ]
+
+
+def _tokenize(text: str) -> list[str]:
+    """Tokenize text: whitespace tokens + sliding 2-gram for CJK / dense text."""
+    tokens = text.split()
+    for i in range(len(text) - 1):
+        gram = text[i : i + 2]
+        if not gram.isspace():
+            tokens.append(gram)
+    return tokens
 
 
 from ..core.registry import register
@@ -48,6 +59,11 @@ class MemoryPool:
         self._tag_index: dict[str, list[UnifiedEntry]] = {}
         self._text_index: dict[str, list[UnifiedEntry]] = {}
         self._next_id: int = 0
+        # CompositeIndex: O(1) entry lookup by ID
+        self._entries: dict[str, UnifiedEntry] = {}
+        # all_entries cache
+        self._all_entries_cache: list[UnifiedEntry] | None = None
+        self._dirty: bool = True
         # 向量 + 级联
         self._vector_index: dict[str, tuple[float, float, float]] = {}
         self._cascade_engine = CascadeEngine()
@@ -94,6 +110,8 @@ class MemoryPool:
         )
         self._next_id += 1
         self.buffer.append(entry)
+        self._entries[entry.id] = entry
+        self._dirty = True
 
         # 直通幽灵
         bypass_ghost_w = BUFFER_POOL_CONFIG["bypass_ghost_weight"]
@@ -136,12 +154,13 @@ class MemoryPool:
         for entry in self.buffer:
             age = now - entry.created_at
             if entry.temperature < noise_threshold or age > ttl_seconds:
-                pass  # 丢弃
+                self._entries.pop(entry.id, None)  # clean O(1) index
             elif entry.temperature >= 0.5:
                 promoted.append(self._promote_to_warm(entry))
             else:
                 still_buffer.append(entry)
         self.buffer = still_buffer
+        self._dirty = True
         return promoted
 
     # 兼容旧签名
@@ -163,6 +182,7 @@ class MemoryPool:
             else:
                 still_warm.append(entry)
         self.warm = still_warm
+        self._dirty = True
         cold_max = int(MEMORY_POOL_CONFIG["cold_max"])
         if len(self.cold) > cold_max:
             self.cold.sort(key=lambda e: e.emotional_weight * (1 + e.recall_count * 0.05))
@@ -257,11 +277,10 @@ class MemoryPool:
         return self.ghosts
 
     def all_entries(self) -> list[UnifiedEntry]:
-        return self.buffer + self.warm + self.cold + self.ghosts
-
-    @property
-    def _entries(self) -> dict[str, UnifiedEntry]:
-        return {e.id: e for e in self.all_entries()}
+        if self._dirty or self._all_entries_cache is None:
+            self._all_entries_cache = self.buffer + self.warm + self.cold + self.ghosts
+            self._dirty = False
+        return self._all_entries_cache
 
     def get_layer(self, tier: str) -> list[UnifiedEntry]:
         return getattr(self, tier, [])
@@ -357,10 +376,7 @@ class MemoryPool:
             self._vector_index[entry_id] = new_vec
 
     def _find_entry_by_id(self, entry_id: str) -> UnifiedEntry | None:
-        for e in self.all_entries():
-            if e.id == entry_id:
-                return e
-        return None
+        return self._entries.get(entry_id)
 
     # ═══ Tick / Decay ═══
 
@@ -419,6 +435,7 @@ class MemoryPool:
             if not self._check_cold_evict(entry):
                 still_cold.append(entry)
         self.cold = still_cold
+        self._dirty = True
         cold_max = 500
         if len(self.cold) > cold_max:
             self.cold.sort(key=lambda e: e.emotional_weight)
@@ -478,24 +495,37 @@ class MemoryPool:
     # ═══ 内部 helper ═══
 
     def _promote_to_warm(self, entry: UnifiedEntry) -> UnifiedEntry:
+        old_id = entry.id
         entry.id = entry.id.replace("buf_", "mem_")
+        if old_id != entry.id:
+            self._entries.pop(old_id, None)
         entry.tier = "warm"
         self.warm.append(entry)
+        self._dirty = True
         self._build_index(entry)
         return entry
 
     def _promote_to_cold(self, entry: UnifiedEntry) -> UnifiedEntry:
+        old_id = entry.id
         entry.id = entry.id.replace("buf_", "cold_")
+        if old_id != entry.id:
+            self._entries.pop(old_id, None)
         entry.tier = "cold"
         self.cold.append(entry)
+        self._dirty = True
         self._build_index(entry)
         return entry
 
     def _form_ghost(self, entry: UnifiedEntry) -> UnifiedEntry:
+        old_id = entry.id
         entry.id = entry.id.replace("buf_", "ghost_")
+        if old_id != entry.id:
+            self._entries.pop(old_id, None)
         entry.tier = "ghost"
         entry.is_ghost = True
         self.ghosts.append(entry)
+        self._entries[entry.id] = entry
+        self._dirty = True
         ghost_max = int(MEMORY_POOL_CONFIG["ghost_max"])
         if len(self.ghosts) > ghost_max:
             self.ghosts = self.ghosts[-ghost_max:]
@@ -504,12 +534,15 @@ class MemoryPool:
     def _build_index(self, entry: UnifiedEntry) -> None:
         for tag in entry.tags:
             self._tag_index.setdefault(tag, []).append(entry)
-        for word in entry.text.split():
+        for word in _tokenize(entry.text):
             self._text_index.setdefault(word, []).append(entry)
+        self._entries[entry.id] = entry
         self._vector_index[entry.id] = entry.vector
         self._cascade_engine.index_entry(entry)
 
     def _remove_entry(self, entry: UnifiedEntry) -> None:
+        self._entries.pop(entry.id, None)
+        self._dirty = True
         for tier_list in (self.buffer, self.warm, self.cold, self.ghosts):
             if entry in tier_list:
                 tier_list.remove(entry)
@@ -518,7 +551,7 @@ class MemoryPool:
                 self._tag_index[tag] = [e for e in self._tag_index[tag] if e.id != entry.id]
                 if not self._tag_index[tag]:
                     del self._tag_index[tag]
-        for word in entry.text.split():
+        for word in _tokenize(entry.text):
             if word in self._text_index:
                 self._text_index[word] = [e for e in self._text_index[word] if e.id != entry.id]
                 if not self._text_index[word]:

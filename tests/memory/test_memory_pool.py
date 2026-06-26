@@ -106,6 +106,86 @@ def test_entry_is_unified_entry():
     assert isinstance(promoted[0], UnifiedEntry)
 
 
+# ═══ Task 1: CompositeIndex + Chinese Tokenization + O(1) Lookups ═══
+
+def test_find_entry_by_id_o1():
+    """_find_entry_by_id uses dict lookup, not list scan."""
+    pool = MemoryPool()
+    for i in range(100):
+        pool.add(f"text_{i}", 0.5, 0.5, ["tag"], "user")
+    # Should find entry in O(1) via _entries dict
+    entry_id = pool.buffer[0].id
+    found = pool._find_entry_by_id(entry_id)
+    assert found is not None
+    assert found.id == entry_id
+
+
+def test_remove_entry_o1():
+    """_remove_entry uses dict lookup, not list.remove()."""
+    pool = MemoryPool()
+    pool.add("test", 0.5, 0.5, ["tag"], "user")
+    entry = pool.buffer[0]
+    pool._remove_entry(entry)
+    assert entry not in pool.buffer
+    assert pool._find_entry_by_id(entry.id) is None
+
+
+def test_tokenize_chinese():
+    """_tokenize produces 2-grams for Chinese text."""
+    from emotion_spirit.memory.memory_pool import _tokenize
+    tokens = _tokenize("我今天很开心")
+    assert "今天" in tokens
+    assert "开心" in tokens
+
+
+def test_tokenize_english():
+    """_tokenize splits on whitespace for English."""
+    from emotion_spirit.memory.memory_pool import _tokenize
+    tokens = _tokenize("hello world")
+    assert "hello" in tokens
+    assert "world" in tokens
+
+
+def test_recall_chinese_keyword():
+    """recall() finds Chinese text via 2-gram index."""
+    pool = MemoryPool()
+    pool.add("我今天很开心", 0.8, 0.5, ["mood"], "user")
+    pool._build_index(pool.buffer[0])
+    results = pool.recall("开心")
+    assert len(results) > 0
+
+
+def test_all_entries_cached():
+    """all_entries() returns cached list, not new allocation every call."""
+    pool = MemoryPool()
+    pool.add("test", 0.5, 0.5, ["tag"], "user")
+    r1 = pool.all_entries()
+    r2 = pool.all_entries()
+    assert r1 is r2  # Same object (cached)
+
+
+def test_entries_dict_maintained_on_promote():
+    """_entries dict is updated when entry is promoted between tiers."""
+    pool = MemoryPool()
+    pool.add("test", 0.5, 0.5, ["tag"], "user")
+    entry = pool.buffer[0]
+    old_id = entry.id
+    # Promote to warm
+    pool._promote_to_warm(entry)
+    new_id = entry.id
+    assert new_id != old_id  # ID changed
+    assert pool._find_entry_by_id(new_id) is entry
+    assert pool._find_entry_by_id(old_id) is None
+
+
+def test_entries_dict_maintained_on_ghost():
+    """_entries dict is updated when entry becomes ghost."""
+    pool = MemoryPool()
+    pool.add("betrayal!", 0.95, 0.3, ["betrayal"], "user")
+    entry = pool.ghosts[0]
+    assert pool._find_entry_by_id(entry.id) is entry
+
+
 if __name__ == "__main__":
     test_add_to_buffer()
     test_bypass_ghost()
@@ -115,4 +195,12 @@ if __name__ == "__main__":
     test_serialization()
     test_confirm_check_temperature_gating()
     test_entry_is_unified_entry()
+    test_find_entry_by_id_o1()
+    test_remove_entry_o1()
+    test_tokenize_chinese()
+    test_tokenize_english()
+    test_recall_chinese_keyword()
+    test_all_entries_cached()
+    test_entries_dict_maintained_on_promote()
+    test_entries_dict_maintained_on_ghost()
     print("All memory_pool tests passed!")
