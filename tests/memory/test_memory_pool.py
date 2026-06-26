@@ -185,6 +185,114 @@ def test_entries_dict_maintained_on_ghost():
     assert pool._find_entry_by_id(entry.id) is entry
 
 
+# ═══ Task 8: Semantic Recall + Reconsolidation ═══
+
+import asyncio
+
+
+def test_configure_embedding():
+    pool = MemoryPool()
+    called = []
+
+    async def mock_embed(text):
+        called.append(text)
+        return [0.1, 0.2, 0.3]
+
+    pool.configure_embedding(mock_embed)
+    assert pool._embedding is not None
+
+
+def test_recall_semantic_fallback():
+    """Without embedding, falls back to keyword recall."""
+    pool = MemoryPool()
+    pool.add("今天很开心", 0.8, 0.5, ["mood"], "user")
+    results = asyncio.run(pool.recall_semantic("开心"))
+    assert len(results) > 0
+
+
+def test_recall_semantic_with_embedding():
+    """With embedding, uses vector search."""
+    pool = MemoryPool()
+
+    async def mock_embed(text):
+        return [0.1, 0.2, 0.3]
+
+    pool.configure_embedding(mock_embed)
+    pool.add("test", 0.5, 0.5, ["tag"], "user")
+    results = asyncio.run(pool.recall_semantic("test"))
+    # Should work without error, returns list of entries
+    assert isinstance(results, list)
+
+
+def test_recall_semantic_returns_entries():
+    """Semantic recall returns UnifiedEntry objects, not (id, dist) tuples."""
+    pool = MemoryPool()
+
+    async def mock_embed(text):
+        return [0.5, 0.5, 0.5]
+
+    pool.configure_embedding(mock_embed)
+    pool.add("hello world", 0.6, 0.5, ["test"], "user")
+    results = asyncio.run(pool.recall_semantic("hello"))
+    assert len(results) > 0
+    from emotion_spirit.memory.unified_entry import UnifiedEntry
+    assert isinstance(results[0], UnifiedEntry)
+
+
+def test_reconsolidate_mood_congruent():
+    """Same-valence mood → reinforce memory."""
+    pool = MemoryPool()
+    pool.add("开心的事", 0.5, 0.5, ["mood"], "user")
+    entry = pool.buffer[0]
+    old_weight = entry.emotional_weight
+    pool.reconsolidate(entry, {"valence": 0.5}, {"boundary_permeability": 0.3})
+    assert entry.emotional_weight > old_weight
+
+
+def test_reconsolidate_false_memory():
+    """Opposite mood + high permeability → twist memory."""
+    pool = MemoryPool()
+    pool.add("开心的事", 0.5, 0.5, ["mood"], "user")
+    entry = pool.buffer[0]
+    old_weight = entry.emotional_weight
+    pool.reconsolidate(entry, {"valence": -0.5}, {"boundary_permeability": 0.9})
+    # Weight should shift toward negative (decrease from positive)
+    assert entry.emotional_weight < old_weight
+
+
+def test_reconsolidate_neutral_mood():
+    """Neutral mood (valence=0) → no congruent reinforcement, no twist."""
+    pool = MemoryPool()
+    pool.add("某件事", 0.5, 0.5, ["event"], "user")
+    entry = pool.buffer[0]
+    old_weight = entry.emotional_weight
+    pool.reconsolidate(entry, {"valence": 0.0}, {"boundary_permeability": 0.5})
+    # valence=0 neither >0 nor <0, and |valence| not > 0.3 → no change
+    assert entry.emotional_weight == old_weight
+
+
+def test_reconsolidate_updates_recall_count():
+    """Reconsolidation always increments recall_count."""
+    pool = MemoryPool()
+    pool.add("test", 0.5, 0.5, ["tag"], "user")
+    entry = pool.buffer[0]
+    old_count = entry.recall_count
+    pool.reconsolidate(entry, {"valence": 0.5}, {"boundary_permeability": 0.5})
+    assert entry.recall_count == old_count + 1
+
+
+def test_reconsolidate_low_permeability_no_twist():
+    """Low permeability prevents false memory twist."""
+    pool = MemoryPool()
+    pool.add("开心的事", 0.5, 0.5, ["mood"], "user")
+    entry = pool.buffer[0]
+    old_weight = entry.emotional_weight
+    # Low permeability (0.3 < 0.7) → no twist even with opposite mood
+    pool.reconsolidate(entry, {"valence": -0.5}, {"boundary_permeability": 0.3})
+    # No congruent match, no twist → weight unchanged
+    assert entry.emotional_weight == old_weight
+
+
 if __name__ == "__main__":
     test_add_to_buffer()
     test_bypass_ghost()
@@ -202,4 +310,13 @@ if __name__ == "__main__":
     test_all_entries_cached()
     test_entries_dict_maintained_on_promote()
     test_entries_dict_maintained_on_ghost()
+    test_configure_embedding()
+    test_recall_semantic_fallback()
+    test_recall_semantic_with_embedding()
+    test_recall_semantic_returns_entries()
+    test_reconsolidate_mood_congruent()
+    test_reconsolidate_false_memory()
+    test_reconsolidate_neutral_mood()
+    test_reconsolidate_updates_recall_count()
+    test_reconsolidate_low_permeability_no_twist()
     print("All memory_pool tests passed!")

@@ -73,6 +73,8 @@ class MemoryPool:
         # 崩溃系统
         self._collapse_active: bool = False
         self._collapse_archetype: str | None = None
+        # 语义嵌入 (optional, external embedding function)
+        self._embedding = None
 
     # ═══ 写入 API ═══
 
@@ -234,6 +236,75 @@ class MemoryPool:
                         privacy_filter: list | None = None) -> list:
         return self.recall(keyword, current_user=user_id, max_results=max_results,
                            privacy_filter=privacy_filter)
+
+    # ═══ 语义召回 + 重巩固 ═══
+
+    def configure_embedding(self, embedding_fn) -> None:
+        """Configure external embedding function for semantic recall.
+
+        Args:
+            embedding_fn: async callable(text: str) -> list[float]
+        """
+        self._embedding = embedding_fn
+
+    async def recall_semantic(
+        self,
+        query_text: str,
+        k: int = 5,
+        current_user: str | None = None,
+    ) -> list:
+        """Semantic recall via embedding vector search.
+
+        Falls back to keyword recall if no embedding function configured.
+        Returns list of UnifiedEntry objects (not tuples).
+        """
+        if self._embedding is None:
+            return self.recall(query_text, current_user=current_user, max_results=k)
+
+        query_vec = await self._embedding(query_text)
+        # search_by_vector returns [(entry_id, distance), ...]
+        id_dist_pairs = self.search_by_vector(
+            tuple(query_vec), top_k=k, user_id=current_user,
+        )
+        results = []
+        for entry_id, _dist in id_dist_pairs:
+            entry = self._find_entry_by_id(entry_id)
+            if entry is not None:
+                results.append(entry)
+        # Apply recall boost to returned entries
+        boost = MEMORY_POOL_CONFIG["recall_boost"]
+        for entry in results:
+            entry.last_recalled = time.time()
+            entry.recall_count += 1
+            entry.emotional_weight = min(1.0, entry.emotional_weight + boost)
+        return results
+
+    def reconsolidate(
+        self,
+        entry: UnifiedEntry,
+        current_mood: dict,
+        personality: dict,
+    ) -> None:
+        """Rewrite memory based on current mood (Bower 1981 mood-congruency).
+
+        Same-valence mood → reinforce memory (mood-congruent strengthening).
+        Opposite mood + high boundary_permeability → twist memory (false memory effect).
+        """
+        mood_valence = current_mood.get("valence", 0.0)
+        permeability = personality.get("boundary_permeability", 0.5)
+
+        # Mood-congruent: reinforce when mood and memory share valence sign
+        if (mood_valence > 0 and entry.emotional_weight > 0) or \
+           (mood_valence < 0 and entry.emotional_weight < 0):
+            entry.emotional_weight = min(1.0, entry.emotional_weight + 0.05)
+        # False memory: twist when opposite mood + high permeability
+        elif permeability > 0.7 and abs(mood_valence) > 0.3:
+            twist = permeability * abs(mood_valence) * 0.3
+            entry.emotional_weight += twist * (-1 if entry.emotional_weight > 0 else 1)
+            entry.emotional_weight = max(-1.0, min(1.0, entry.emotional_weight))
+
+        entry.recall_count += 1
+        entry.last_recalled = time.time()
 
     # ═══ Participant 过滤视图 ═══
 
