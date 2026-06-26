@@ -309,6 +309,18 @@ class EmotionSpiritPlugin(Star):
         if self._life_sim is not None:
             self._life_sim.configure(llm_caller=self._get_llm_callable())
 
+        # v1.1.0A: LifeSimulator v2 (轴心功能 — 主动日程规划)
+        from emotion_spirit.regulation.life_simulator import LifeSimulatorV2
+        self._life_sim_v2 = LifeSimulatorV2(
+            consumer=self._consumer,
+            memory=self._pool,
+            intimacy=self._intimacy,
+            signals=self._buffer_signals,
+            reservoir=self._reservoir,
+        )
+        self._life_sim_v2.configure(llm_caller=self._get_llm_callable())
+        self._last_plan_date: str = ""  # 防止同一天重复生成日程
+
         # Phase B: RealtimeDispatch + RhythmLearner
         from emotion_spirit.output.realtime_dispatch import RealtimeDispatch
         from emotion_spirit.output.rhythm_learner import RhythmLearner
@@ -635,12 +647,96 @@ class EmotionSpiritPlugin(Star):
         asyncio.get_running_loop().call_later(2.0, self._connect_engine_sync)
         asyncio.get_running_loop().call_later(3.0, lambda: asyncio.ensure_future(self._verify_llm_chain()))
 
+        # v1.1.0A: 2am 日程生成定时器
+        asyncio.ensure_future(self._schedule_plan_generation_loop())
+
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
             self._persona_mode, self._current_persona,
             len(self._pool.buffer), len(self._pool.warm),
             len(self._pool.cold), len(self._pool.ghosts),
         )
+
+    async def _schedule_plan_generation_loop(self) -> None:
+        """每天 2am 生成第二天的日程计划。"""
+        from emotion_spirit.core.config import LIFE_SIM_V2_CONFIG
+        import datetime
+
+        while True:
+            try:
+                now = datetime.datetime.now()
+                target_hour = LIFE_SIM_V2_CONFIG.get("plan_generate_hour", 2)
+                # 计算下一个 2am 的时间
+                target = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+                if now >= target:
+                    target += datetime.timedelta(days=1)
+                wait_seconds = (target - now).total_seconds()
+                logger.info("emotion_spirit: 日程生成定时器，下次触发 %s (%.0f 秒后)", target, wait_seconds)
+                await asyncio.sleep(wait_seconds)
+
+                # 检查今天是否已经生成过
+                today_str = datetime.date.today().isoformat()
+                if self._last_plan_date == today_str:
+                    logger.info("emotion_spirit: 今天已生成日程，跳过")
+                    continue
+
+                # 生成日程
+                personality = self._get_current_personality_dict()
+                recent_memories = self._get_recent_memory_texts(limit=5)
+                yesterday_events = self._get_yesterday_events()
+
+                plan = await self._life_sim_v2.generate_daily_plan(
+                    personality=personality,
+                    recent_memories=recent_memories,
+                    yesterday_events=yesterday_events,
+                )
+                self._last_plan_date = today_str
+                logger.info(
+                    "emotion_spirit: 日程已生成 %s, %d 个事件",
+                    plan.date, len(plan.events),
+                )
+                self._save_if_dirty()
+
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.warning("emotion_spirit: 日程生成失败", exc_info=True)
+                await asyncio.sleep(60)  # 失败后等 1 分钟重试
+
+    def _get_current_personality_dict(self) -> dict[str, float]:
+        """获取当前人格参数 dict。"""
+        try:
+            from emotion_spirit.memory.persona_profiles import get_personality_params
+            return get_personality_params(self._labels)
+        except Exception:
+            return {"openness": 0.5, "extraversion": 0.5, "agreeableness": 0.5,
+                    "neuroticism": 0.5, "conscientiousness": 0.5}
+
+    def _get_recent_memory_texts(self, limit: int = 5) -> list[str]:
+        """从 MemoryPool 取最近的记忆文本。"""
+        try:
+            entries = sorted(
+                self._pool.warm + self._pool.cold,
+                key=lambda e: e.created_at, reverse=True,
+            )
+            return [e.text[:100] for e in entries[:limit]]
+        except Exception:
+            return []
+
+    def _get_yesterday_events(self) -> list[str]:
+        """取昨天的生活事件。"""
+        try:
+            import datetime
+            yesterday = datetime.date.today() - datetime.timedelta(days=1)
+            events = []
+            for entry in self._pool.buffer + self._pool.warm:
+                if "life_event" in entry.tags:
+                    entry_date = datetime.date.fromtimestamp(entry.created_at)
+                    if entry_date == yesterday:
+                        events.append(entry.text[:100])
+            return events[:3]
+        except Exception:
+            return []
 
     async def _verify_llm_chain(self) -> None:
         llm = self._get_llm_callable()
@@ -754,6 +850,30 @@ class EmotionSpiritPlugin(Star):
 
         await self._flush_inject_queue()
 
+        # v1.1.0A: 日程调整 (情绪变化驱动)
+        if hasattr(self, '_life_sim_v2') and self._life_sim_v2._current_plan:
+            try:
+                signals = self._latest_signals.get(user_id)
+                if signals is not None:
+                    emotion_delta = getattr(signals, 'emotion_velocity', 0.0)
+                    cascade = self._pool.cascade_active()
+                    bp = 0.0
+                    body_state = getattr(signals, 'body_state', None)
+                    if body_state and isinstance(body_state, dict):
+                        bp = body_state.get('boundary_pressure', 0.0)
+                    personality = self._get_current_personality_dict()
+                    adaptations = self._life_sim_v2.adapt_plan(
+                        emotion_delta=emotion_delta,
+                        cascade_active=cascade,
+                        boundary_pressure=bp,
+                    )
+                    if adaptations:
+                        logger.info(
+                            "emotion_spirit: 日程调整 %d 个事件", len(adaptations),
+                        )
+            except Exception:
+                logger.debug("emotion_spirit: adapt_plan error", exc_info=True)
+
         # Phase G: LifeSimulator LLM 生活片段生成
         # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
         _life_event_inject = ""
@@ -819,6 +939,12 @@ class EmotionSpiritPlugin(Star):
         # Phase G: 生活片段注入 (在常规 context 之前)
         if _life_event_inject:
             context = f"{_life_event_inject}\n\n{context}" if context else _life_event_inject
+
+        # v1.1.0A: 日程注入 (在生活片段之后、常规 context 之前)
+        if hasattr(self, '_life_sim_v2') and self._life_sim_v2._current_plan:
+            schedule_ctx = self._life_sim_v2.build_schedule_context()
+            if schedule_ctx:
+                context = f"[今日日程] {schedule_ctx}\n\n{context}" if context else f"[今日日程] {schedule_ctx}"
 
         if context:
             logger.debug(
@@ -1031,6 +1157,13 @@ class EmotionSpiritPlugin(Star):
         self._counterfactual = Counterfactual(self._pool)
         if cf_data:
             self._counterfactual.from_dict(cf_data)
+        # v1.1.0A: LifeSimulator v2 恢复
+        life_sim_v2_data = self._store.get("life_sim_v2")
+        if life_sim_v2_data and hasattr(self, '_life_sim_v2'):
+            self._life_sim_v2.from_dict(life_sim_v2_data)
+        saved_plan_date = self._store.get("last_plan_date")
+        if saved_plan_date:
+            self._last_plan_date = saved_plan_date
         self._injector = PromptInjector(
             self._pool, self._intimacy, self._alignment,
             self._conscience, self._ideal, self._shadow, self._diary,
@@ -1045,6 +1178,10 @@ class EmotionSpiritPlugin(Star):
         self._store.set("ideal_self", self._ideal.to_dict())
         self._store.set("value_resistance", self._value_resistance.to_dict())
         self._store.set("superego_guard", self._superego_guard.to_dict())
+        # v1.1.0A: LifeSimulator v2 (adapt_plan 会修改 plan 状态)
+        if hasattr(self, '_life_sim_v2'):
+            self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
+            self._store.set("last_plan_date", self._last_plan_date)
         self._store.save()
 
     def _save_all(self) -> None:
@@ -1069,6 +1206,9 @@ class EmotionSpiritPlugin(Star):
         if self._narrative:
             self._store.set("narrative", self._narrative.to_dict())
         self._store.set("counterfactual", self._counterfactual.to_dict())
+        # v1.1.0A: LifeSimulator v2 持久化
+        self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
+        self._store.set("last_plan_date", self._last_plan_date)
 
     # ═══ 公开 API (v1.1.1 + v1.2 扩展) — 保持向后兼容结构 ═══
     # 注: PublicAPI 网关提供 flat 结构 (B6.10), 这里保留 nested "pad"/"distribution" 结构
