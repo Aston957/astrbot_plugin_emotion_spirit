@@ -38,6 +38,9 @@ V2_PATHS = [
     # bridge 层
     "emotion_spirit.bridge.engine_manager", "emotion_spirit.bridge.hotpool_forwarder",
     "emotion_spirit.bridge.personality_bridge",
+    # agents 层
+    "emotion_spirit.agents.base", "emotion_spirit.agents.event_bus",
+    "emotion_spirit.agents.self_core",
     # sylanne (内嵌引擎)
     "emotion_spirit.sylanne",
     # 根层 (留根)
@@ -68,7 +71,7 @@ def test_no_v1_import_paths_remain():
     v2_layer_prefixes = ("emotion_spirit.core.", "emotion_spirit.memory.",
                          "emotion_spirit.regulation.", "emotion_spirit.output.",
                          "emotion_spirit.bridge.", "emotion_spirit.sylanne.",
-                         "emotion_spirit.migrations.")
+                         "emotion_spirit.migrations.", "emotion_spirit.agents.")
     v2_root_modules = {"emotion_spirit", "emotion_spirit.layer",
                        "emotion_spirit._version", "emotion_spirit._v1_compat",
                        "emotion_spirit.store",
@@ -76,7 +79,7 @@ def test_no_v1_import_paths_remain():
                        "emotion_spirit.core", "emotion_spirit.memory",
                        "emotion_spirit.regulation", "emotion_spirit.output",
                        "emotion_spirit.bridge", "emotion_spirit.sylanne",
-                       "emotion_spirit.migrations"}
+                       "emotion_spirit.migrations", "emotion_spirit.agents"}
 
     def is_v2_path(s: str) -> bool:
         if s in v2_root_modules:
