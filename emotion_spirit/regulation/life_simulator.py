@@ -770,3 +770,75 @@ class LifeSimulatorV2:
                 flexibility=flex,
             ))
         return events
+
+    # ── LLM random event generation (Task 3) ──────────────────────────
+
+    _LLM_PLAN_PROMPT = """你是一个生活模拟器。根据以下信息，为角色规划 1-2 个随机生活事件。
+
+角色人格: {personality}
+近期记忆: {recent_memories}
+昨天发生的事: {yesterday_events}
+
+要求:
+- 事件要符合角色性格
+- 要有变化（不要每天都一样）
+- 要考虑昨天的经历（昨天很累→今天休息）
+- 输出 JSON 数组: [{{"time": "afternoon", "activity": "去公园散步", "mood": "期待"}}]
+- time 只能是 "morning" / "afternoon" / "evening"
+- 只输出 JSON，不要其他文字"""
+
+    async def generate_plan_llm(
+        self,
+        personality: dict[str, float],
+        recent_memories: list[str],
+        yesterday_events: list[str],
+    ) -> list["PlannedEvent"]:
+        """调 LLM 生成 1-2 个随机事件。"""
+        if not self._llm_caller:
+            return []
+
+        import json as _json
+        import time as _time
+        from .life_plan import PlannedEvent as _PlannedEvent
+
+        mem_text = "\n".join(f"- {m}" for m in recent_memories[:5]) or "（暂无）"
+        yes_text = "\n".join(f"- {e}" for e in yesterday_events[:3]) or "（暂无）"
+        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in personality.items())
+
+        prompt = self._LLM_PLAN_PROMPT.format(
+            personality=p_desc,
+            recent_memories=mem_text,
+            yesterday_events=yes_text,
+        )
+
+        try:
+            response = await self._llm_caller("你是生活模拟器。只输出 JSON。", prompt)
+            text = response.strip()
+            start = text.find("[")
+            end = text.rfind("]") + 1
+            if start < 0 or end <= start:
+                return []
+            data = _json.loads(text[start:end])
+            if not isinstance(data, list):
+                return []
+
+            slot_times = {"morning": "10:00", "afternoon": "14:00", "evening": "18:00"}
+            events: list[_PlannedEvent] = []
+            for i, item in enumerate(data[:2]):
+                if not isinstance(item, dict):
+                    continue
+                slot = str(item.get("time", "afternoon"))
+                if slot not in slot_times:
+                    slot = "afternoon"
+                events.append(_PlannedEvent(
+                    id=f"llm_{i}_{int(_time.time())}",
+                    time_slot=slot,
+                    approximate_time=slot_times.get(slot, "14:00"),
+                    activity=str(item.get("activity", "发呆"))[:50],
+                    category="llm_random",
+                    mood_expectation=str(item.get("mood", "平淡"))[:20],
+                    flexibility=0.7,
+                ))
+            return events
+        except Exception:
+            return []

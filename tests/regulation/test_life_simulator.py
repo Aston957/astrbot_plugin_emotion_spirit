@@ -757,6 +757,156 @@ def test_v2_template_default_n():
     assert len(events) >= 2  # at least 2 (may be less than 3 due to dedup)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 3: LLM Random Event Generation
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_generate_llm_events():
+    """generate_plan_llm() returns 1-2 events from LLM."""
+    sim = _make_sim_v2()
+    # Mock LLM that returns valid JSON
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "afternoon", "activity": "去公园散步", "mood": "期待"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {"openness": 0.7, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    events = _run_async(
+        sim.generate_plan_llm(personality, recent_memories=["今天很开心"], yesterday_events=["昨天画画"])
+    )
+    assert len(events) >= 1
+    assert events[0].category == "llm_random"
+    assert events[0].activity == "去公园散步"
+
+
+def test_v2_llm_fallback_on_bad_json():
+    """LLM returns garbage -> returns empty list (graceful fallback)."""
+    sim = _make_sim_v2()
+    async def bad_llm(system_prompt, user_prompt):
+        return "I don't understand"
+    sim.configure(llm_caller=bad_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5}, [], [])
+    )
+    assert events == []
+
+
+def test_v2_llm_no_caller():
+    """No LLM configured -> returns empty list."""
+    sim = _make_sim_v2()
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5}, [], [])
+    )
+    assert events == []
+
+
+def test_v2_llm_two_events():
+    """LLM returns 2 events -> both are captured."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "morning", "activity": "晨跑", "mood": "活力"}, {"time": "evening", "activity": "看电影", "mood": "放松"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert len(events) == 2
+    assert events[0].activity == "晨跑"
+    assert events[1].activity == "看电影"
+    assert events[0].time_slot == "morning"
+    assert events[1].time_slot == "evening"
+
+
+def test_v2_llm_bad_time_defaults_afternoon():
+    """LLM returns invalid time slot -> defaults to afternoon."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "midnight", "activity": "熬夜", "mood": "困"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert len(events) == 1
+    assert events[0].time_slot == "afternoon"
+
+
+def test_v2_llm_exception_returns_empty():
+    """LLM raises exception -> returns empty list."""
+    sim = _make_sim_v2()
+    async def exploding_llm(system_prompt, user_prompt):
+        raise RuntimeError("LLM service down")
+    sim.configure(llm_caller=exploding_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5}, [], [])
+    )
+    assert events == []
+
+
+def test_v2_llm_truncates_long_activity():
+    """Activity longer than 50 chars is truncated."""
+    sim = _make_sim_v2()
+    long_activity = "这是一个非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的活动描述超过了五十个字符的限制"
+    async def mock_llm(system_prompt, user_prompt):
+        return f'[{{"time": "afternoon", "activity": "{long_activity}", "mood": "平淡"}}]'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert len(events) == 1
+    assert len(events[0].activity) <= 50
+
+
+def test_v2_llm_flexibility_is_07():
+    """LLM random events default to flexibility=0.7."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "afternoon", "activity": "去公园散步", "mood": "期待"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert events[0].flexibility == 0.7
+
+
+def test_v2_llm_id_starts_with_llm():
+    """Generated event IDs start with 'llm_'."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "afternoon", "activity": "测试", "mood": "平淡"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert events[0].id.startswith("llm_")
+
+
+def test_v2_llm_wrapper_text():
+    """LLM returns JSON wrapped in text -> still extracts correctly."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '好的，这是生成的事件：\n[{"time": "morning", "activity": "读书", "mood": "安静"}]\n希望你喜欢！'
+    sim.configure(llm_caller=mock_llm)
+
+    events = _run_async(
+        sim.generate_plan_llm({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                               "agreeableness": 0.5, "neuroticism": 0.5}, [], [])
+    )
+    assert len(events) == 1
+    assert events[0].activity == "读书"
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()
