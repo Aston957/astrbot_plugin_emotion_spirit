@@ -750,6 +750,21 @@ class LifeSimulatorV2:
     def configure(self, llm_caller: Callable[[str, str], Awaitable[str]] | None = None) -> None:
         self._llm_caller = llm_caller
 
+    _POLISH_PROMPT = """你是一个生活模拟器。把以下简短的活动描述润色成具体的、有画面感的一句话。
+
+人格特征: {personality}
+时间: {time_desc}
+
+活动列表:
+{activities}
+
+要求:
+- 每个活动润色成一句具体的生活场景描述（15-30字）
+- 要有细节（地点、感受、天气等）
+- 符合角色性格
+- 输出 JSON 数组: ["润色后的描述1", "润色后的描述2", ...]
+- 只输出 JSON，不要其他文字"""
+
     def generate_plan_template(
         self,
         personality: dict[str, float],
@@ -766,7 +781,6 @@ class LifeSimulatorV2:
         events = []
         for i, (cat, activity) in enumerate(activities):
             slot = time_slots[i % len(time_slots)]
-            # flexibility: routine=0.1, social=0.8, others=0.5
             flex = {"routine": 0.1, "social": 0.8}.get(cat, 0.5)
             events.append(_PlannedEvent(
                 id=f"tpl_{i}_{int(_time.time())}",
@@ -776,6 +790,57 @@ class LifeSimulatorV2:
                 category="template",
                 flexibility=flex,
             ))
+        return events
+
+    async def polish_template_events(
+        self,
+        events: list["PlannedEvent"],
+        personality: dict[str, float],
+    ) -> list["PlannedEvent"]:
+        """用 LLM 润色模板事件的 activity 描述。"""
+        if not self._llm_caller or not events:
+            return events
+
+        # 只润色 template 类型的事件
+        template_events = [e for e in events if e.category == "template"]
+        if not template_events:
+            return events
+
+        # 构建润色 prompt
+        import datetime as _dt
+        now = _dt.datetime.now()
+        time_desc = now.strftime("%H:%M, %A")
+        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in personality.items())
+        activities_text = "\n".join(
+            f"{i+1}. {e.activity} (时间: {e.approximate_time})"
+            for i, e in enumerate(template_events)
+        )
+
+        prompt = self._POLISH_PROMPT.format(
+            personality=p_desc,
+            time_desc=time_desc,
+            activities=activities_text,
+        )
+
+        try:
+            response = await self._llm_caller("你是生活模拟器。只输出 JSON。", prompt)
+            import json as _json
+            text = response.strip()
+            start = text.find("[")
+            end = text.rfind("]") + 1
+            if start < 0 or end <= start:
+                return events
+            polished = _json.loads(text[start:end])
+            if not isinstance(polished, list):
+                return events
+
+            # 替换 activity 描述
+            for i, e in enumerate(template_events):
+                if i < len(polished) and isinstance(polished[i], str) and polished[i]:
+                    e.activity = polished[i][:80]  # 截断防过长
+        except Exception:
+            pass  # 润色失败则保留原模板
+
         return events
 
     # ── Full plan generation (Task 4) ─────────────────────────────────
@@ -793,8 +858,9 @@ class LifeSimulatorV2:
         recent_memories = recent_memories or []
         yesterday_events = yesterday_events or []
 
-        # 模板事件 (3 个基础)
+        # 模板事件 (3 个基础 + LLM 润色)
         template_events = self.generate_plan_template(personality, n=3)
+        template_events = await self.polish_template_events(template_events, personality)
 
         # LLM 随机事件 (1-2 个)
         llm_events = await self.generate_plan_llm(personality, recent_memories, yesterday_events)
