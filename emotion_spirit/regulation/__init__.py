@@ -6,5 +6,5 @@ __all__ = [
     "superego", "superego_guard", "body_state", "force_dynamics",
     "personality_drift", "shadow_detector", "pattern_extractor",
     "life_simulator", "persona_analyzer", "persona_report_parser",
-    "counterfactual",
+    "counterfactual", "life_plan",
 ]
