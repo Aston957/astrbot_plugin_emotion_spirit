@@ -886,12 +886,14 @@ class LifeSimulatorV2:
                 for slot in ["morning", "afternoon", "evening", "night"]:
                     if slot not in used_slots:
                         e.time_slot = slot
+                        # 更新 approximate_time 以匹配新 slot
+                        slot_times = {"morning": "09:00", "afternoon": "14:00", "evening": "18:00", "night": "21:00"}
+                        e.approximate_time = slot_times.get(slot, e.approximate_time)
                         break
             used_slots.add(e.time_slot)
 
-        # 按时间排序
-        slot_order = {"morning": 0, "afternoon": 1, "evening": 2, "night": 3}
-        all_events.sort(key=lambda e: slot_order.get(e.time_slot, 9))
+        # 按 approximate_time 排序 (actual time string, not slot order)
+        all_events.sort(key=lambda e: e.approximate_time)
 
         # 生成 dream_seed
         dream_seed = ", ".join(e.activity for e in all_events[:3])
