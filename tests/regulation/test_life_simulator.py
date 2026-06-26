@@ -907,6 +907,128 @@ def test_v2_llm_wrapper_text():
     assert events[0].activity == "读书"
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Task 4: Full Plan Generation (Template + LLM Combined)
+# ═══════════════════════════════════════════════════════════════════════
+
+from emotion_spirit.regulation.life_plan import DailyPlan
+
+
+def test_v2_generate_daily_plan():
+    """generate_daily_plan() combines template + LLM events into a DailyPlan."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "evening", "activity": "看星星", "mood": "平静"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {"openness": 0.8, "extraversion": 0.3, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    plan = _run_async(
+        sim.generate_daily_plan(personality, recent_memories=["今天很开心"], yesterday_events=["昨天画画"])
+    )
+    assert isinstance(plan, DailyPlan)
+    assert len(plan.events) >= 3  # 2 template + 1 LLM
+    assert plan.date  # non-empty
+    assert plan.personality_snapshot == personality
+    template_events = [e for e in plan.events if e.category == "template"]
+    llm_events = [e for e in plan.events if e.category == "llm_random"]
+    assert len(template_events) >= 2
+    assert len(llm_events) >= 1
+
+
+def test_v2_generate_daily_plan_no_llm():
+    """Without LLM, only template events."""
+    sim = _make_sim_v2()
+    plan = _run_async(
+        sim.generate_daily_plan({"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                                 "agreeableness": 0.5, "neuroticism": 0.5})
+    )
+    assert isinstance(plan, DailyPlan)
+    assert len(plan.events) >= 2
+    assert all(e.category == "template" for e in plan.events)
+
+
+def test_v2_generate_daily_plan_events_sorted_by_time():
+    """Events in the plan are sorted by time slot (morning < afternoon < evening < night)."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "morning", "activity": "晨跑", "mood": "活力"}, {"time": "evening", "activity": "看电影", "mood": "放松"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    plan = _run_async(sim.generate_daily_plan(personality))
+    slot_order = {"morning": 0, "afternoon": 1, "evening": 2, "night": 3}
+    slots = [e.time_slot for e in plan.events]
+    order_values = [slot_order.get(s, 9) for s in slots]
+    assert order_values == sorted(order_values)
+
+
+def test_v2_generate_daily_plan_no_slot_collisions():
+    """No two events share the same time slot."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "afternoon", "activity": "逛街", "mood": "开心"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    plan = _run_async(sim.generate_daily_plan(personality))
+    slots = [e.time_slot for e in plan.events]
+    # Allow duplicates only if there are more events than 4 slots
+    if len(plan.events) <= 4:
+        assert len(slots) == len(set(slots)), f"Duplicate slots found: {slots}"
+
+
+def test_v2_generate_daily_plan_dream_seed():
+    """dream_seed contains first 3 activities joined by comma."""
+    sim = _make_sim_v2()
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "evening", "activity": "看星星", "mood": "平静"}]'
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {"openness": 0.8, "extraversion": 0.3, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    plan = _run_async(sim.generate_daily_plan(personality))
+    assert plan.dream_seed  # non-empty
+    # dream_seed should be comma-separated
+    assert ", " in plan.dream_seed or len(plan.events) < 3
+
+
+def test_v2_generate_daily_plan_stored_as_current():
+    """After generate_daily_plan, _current_plan is set."""
+    sim = _make_sim_v2()
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    assert sim._current_plan is None
+    _run_async(sim.generate_daily_plan(personality))
+    assert sim._current_plan is not None
+    assert isinstance(sim._current_plan, DailyPlan)
+
+
+def test_v2_generate_daily_plan_personality_snapshot():
+    """personality_snapshot is a copy, not a reference."""
+    sim = _make_sim_v2()
+    personality = {"openness": 0.7, "extraversion": 0.3, "conscientiousness": 0.6,
+                   "agreeableness": 0.4, "neuroticism": 0.2}
+    plan = _run_async(sim.generate_daily_plan(personality))
+    assert plan.personality_snapshot == personality
+    # Mutation of original should not affect snapshot
+    personality["openness"] = 0.1
+    assert plan.personality_snapshot["openness"] == 0.7
+
+
+def test_v2_generate_daily_plan_date_is_tomorrow():
+    """plan.date is tomorrow's date in ISO format."""
+    import datetime
+    sim = _make_sim_v2()
+    personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
+                   "agreeableness": 0.5, "neuroticism": 0.5}
+    plan = _run_async(sim.generate_daily_plan(personality))
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    assert plan.date == tomorrow
+
+
 if __name__ == "__main__":
     test_mode_a_trigger()
     test_mode_b_trigger()

@@ -771,6 +771,60 @@ class LifeSimulatorV2:
             ))
         return events
 
+    # ── Full plan generation (Task 4) ─────────────────────────────────
+
+    async def generate_daily_plan(
+        self,
+        personality: dict[str, float],
+        recent_memories: list[str] | None = None,
+        yesterday_events: list[str] | None = None,
+    ) -> "DailyPlan":
+        """生成明天的日程计划 (模板 + LLM 组合)。"""
+        from .life_plan import DailyPlan
+        import datetime as _dt
+
+        recent_memories = recent_memories or []
+        yesterday_events = yesterday_events or []
+
+        # 模板事件 (2-3 个)
+        template_events = self.generate_plan_template(personality, n=2)
+
+        # LLM 随机事件 (0-2 个)
+        llm_events = await self.generate_plan_llm(personality, recent_memories, yesterday_events)
+
+        # 组合
+        all_events = template_events + llm_events
+
+        # 分配到时间段 (确保不重复 slot)
+        used_slots: set[str] = set()
+        for e in all_events:
+            if e.time_slot in used_slots:
+                # 找一个空 slot
+                for slot in ["morning", "afternoon", "evening", "night"]:
+                    if slot not in used_slots:
+                        e.time_slot = slot
+                        break
+            used_slots.add(e.time_slot)
+
+        # 按时间排序
+        slot_order = {"morning": 0, "afternoon": 1, "evening": 2, "night": 3}
+        all_events.sort(key=lambda e: slot_order.get(e.time_slot, 9))
+
+        # 生成 dream_seed
+        dream_seed = ", ".join(e.activity for e in all_events[:3])
+
+        tomorrow = _dt.date.today() + _dt.timedelta(days=1)
+        plan = DailyPlan(
+            date=tomorrow.isoformat(),
+            generated_at=time.time(),
+            events=all_events,
+            personality_snapshot=dict(personality),
+            adaptations=[],
+            dream_seed=dream_seed,
+        )
+        self._current_plan = plan
+        return plan
+
     # ── LLM random event generation (Task 3) ──────────────────────────
 
     _LLM_PLAN_PROMPT = """你是一个生活模拟器。根据以下信息，为角色规划 1-2 个随机生活事件。
