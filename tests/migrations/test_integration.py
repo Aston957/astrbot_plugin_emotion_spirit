@@ -41,23 +41,21 @@ def test_full_upgrade_v3_0_to_v3_1(tmp_path):
     config_file.write_text(json.dumps(new_config, ensure_ascii=False, indent=2), encoding="utf-8")
     new_state.save()
 
-    # 5. Verify config was migrated
+    # 5. Verify config was migrated (v3→v3.1→v4)
     migrated = json.loads(config_file.read_text("utf-8"))
     assert "enable_life_simulator" not in migrated["feature_toggles"]
     assert "life_simulator_mode" not in migrated["feature_toggles"]
-    assert migrated["life_simulator"]["enable_life_fragment"] is False
-    # enable_proactive_chat=True was renamed → True (rename rule runs after split)
-    assert migrated["proactive_chat"]["enable_proactive_prompt"] is True
-    assert "enable_proactive_chat" not in migrated["proactive_chat"]
+    # v4: life_simulator + proactive_chat merged into life_sim_v2
+    assert "life_simulator" not in migrated
+    assert "proactive_chat" not in migrated
+    assert migrated["life_sim_v2"]["enable_proactive_prompt"] is True
 
     # 6. Verify state was saved
     state_file = tmp_path / "migrations.json"
     assert state_file.exists()
     saved_state = json.loads(state_file.read_text("utf-8"))
-    assert saved_state["current_version"] == 3
-    assert len(saved_state["applied"]) == 2
-    assert all(a["rule"] in ("split_life_simulator_modes", "rename_enable_proactive_chat")
-               for a in saved_state["applied"])
+    assert saved_state["current_version"] == 4
+    assert len(saved_state["applied"]) == 3
 
     # 7. Second startup with migrated config: should be no-op
     reset_registry()
