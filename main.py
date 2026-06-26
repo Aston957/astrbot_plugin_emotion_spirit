@@ -327,6 +327,32 @@ class EmotionSpiritPlugin(Star):
         self._realtime_dispatch = RealtimeDispatch()
         self._rhythm_learner = RhythmLearner()
 
+        # v1.1.0B: Multi-agent architecture
+        from emotion_spirit.agents.self_core import SelfCore
+        from emotion_spirit.agents.memory_agent import MemoryAgent
+        from emotion_spirit.agents.personality_agent import PersonalityAgent
+        from emotion_spirit.agents.relationship_agent import RelationshipAgent
+        from emotion_spirit.agents.life_agent import LifeAgent
+
+        self._self_core = SelfCore(llm_budget=2)
+        self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
+        self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
+        self._self_core.register(RelationshipAgent(self._self_core.bus, self._intimacy, self._social_graph))
+        self._self_core.register(LifeAgent(self._self_core.bus, self._life_sim_v2))
+        self._last_bot_reply_time: dict[str, float] = {}  # for ReflexLearner behavior signal
+
+        # v1.1.0B: ReflexLearner
+        from emotion_spirit.memory.reflex_learner import ReflexLearner, ReflexLearnerStore
+        self._reflex_store = ReflexLearnerStore()
+        self._reflex_learner = ReflexLearner(self._reflex_store)
+        self._self_core.set_store(self._reflex_store)
+
+        # v1.1.0B: DreamGenerator
+        from emotion_spirit.regulation.dream_generator import DreamGenerator
+        from emotion_spirit.memory.memory_sampler import MemorySampler
+        self._dream_generator = DreamGenerator(self._pool, MemorySampler(self._pool))
+        self._dream_generator.configure(llm_caller=self._get_llm_callable())
+
         # Phase 2.5: 关系人格
         self._relationship_personality = self._modules["relationship_personality"]
 
@@ -848,6 +874,22 @@ class EmotionSpiritPlugin(Star):
         if surface is not None:
             self._consume_surface(user_id, surface)
 
+        # v1.1.0B: Run agent PRE cycle
+        signals = self._latest_signals.get(user_id)
+        surface_with_phase = {
+            "_phase": "pre",
+            "intimacy_gravity": self._intimacy.get_intimacy(user_id, self._current_persona),
+            "user_text": text,
+            "safety_level": self._safety_level,
+            "emotion_delta": getattr(signals, 'emotion_velocity', 0.0) if signals else 0.0,
+            "cascade_active": self._pool.cascade_active(),
+            "boundary_pressure": 0.0,
+            "has_interaction": True,
+            "user_id": user_id,
+        }
+        composed = await self._self_core.run_cycle(user_id, surface_with_phase, "pre")
+        # Use composed.flags, composed.values, composed.carried in prompt injection below
+
         await self._flush_inject_queue()
 
         # v1.1.0A: 日程调整 (情绪变化驱动)
@@ -986,6 +1028,14 @@ class EmotionSpiritPlugin(Star):
                 interval_seconds=0,  # bot 回复不改变间隔
                 vulnerability_delta=0.05 if tone == "warm" else 0.0,
             )
+
+            # v1.1.0B: Compute behavior signal and learn
+            import time as _time_mod
+            gap = _time_mod.time() - self._last_bot_reply_time.get(user_id, 0.0)
+            from emotion_spirit.memory.reflex_learner import compute_behavior
+            behavior = compute_behavior(gap)
+            self._reflex_learner.learn(behavior)
+            self._last_bot_reply_time[user_id] = _time_mod.time()
 
             logger.debug(
                 "emotion_spirit on_llm_response: user=%s tone=%s weight=%.2f len=%d",
@@ -1164,6 +1214,14 @@ class EmotionSpiritPlugin(Star):
         saved_plan_date = self._store.get("last_plan_date")
         if saved_plan_date:
             self._last_plan_date = saved_plan_date
+
+        # v1.1.0B: ReflexLearner + DreamGenerator 恢复
+        reflex_data = self._store.get("reflex_deltas")
+        if reflex_data:
+            self._reflex_store.from_dict(reflex_data)
+        dream_data = self._store.get("dream_state")
+        if dream_data:
+            self._dream_generator.from_dict(dream_data)
         self._injector = PromptInjector(
             self._pool, self._intimacy, self._alignment,
             self._conscience, self._ideal, self._shadow, self._diary,
@@ -1182,6 +1240,11 @@ class EmotionSpiritPlugin(Star):
         if hasattr(self, '_life_sim_v2'):
             self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
             self._store.set("last_plan_date", self._last_plan_date)
+        # v1.1.0B: ReflexLearner + DreamGenerator
+        if hasattr(self, '_reflex_store'):
+            self._store.set("reflex_deltas", self._reflex_store.to_dict())
+        if hasattr(self, '_dream_generator'):
+            self._store.set("dream_state", self._dream_generator.to_dict())
         self._store.save()
 
     def _save_all(self) -> None:
