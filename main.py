@@ -924,6 +924,24 @@ class EmotionSpiritPlugin(Star):
 
         # v1.1.0B: Run agent PRE cycle
         signals = self._latest_signals.get(user_id)
+
+        # v1.1.0C: compute suppression_level from SuppressionState
+        suppression_level = 0.0
+        suppression_mod = self._modules.get("suppression")
+        if suppression_mod is not None:
+            try:
+                personality = self._consumer.consume({}).personality_deep or {}
+                suppression_level = suppression_mod.compute(
+                    personality=personality,
+                    context={},
+                    conscience_pressure=0.0,
+                    relationship_intimacy=self._intimacy.get_intimacy(
+                        user_id, self._current_persona,
+                    ),
+                )
+            except Exception:
+                suppression_level = 0.0
+
         surface_with_phase = {
             "_phase": "pre",
             "intimacy_gravity": self._intimacy.get_intimacy(user_id, self._current_persona),
@@ -934,6 +952,8 @@ class EmotionSpiritPlugin(Star):
             "boundary_pressure": 0.0,
             "has_interaction": True,
             "user_id": user_id,
+            "collapse_archetype": self._pool._collapse_archetype,
+            "suppression_level": suppression_level,
         }
         composed = await self._self_core.run_cycle(user_id, surface_with_phase, "pre")
 

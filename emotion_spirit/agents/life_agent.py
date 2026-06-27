@@ -82,8 +82,8 @@ class LifeAgent(CognitiveAgent):
         We map the perceived dict (built by LifeSimulatorV2 in PRE phase) into
         the new emotion_state shape, and read OCEAN personality from the
         personality dict supplied at construction time. suppression_level and
-        collapse_archetype are wired in a follow-up; defaulting to 0.0/None
-        keeps compute_social_tendency() on its neutral baseline.
+        collapse_archetype are read from the perceived dict, wired from
+        main.py's surface_with_phase (SuppressionState + MemoryPool collapse).
         """
         delta = perceived.get("emotion_delta", 0.0)
         # Build a minimal emotion_state shape that compute_social_tendency
@@ -93,12 +93,15 @@ class LifeAgent(CognitiveAgent):
             "arousal": abs(delta),
             "tension": -delta if delta else 0.0,
         }
+        suppression_level = perceived.get("suppression_level", 0.0)
+        collapse_archetype = perceived.get("collapse_archetype", None)
+
         try:
             adaptations = self._life_sim.adapt_plan(
                 emotion_state=emotion_state,
                 personality=self._personality,
-                suppression_level=0.0,  # TODO: wire from SuppressionState
-                collapse_archetype=None,  # TODO: wire from memory_pool collapse
+                suppression_level=suppression_level,
+                collapse_archetype=collapse_archetype,
             )
         except Exception:
             return None
