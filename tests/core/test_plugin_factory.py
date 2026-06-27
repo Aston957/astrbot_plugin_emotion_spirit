@@ -54,8 +54,8 @@ def test_plugin_factory_can_disable_module():
     assert "store" in modules
 
 
-def test_plugin_factory_default_config_lists_all_34():
-    """default_config() 列出 34 个有 provides 的模块 (utility 5 不在内)。
+def test_plugin_factory_default_config_lists_all_35():
+    """default_config() 列出 35 个有 provides 的模块 (utility 5 不在内)。
 
     Phase 3.0B Task 3: 25 → 26 (+body_state, 25 instantiable + 1 body_state = 26
     - 4 utility = 26. 等价: 30 总 - 4 utility = 26 instantiable)。
@@ -63,16 +63,17 @@ def test_plugin_factory_default_config_lists_all_34():
     - 等价: 34 总 - 4 utility = 30 instantiable。
     Phase 0 Task 5: 30 → 34 (+cascade_engine, +decay_model, +suppression, +collapse_archetype_selector)
     - 等价: 39 总 - 5 utility = 34 instantiable。
+    v1.1.0C T1: 34 → 35 (+adaptation_engine) — 等价: 40 总 - 5 utility = 35 instantiable。
     """
     from emotion_spirit.core.plugin_factory import default_config
 
     cfg = default_config(data_dir="data")
     enabled = [name for name, m in cfg["modules"].items() if m.get("enabled", True)]
-    # 34 = 39 - 5 utility (emotion_classifier/label_mapper/persona_profiles/trend_utils/collapse_archetype)
+    # 35 = 40 - 5 utility (emotion_classifier/label_mapper/persona_profiles/trend_utils/collapse_archetype)
     # utility 模块 provides=[] (纯算法/工具), 不应由 factory 装配.
-    # main.py 实际启用的子集 不影响此处: factory 默认装配所有 34 个有 provides 的模块,
+    # main.py 实际启用的子集 不影响此处: factory 默认装配所有 35 个有 provides 的模块,
     # 调用方可按需禁用 (e.g. bot_decision) 而不破坏工厂契约.
-    assert len(enabled) == 34
+    assert len(enabled) == 35
     # utility 模块不应在 enabled (它们 provides=[])
     assert "emotion_classifier" not in enabled
     assert "label_mapper" not in enabled
@@ -82,20 +83,21 @@ def test_plugin_factory_default_config_lists_all_34():
 
 
 def test_instantiable_modules_derives_from_registry():
-    """default_config() 跟 registry 同步: 34 个 provides>0, 加新模块自动出现 (B6.x.x I1)。
+    """default_config() 跟 registry 同步: 35 个 provides>0, 加新模块自动出现 (B6.x.x I1)。
 
     Phase 3.0B Task 3: 25 → 26 (+body_state).
     Phase 0 Task 3: 26 → 30 (+dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler).
     Phase 0 Task 5: 30 → 34 (+cascade_engine, +decay_model, +suppression, +collapse_archetype_selector).
+    v1.1.0C T1: 34 → 35 (+adaptation_engine).
     """
     from emotion_spirit.core.registry import ModuleRegistry, register
     from emotion_spirit.core.plugin_factory import default_config
 
-    # 1. 长度 == 34 (utility 5 不算)
+    # 1. 长度 == 35 (utility 5 不算)
     expected_count = sum(1 for s in ModuleRegistry.get_all().values() if s.provides)
     cfg = default_config(data_dir="data")
     enabled = [n for n, m in cfg["modules"].items() if m.get("enabled", True)]
-    assert len(enabled) == 34
+    assert len(enabled) == 35
     assert len(enabled) == expected_count
 
     # 2. 每个都在 registry 里有 spec 且 provides 非空
@@ -117,7 +119,7 @@ def test_instantiable_modules_derives_from_registry():
         assert "_test_instantiable_xxx" in enabled2, (
             f"新模块应自动出现在 default_config, got {enabled2}"
         )
-        assert len(enabled2) == 35  # 34 + 1 临时
+        assert len(enabled2) == 36  # 35 + 1 临时
     finally:
         # 恢复 registry, 清掉临时 class
         ModuleRegistry._registry.clear()

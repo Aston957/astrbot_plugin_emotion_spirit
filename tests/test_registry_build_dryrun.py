@@ -9,17 +9,18 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 39 模块 @register (Phase 0 Task 5: +cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector)
+import emotion_spirit  # noqa: F401  # 触发 40 模块 @register (Phase 0 Task 5: +cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector; v1.1.0C T1: +adaptation_engine)
 from emotion_spirit.core.registry import ModuleRegistry, build
 from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
 def test_dry_run_30_modules_no_error():
-    """dry_run 走 39 模块依赖图检查, 0 错误。
+    """dry_run 走 40 模块依赖图检查, 0 错误。
 
     Phase 0 Task 5: 34 → 39 (+cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector).
+    v1.1.0C T1: 39 → 40 (+adaptation_engine).
     """
-    assert len(ModuleRegistry.get_all()) == 39, f"expected 39 modules, got {len(ModuleRegistry.get_all())}"
+    assert len(ModuleRegistry.get_all()) == 40, f"expected 40 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -143,9 +144,9 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility N (provides=[]) 也被装配. Phase 0 Task 5: 39 instances
-    # (34 instantiable + 5 utility)
-    assert len(real) == 39, f"expected 39 instances, got {len(real)}"
+    # 所以 utility N (provides=[]) 也被装配. v1.1.0C T1: 40 instances
+    # (35 instantiable + 5 utility)
+    assert len(real) == 40, f"expected 40 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════

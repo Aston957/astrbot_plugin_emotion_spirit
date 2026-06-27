@@ -8,4 +8,5 @@ __all__ = [
     "life_simulator", "persona_analyzer", "persona_report_parser",
     "counterfactual", "life_plan", "dream_generator",
     "collapse_archetype",
+    "adaptation",
 ]
