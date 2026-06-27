@@ -125,6 +125,7 @@ class TestApplyNoveltyBias:
     def test_apply_novelty_bias_scales_weights(self) -> None:
         ah = ActivityHistory()
         ah.record("做饭", "physical", 0.7)
+        ah.record("做饭", "physical", 0.7)  # second occurrence starts penalty
         weights = {"physical": 1.0, "creative": 1.0}
         biased = ah.apply_novelty_bias(weights)
         assert biased["physical"] < biased["creative"]
