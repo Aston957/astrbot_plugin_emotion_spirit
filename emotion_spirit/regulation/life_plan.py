@@ -8,6 +8,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .adaptation import EMOTION_ACTIVITY_BIAS
+
 __all__ = [
     "PlannedEvent", "DailyPlan",
     "PLAN_TEMPLATES", "PERSONALITY_TEMPLATE_WEIGHTS",
@@ -112,16 +114,7 @@ PERSONALITY_TEMPLATE_WEIGHTS: dict[str, dict[str, float]] = {
 
 
 # ═══ Emotion/Personality → 模板偏置 (delta weights, used by select_adaptation_activity) ═══
-
-EMOTION_ACTIVITY_BIAS: dict[str, dict[str, float]] = {
-    "happy":     {"social": +0.3, "creative": +0.2, "physical": +0.1},
-    "calm":      {"intellectual": +0.2, "rest": +0.1, "routine": +0.1},
-    "anxious":   {"social": -0.2, "rest": +0.2, "creative": +0.1},
-    "sad":       {"social": -0.3, "rest": +0.3, "creative": +0.2},
-    "angry":     {"social": +0.1, "physical": +0.3, "rest": -0.2},
-    "speechless":{"social": -0.1, "intellectual": +0.2, "rest": +0.1},
-    "excited":   {"social": +0.4, "physical": +0.2, "creative": +0.1},
-}
+# EMOTION_ACTIVITY_BIAS is imported from .adaptation (single source of truth).
 
 PERSONALITY_ACTIVITY_BIAS: dict[str, dict[str, float]] = {
     "extraversion":      {"social": +0.4, "physical": +0.2, "rest": -0.2},
