@@ -509,7 +509,7 @@ def test_v2_generate_daily_plan_date_is_tomorrow():
 
 
 def test_v2_adapt_cancel_social_on_bad_mood():
-    """Emotion drop + social event -> cancel social event."""
+    """Emotion drop (avoid tendency) + social event -> cancel social event."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
@@ -517,53 +517,72 @@ def test_v2_adapt_cancel_social_on_bad_mood():
             PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
                          activity="看书", category="template", flexibility=0.3),
             PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    # Emotion dropped significantly
-    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    # Sad emotion + low extraversion → avoid tendency → cancel social event
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.3},
+        personality={"extraversion": 0.2, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     cancelled = [a for a in actions if a["action"] == "cancel"]
     assert len(cancelled) >= 1
     assert cancelled[0]["event_id"] == "e2"  # social event cancelled
 
 
 def test_v2_adapt_no_cancel_on_good_mood():
-    """Good mood -> no cancellation."""
+    """Happy emotion + high extraversion -> seek (no cancel of social events), or neutral -> no cancel."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    actions = sim.adapt_plan(emotion_delta=0.3, cascade_active=False, boundary_pressure=0.0)
+    # Happy + extraverted → seek, but event is social → no cancel (only non-social is cancelled)
+    actions = sim.adapt_plan(
+        emotion_state={"valence": 0.5, "arousal": 0.3, "tension": 0.0},
+        personality={"extraversion": 0.7, "neuroticism": 0.3, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert actions == []
 
 
 def test_v2_adapt_high_neuroticism_lower_threshold():
-    """High neuroticism -> more likely to cancel."""
+    """High neuroticism -> avoid tendency more easily triggered, cancelling social."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="出门见人", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
         personality_snapshot={"neuroticism": 0.9, "conscientiousness": 0.3},
     )
     sim._current_plan = plan
-    # Small emotion drop, but high neuroticism should still trigger
-    actions = sim.adapt_plan(emotion_delta=-0.2, cascade_active=False, boundary_pressure=0.0)
+    # High neuroticism + sad → avoid tendency → social event cancelled
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.4, "arousal": 0.2, "tension": 0.3},
+        personality={"extraversion": 0.3, "neuroticism": 0.9, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.3},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert any(a["action"] == "cancel" for a in actions)
 
 
 def test_v2_adapt_cascade_cancels_outdoor():
-    """cascade_active -> cancel all outdoor events."""
+    """freeze collapse -> avoid tendency -> cancel social events."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
@@ -571,22 +590,30 @@ def test_v2_adapt_cascade_cancels_outdoor():
             PlannedEvent(id="e1", time_slot="morning", approximate_time="10:00",
                          activity="看书", category="template", flexibility=0.3),
             PlannedEvent(id="e2", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
             PlannedEvent(id="e3", time_slot="evening", approximate_time="18:00",
-                         activity="散步", category="template", flexibility=0.7),
+                         activity="散步", category="physical", flexibility=0.7),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    actions = sim.adapt_plan(emotion_delta=0.0, cascade_active=True, boundary_pressure=0.0)
+    # freeze collapse pushes toward avoid → cancel social events
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.5},
+        personality={"extraversion": 0.3, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype="freeze",
+    )
     cancelled_ids = {a["event_id"] for a in actions if a["action"] == "cancel"}
-    assert "e2" in cancelled_ids  # 逛商场 cancelled
-    assert "e3" in cancelled_ids  # 散步 cancelled
-    assert "e1" not in cancelled_ids  # 看书 (not outdoor) kept
+    # With avoid tendency: social events cancelled
+    assert "e2" in cancelled_ids  # social cancelled
+    assert "e1" not in cancelled_ids  # 看书 (non-social) kept
+    assert "e3" not in cancelled_ids  # 散步 (physical, non-social) kept
 
 
 def test_v2_adapt_boundary_pressure_cancels_social():
-    """boundary_pressure > 0.7 -> cancel social events."""
+    """High suppression (analogous to boundary_pressure) + sad emotion → avoid → cancel social."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
@@ -599,7 +626,14 @@ def test_v2_adapt_boundary_pressure_cancels_social():
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    actions = sim.adapt_plan(emotion_delta=0.0, cascade_active=False, boundary_pressure=0.8)
+    # High suppression + sad emotion → avoid tendency → cancel social events
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.5},
+        personality={"extraversion": 0.3, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.9,
+        collapse_archetype=None,
+    )
     cancelled_ids = {a["event_id"] for a in actions if a["action"] == "cancel"}
     assert "e2" in cancelled_ids  # social cancelled
     assert "e1" not in cancelled_ids  # non-social kept
@@ -608,41 +642,67 @@ def test_v2_adapt_boundary_pressure_cancels_social():
 def test_v2_adapt_no_plan_returns_empty():
     """No current plan -> returns empty list."""
     sim = _make_sim_v2()
-    actions = sim.adapt_plan(emotion_delta=-1.0, cascade_active=True, boundary_pressure=1.0)
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -1.0, "arousal": 0.0, "tension": 1.0},
+        personality={"extraversion": 0.0, "neuroticism": 1.0, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=1.0,
+        collapse_archetype="freeze",
+    )
     assert actions == []
 
 
-def test_v2_adapt_low_flexibility_protects_event():
-    """Events with flexibility < 0.3 cannot be cancelled."""
+def test_v2_adapt_no_cancel_when_neutral():
+    """Neutral tendency -> no cancellations regardless of event types."""
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.1),
+                         activity="和朋友聊天", category="template", flexibility=0.1),
+            PlannedEvent(id="e2", time_slot="evening", approximate_time="18:00",
+                         activity="看书", category="template", flexibility=0.1),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=True, boundary_pressure=0.9)
-    # flexibility=0.1 < 0.3, so event should NOT be cancelled
+    # Mild emotion + balanced personality → neutral tendency → no cancel
+    actions = sim.adapt_plan(
+        emotion_state={"valence": 0.0, "arousal": 0.0, "tension": 0.0},
+        personality={"extraversion": 0.5, "neuroticism": 0.5, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert actions == []
 
 
 def test_v2_adapt_high_conscientiousness_resists_cancel():
-    """High conscientiousness raises threshold, making cancellation harder."""
+    """High conscientiousness alone doesn't prevent avoid tendency when sadness is strong.
+
+    Note: v1.1.0C no longer uses conscientiousness as a threshold modulator — the
+    driver is now compute_social_tendency which uses extraversion/neuroticism/etc.
+    This test verifies the new behavior: strong sadness + high neuroticism still
+    triggers avoid, even with high conscientiousness.
+    """
     sim = _make_sim_v2()
     plan = DailyPlan(
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="出门见人", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
-        personality_snapshot={"neuroticism": 0.3, "conscientiousness": 0.9},
+        personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    # Small emotion drop — high conscientiousness should resist
-    actions = sim.adapt_plan(emotion_delta=-0.15, cascade_active=False, boundary_pressure=0.0)
+    # Mild conditions → neutral tendency → no cancel (high conscientiousness not the driver anymore)
+    actions = sim.adapt_plan(
+        emotion_state={"valence": 0.0, "arousal": 0.0, "tension": 0.0},
+        personality={"extraversion": 0.5, "neuroticism": 0.5, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.9},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert actions == []
 
 
@@ -653,16 +713,22 @@ def test_v2_adapt_records_adaptation_log():
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.4},
+        personality={"extraversion": 0.2, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert len(plan.adaptations) >= 1
     assert plan.adaptations[0]["action"] == "cancel"
     assert plan.adaptations[0]["event_id"] == "e1"
-    assert "timestamp" in plan.adaptations[0]
+    assert "tendency" in plan.adaptations[0]
 
 
 def test_v2_adapt_cancelled_event_status_updated():
@@ -672,12 +738,18 @@ def test_v2_adapt_cancelled_event_status_updated():
         date="2026-06-27", generated_at=time.time(),
         events=[
             PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
-                         activity="逛商场", category="template", flexibility=0.8),
+                         activity="和朋友聊天", category="template", flexibility=0.8),
         ],
         personality_snapshot={"neuroticism": 0.5, "conscientiousness": 0.5},
     )
     sim._current_plan = plan
-    sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.4},
+        personality={"extraversion": 0.2, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     assert plan.events[0].status == "cancelled"
     assert plan.events[0].cancellation_reason is not None
 
@@ -930,8 +1002,14 @@ def test_v2_full_lifecycle():
     assert len(plan.events) >= 3
     assert sim._current_plan is plan
 
-    # 2. Adapt (bad mood → cancel social)
-    actions = sim.adapt_plan(emotion_delta=-0.5, cascade_active=False, boundary_pressure=0.0)
+    # 2. Adapt (bad mood → avoid → cancel social)
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.0, "tension": 0.4},
+        personality={"extraversion": 0.3, "neuroticism": 0.7, "openness": 0.5,
+                    "agreeableness": 0.5, "conscientiousness": 0.5},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
     # At least one social event should be cancelled
     cancelled = [e for e in plan.events if e.status == "cancelled"]
     # (may or may not cancel depending on template selection, so just check no crash)
@@ -948,6 +1026,46 @@ def test_v2_full_lifecycle():
     sim2.from_dict(data)
     assert sim2._current_plan.date == plan.date
     assert len(sim2._current_plan.events) == len(plan.events)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task 3 (v1.1.0C): adapt_plan v2 — emotion x personality x suppression x collapse
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_adapt_plan_cancels_alone_when_avoid():
+    """When tendency is avoid, the user's social event gets cancelled.
+
+    Per the v1.1.0C spec: avoid tendency cancels is_social events
+    (because the user wants to be alone, so the social event is replaced
+    with a rest category replacement). Non-social events are preserved
+    because they already match the "be alone" desire.
+    """
+    sim = _make_sim_v2()
+    plan = DailyPlan(
+        date="2026-06-27",
+        generated_at=time.time(),
+        events=[
+            # Social event: category=template + activity contains social keyword
+            # → _is_social_event() returns True → cancelled when avoid tendency
+            PlannedEvent(id="e1", time_slot="afternoon", approximate_time="14:00",
+                         activity="和朋友聊天", category="template", status="planned", flexibility=0.7),
+        ],
+        personality_snapshot={},
+        adaptations=[],
+        dream_seed="",
+    )
+    sim._current_plan = plan
+    # High neuroticism + sad → avoid tendency → cancel social event
+    actions = sim.adapt_plan(
+        emotion_state={"valence": -0.5, "arousal": 0.2, "tension": 0.4},
+        personality={"extraversion": 0.2, "neuroticism": 0.8, "openness": 0.3,
+                    "agreeableness": 0.3, "conscientiousness": 0.3},
+        suppression_level=0.0,
+        collapse_archetype=None,
+    )
+    assert any(a["action"] == "cancel" for a in actions)
+    assert plan.events[0].status == "cancelled"
 
 
 if __name__ == "__main__":

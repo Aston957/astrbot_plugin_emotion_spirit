@@ -416,87 +416,78 @@ class LifeSimulatorV2:
         if plan_data:
             self._current_plan = DailyPlan.from_dict(plan_data)
 
-    # ── Plan adaptation (Task 5) ────────────────────────────────────────
+    # ── Plan adaptation (v1.1.0C Task 3: emotion × personality × suppression × collapse) ──
 
-    # 户外活动关键词
+    # 户外活动关键词 (legacy, kept for reference)
     _OUTDOOR_KEYWORDS = {"逛商场", "出门", "散步", "跑步", "去咖啡店", "出门见人", "公园"}
-    # 社交活动关键词
+    # 社交活动关键词 (legacy, kept for reference)
     _SOCIAL_KEYWORDS = {"和朋友", "出门见人", "逛商场", "去咖啡店", "聊天"}
+
+    def _is_social_event(self, event) -> bool:
+        """Check if event is social category.
+
+        Social = category in (social, template) AND activity contains a social keyword.
+        Template events are checked because templates may render social activities.
+        """
+        if event.category not in ("social", "template"):
+            return False
+        return any(
+            kw in event.activity
+            for kw in ("聊天", "出门", "逛街", "咖啡店", "社交")
+        )
 
     def adapt_plan(
         self,
-        emotion_delta: float = 0.0,
-        cascade_active: bool = False,
-        boundary_pressure: float = 0.0,
+        emotion_state: dict,
+        personality: dict[str, float],
+        suppression_level: float = 0.0,
+        collapse_archetype: str | None = None,
     ) -> list[dict]:
-        """根据当前状态调整计划。返回调整动作列表。
+        """Adapt daily plan based on emotion × personality × suppression × collapse.
 
-        规则:
-        1. 情绪下降 + 社交事件 → 取消
-        2. cascade_active → 取消户外事件
-        3. boundary_pressure > 0.7 → 取消社交事件
+        Uses compute_social_tendency() to decide whether to keep or cancel events,
+        and select_adaptation_activity() to find replacement categories.
 
-        人格调制:
-        - neuroticism 高 → 阈值降低 (更容易取消)
-        - conscientiousness 高 → 阈值提高 (更坚持计划)
+        v1.1.0C: New signature accepts emotion_state/personality/suppression/collapse
+        instead of the legacy emotion_delta/cascade_active/boundary_pressure. The
+        new driver is compute_social_tendency → seek/neutral/avoid, which then
+        either cancels non-social events (seek) or social events (avoid).
         """
+        from .adaptation import compute_social_tendency, select_adaptation_activity
+
         if not self._current_plan:
             return []
 
-        personality = self._current_plan.personality_snapshot
-        neuroticism = personality.get("neuroticism", 0.5)
-        conscientiousness = personality.get("conscientiousness", 0.5)
-
-        # 基础阈值，被人格调制
-        base_threshold = 0.3
-        # neuroticism 高 → 阈值降低 (更容易取消)
-        # conscientiousness 高 → 阈值提高 (更坚持计划)
-        threshold = base_threshold * (
-            1.0 - 0.7 * (neuroticism - 0.5) + 0.3 * (conscientiousness - 0.5)
+        tendency = compute_social_tendency(
+            emotion_state, personality, suppression_level, collapse_archetype
         )
-        threshold = max(0.1, min(0.6, threshold))
-
         actions: list[dict] = []
+
         for event in self._current_plan.events:
             if event.status != "planned":
                 continue
+            is_social = self._is_social_event(event)
 
-            should_cancel = False
-            reason = ""
-
-            # 规则 1: 情绪下降 + 社交事件 → 取消
-            if emotion_delta < -threshold:
-                if any(kw in event.activity for kw in self._SOCIAL_KEYWORDS):
-                    should_cancel = True
-                    reason = "情绪下降，不想社交"
-
-            # 规则 2: cascade_active → 取消户外事件
-            if cascade_active:
-                if any(kw in event.activity for kw in self._OUTDOOR_KEYWORDS):
-                    should_cancel = True
-                    reason = "情绪连锁反应，需要独处"
-
-            # 规则 3: boundary_pressure 高 → 取消社交事件
-            if boundary_pressure > 0.7:
-                if any(kw in event.activity for kw in self._SOCIAL_KEYWORDS):
-                    should_cancel = True
-                    reason = "边界压力过高"
-
-            # flexibility 检查: 只有 flexibility 足够高才能取消
-            if should_cancel and event.flexibility < 0.3:
-                should_cancel = False  # 不可改变的事件
-
-            if should_cancel:
+            if tendency == "seek" and not is_social:
+                replacement_cat = select_adaptation_activity(emotion_state, personality, "seek")
                 event.status = "cancelled"
-                event.cancellation_reason = reason
-                self._current_plan.adaptations.append({
-                    "event_id": event.id,
-                    "action": "cancel",
-                    "reason": reason,
-                    "timestamp": time.time(),
+                event.cancellation_reason = "想找人聊聊"
+                actions.append({
+                    "action": "cancel", "event_id": event.id,
+                    "replace_category": replacement_cat, "tendency": "seek",
                 })
-                actions.append({"action": "cancel", "event_id": event.id, "reason": reason})
+            elif tendency == "avoid" and is_social:
+                replacement_cat = select_adaptation_activity(emotion_state, personality, "avoid")
+                event.status = "cancelled"
+                event.cancellation_reason = "想一个人呆着"
+                actions.append({
+                    "action": "cancel", "event_id": event.id,
+                    "replace_category": replacement_cat, "tendency": "avoid",
+                })
 
+        if self._current_plan.adaptations is None:
+            self._current_plan.adaptations = []
+        self._current_plan.adaptations.extend(actions)
         return actions
 
     # ── LLM random event generation (Task 3) ──────────────────────────
@@ -504,16 +495,20 @@ class LifeSimulatorV2:
     _LLM_PLAN_PROMPT = """你是一个生活模拟器。根据以下信息，为角色规划 1-2 个随机生活事件。
 
 角色人格: {personality}
+人格偏好 (5维): {personality_preferences}
 近期记忆: {recent_memories}
 昨天发生的事: {yesterday_events}
 
 要求:
-- 事件要符合角色性格
+- 事件要符合角色性格和当前情绪偏好
+- 高外向 → 倾向社交/运动类活动
+- 高开放 → 倾向创造/探索类活动
+- 高尽责 → 倾向整理/计划类活动
+- 高宜人 → 倾向照顾/社交类活动
+- 高神经质 → 倾向独处/反思类活动
 - 要有变化（不要每天都一样）
-- 要考虑昨天的经历（昨天很累→今天休息）
-- 输出 JSON 数组: [{{"time": "afternoon", "activity": "去公园散步", "mood": "期待"}}]
-- time 只能是 "morning" / "afternoon" / "evening"
-- 只输出 JSON，不要其他文字"""
+- 输出 JSON: [{{"time": "afternoon", "activity": "...", "mood": "..."}}]
+"""
 
     async def generate_plan_llm(
         self,
@@ -521,10 +516,17 @@ class LifeSimulatorV2:
         recent_memories: list[str],
         yesterday_events: list[str],
     ) -> list["PlannedEvent"]:
-        """调 LLM 生成 1-2 个随机事件。"""
+        """调 LLM 生成 1-2 个随机事件。
+
+        v1.1.0C: Now passes personality_preferences (7-dim activity preference
+        vector derived from personality via derive_activity_preferences) so the
+        LLM can bias event selection toward categories the character gravitates
+        toward.
+        """
         if not self._llm_caller:
             return []
 
+        from .adaptation import derive_activity_preferences
         import json as _json
         import time as _time
         from .life_plan import PlannedEvent as _PlannedEvent
@@ -532,9 +534,12 @@ class LifeSimulatorV2:
         mem_text = "\n".join(f"- {m}" for m in recent_memories[:5]) or "（暂无）"
         yes_text = "\n".join(f"- {e}" for e in yesterday_events[:3]) or "（暂无）"
         p_desc = ", ".join(f"{k}={v:.1f}" for k, v in personality.items())
+        preferences = derive_activity_preferences(personality)
+        pref_text = ", ".join(f"{k}={v:.2f}" for k, v in preferences.items())
 
         prompt = self._LLM_PLAN_PROMPT.format(
             personality=p_desc,
+            personality_preferences=pref_text,
             recent_memories=mem_text,
             yesterday_events=yes_text,
         )
