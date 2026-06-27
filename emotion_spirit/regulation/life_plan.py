@@ -11,6 +11,7 @@ from typing import Any
 __all__ = [
     "PlannedEvent", "DailyPlan",
     "PLAN_TEMPLATES", "PERSONALITY_TEMPLATE_WEIGHTS",
+    "EMOTION_ACTIVITY_BIAS", "PERSONALITY_ACTIVITY_BIAS",
     "select_template_activities", "_time_to_slot",
 ]
 
@@ -107,6 +108,27 @@ PERSONALITY_TEMPLATE_WEIGHTS: dict[str, dict[str, float]] = {
     "conscientiousness": {"routine": 0.3, "intellectual": 0.3, "physical": 0.2, "creative": 0.1, "rest": 0.1},
     "agreeableness": {"social": 0.3, "rest": 0.3, "physical": 0.2, "creative": 0.1, "intellectual": 0.1},
     "neuroticism": {"rest": 0.4, "creative": 0.2, "intellectual": 0.2, "physical": 0.1, "social": 0.1},
+}
+
+
+# ═══ Emotion/Personality → 模板偏置 (delta weights, used by select_adaptation_activity) ═══
+
+EMOTION_ACTIVITY_BIAS: dict[str, dict[str, float]] = {
+    "happy":     {"social": +0.3, "creative": +0.2, "physical": +0.1},
+    "calm":      {"intellectual": +0.2, "rest": +0.1, "routine": +0.1},
+    "anxious":   {"social": -0.2, "rest": +0.2, "creative": +0.1},
+    "sad":       {"social": -0.3, "rest": +0.3, "creative": +0.2},
+    "angry":     {"social": +0.1, "physical": +0.3, "rest": -0.2},
+    "speechless":{"social": -0.1, "intellectual": +0.2, "rest": +0.1},
+    "excited":   {"social": +0.4, "physical": +0.2, "creative": +0.1},
+}
+
+PERSONALITY_ACTIVITY_BIAS: dict[str, dict[str, float]] = {
+    "extraversion":      {"social": +0.4, "physical": +0.2, "rest": -0.2},
+    "neuroticism":       {"rest": +0.2, "social": -0.1, "creative": +0.1},
+    "agreeableness":     {"social": +0.2, "routine": +0.1},
+    "openness":          {"creative": +0.4, "intellectual": +0.3, "routine": -0.2},
+    "conscientiousness": {"routine": +0.3, "intellectual": +0.2, "rest": -0.2},
 }
 
 

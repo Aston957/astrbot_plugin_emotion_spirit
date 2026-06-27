@@ -55,3 +55,47 @@ def test_personality_weights_sum_to_one():
     for trait, weights in PERSONALITY_TEMPLATE_WEIGHTS.items():
         total = sum(weights.values())
         assert abs(total - 1.0) < 0.01, f"{trait} weights sum to {total}"
+
+
+def test_emotion_activity_bias_exists():
+    from emotion_spirit.regulation.life_plan import EMOTION_ACTIVITY_BIAS
+    assert "happy" in EMOTION_ACTIVITY_BIAS
+    assert "social" in EMOTION_ACTIVITY_BIAS["happy"]
+
+
+def test_personality_activity_bias_exists():
+    from emotion_spirit.regulation.life_plan import PERSONALITY_ACTIVITY_BIAS
+    assert "extraversion" in PERSONALITY_ACTIVITY_BIAS
+    assert "social" in PERSONALITY_ACTIVITY_BIAS["extraversion"]
+
+
+def test_emotion_activity_bias_values_are_floats():
+    from emotion_spirit.regulation.life_plan import EMOTION_ACTIVITY_BIAS
+    for emotion, biases in EMOTION_ACTIVITY_BIAS.items():
+        for category, value in biases.items():
+            assert isinstance(value, float), f"{emotion}/{category} value must be float"
+
+
+def test_personality_activity_bias_values_are_floats():
+    from emotion_spirit.regulation.life_plan import PERSONALITY_ACTIVITY_BIAS
+    for trait, biases in PERSONALITY_ACTIVITY_BIAS.items():
+        for category, value in biases.items():
+            assert isinstance(value, float), f"{trait}/{category} value must be float"
+
+
+def test_emotion_activity_bias_all_categories_known():
+    """All categories in EMOTION_ACTIVITY_BIAS must exist in PLAN_TEMPLATES."""
+    from emotion_spirit.regulation.life_plan import EMOTION_ACTIVITY_BIAS
+    valid_categories = set(PLAN_TEMPLATES.keys())
+    for emotion, biases in EMOTION_ACTIVITY_BIAS.items():
+        for category in biases.keys():
+            assert category in valid_categories, f"{emotion}/{category} not in PLAN_TEMPLATES"
+
+
+def test_personality_activity_bias_all_categories_known():
+    """All categories in PERSONALITY_ACTIVITY_BIAS must exist in PLAN_TEMPLATES."""
+    from emotion_spirit.regulation.life_plan import PERSONALITY_ACTIVITY_BIAS
+    valid_categories = set(PLAN_TEMPLATES.keys())
+    for trait, biases in PERSONALITY_ACTIVITY_BIAS.items():
+        for category in biases.keys():
+            assert category in valid_categories, f"{trait}/{category} not in PLAN_TEMPLATES"
