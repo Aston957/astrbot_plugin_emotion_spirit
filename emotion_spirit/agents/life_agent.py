@@ -23,9 +23,20 @@ class LifeAgent(CognitiveAgent):
     name = "life"
     phases = (PRE, AUTONOMOUS)
 
-    def __init__(self, bus, life_sim_v2: "LifeSimulatorV2 | None" = None):
+    def __init__(self, bus, life_sim_v2: "LifeSimulatorV2 | None" = None,
+                 personality: dict[str, float] | None = None):
         super().__init__(bus)
         self._life_sim = life_sim_v2
+        # OCEAN-5 personality params (deep layer of _baseline_personality).
+        # Defaults to a neutral OCEAN profile so the agent still produces
+        # adaptations even when personality has not been wired yet.
+        self._personality: dict[str, float] = personality or {
+            "openness": 0.5,
+            "conscientiousness": 0.5,
+            "extraversion": 0.5,
+            "agreeableness": 0.5,
+            "neuroticism": 0.5,
+        }
 
     # ── perceive ──
 
@@ -61,12 +72,33 @@ class LifeAgent(CognitiveAgent):
         return await self._act_autonomous(session_key)
 
     async def _act_adapt(self, perceived: dict[str, Any]) -> "AgentIntent | None":
-        """PRE phase: call adapt_plan on LifeSimulatorV2."""
+        """PRE phase: call adapt_plan on LifeSimulatorV2 with v2 signature.
+
+        v1.1.0C: adapt_plan now expects
+            (emotion_state, personality, suppression_level, collapse_archetype)
+        instead of the legacy
+            (emotion_delta, cascade_active, boundary_pressure).
+
+        We map the perceived dict (built by LifeSimulatorV2 in PRE phase) into
+        the new emotion_state shape, and read OCEAN personality from the
+        personality dict supplied at construction time. suppression_level and
+        collapse_archetype are wired in a follow-up; defaulting to 0.0/None
+        keeps compute_social_tendency() on its neutral baseline.
+        """
+        delta = perceived.get("emotion_delta", 0.0)
+        # Build a minimal emotion_state shape that compute_social_tendency
+        # understands: valence/arousal/tension in roughly [-1, 1].
+        emotion_state = {
+            "valence": delta,
+            "arousal": abs(delta),
+            "tension": -delta if delta else 0.0,
+        }
         try:
             adaptations = self._life_sim.adapt_plan(
-                emotion_delta=perceived.get("emotion_delta", 0.0),
-                cascade_active=perceived.get("cascade_active", False),
-                boundary_pressure=perceived.get("boundary_pressure", 0.0),
+                emotion_state=emotion_state,
+                personality=self._personality,
+                suppression_level=0.0,  # TODO: wire from SuppressionState
+                collapse_archetype=None,  # TODO: wire from memory_pool collapse
             )
         except Exception:
             return None

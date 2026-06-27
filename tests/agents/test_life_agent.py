@@ -187,7 +187,10 @@ def test_act_pre_with_adaptations_returns_intent():
     bus = EventBus()
     adaptations = [{"action": "cancel", "event_id": "evt1", "reason": "too sad"}]
     mock_sim = _make_life_sim(adaptations=adaptations)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent(
+        bus, life_sim_v2=mock_sim,
+        personality={"openness": 0.6, "extraversion": 0.4},
+    )
 
     result = _run(agent.act("sk", RULE, {
         "emotion_delta": -0.5,
@@ -201,9 +204,10 @@ def test_act_pre_with_adaptations_returns_intent():
     assert result.priority == 0.3
     assert result.payload["plan_adaptations"] == adaptations
     mock_sim.adapt_plan.assert_called_once_with(
-        emotion_delta=-0.5,
-        cascade_active=False,
-        boundary_pressure=0.0,
+        emotion_state={"valence": -0.5, "arousal": 0.5, "tension": 0.5},
+        personality={"openness": 0.6, "extraversion": 0.4},
+        suppression_level=0.0,
+        collapse_archetype=None,
     )
 
 
@@ -241,10 +245,14 @@ def test_act_pre_adapt_exception_returns_none():
 
 
 def test_act_pre_passes_all_params():
-    """PRE passes all three parameters to adapt_plan."""
+    """PRE maps perceived + personality into the v2 adapt_plan signature."""
     bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[{"action": "cancel"}])
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    personality = {
+        "openness": 0.7, "conscientiousness": 0.4,
+        "extraversion": 0.6, "agreeableness": 0.5, "neuroticism": 0.3,
+    }
+    agent = LifeAgent(bus, life_sim_v2=mock_sim, personality=personality)
 
     _run(agent.act("sk", RULE, {
         "emotion_delta": -0.4,
@@ -253,14 +261,15 @@ def test_act_pre_passes_all_params():
     }, PRE))
 
     mock_sim.adapt_plan.assert_called_once_with(
-        emotion_delta=-0.4,
-        cascade_active=True,
-        boundary_pressure=0.8,
+        emotion_state={"valence": -0.4, "arousal": 0.4, "tension": 0.4},
+        personality=personality,
+        suppression_level=0.0,
+        collapse_archetype=None,
     )
 
 
 def test_act_pre_default_perceived_params():
-    """PRE with minimal perceived dict uses defaults for adapt_plan."""
+    """PRE with minimal perceived dict uses defaults for emotion_state."""
     bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[{"action": "cancel"}])
     agent = LifeAgent(bus, life_sim_v2=mock_sim)
@@ -268,9 +277,13 @@ def test_act_pre_default_perceived_params():
     _run(agent.act("sk", RULE, {}, PRE))
 
     mock_sim.adapt_plan.assert_called_once_with(
-        emotion_delta=0.0,
-        cascade_active=False,
-        boundary_pressure=0.0,
+        emotion_state={"valence": 0.0, "arousal": 0.0, "tension": 0.0},
+        personality={
+            "openness": 0.5, "conscientiousness": 0.5,
+            "extraversion": 0.5, "agreeableness": 0.5, "neuroticism": 0.5,
+        },
+        suppression_level=0.0,
+        collapse_archetype=None,
     )
 
 

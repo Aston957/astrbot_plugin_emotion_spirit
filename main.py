@@ -335,7 +335,11 @@ class EmotionSpiritPlugin(Star):
         self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
         self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
         self._self_core.register(RelationshipAgent(self._self_core.bus, self._intimacy, self._social_graph))
-        self._self_core.register(LifeAgent(self._self_core.bus, self._life_sim_v2))
+        self._self_core.register(LifeAgent(
+            self._self_core.bus,
+            self._life_sim_v2,
+            personality=self._baseline_personality.get("deep", {}),
+        ))
         self._last_bot_reply_time: dict[str, float] = {}  # for ReflexLearner behavior signal
 
         # v1.1.0B: ReflexLearner (Phase 0 T3: @register 化, 从 _modules 取)
