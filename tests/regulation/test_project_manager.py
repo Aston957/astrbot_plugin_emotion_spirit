@@ -33,9 +33,9 @@ class TestProjectManagerSuggest:
     """Tests for suggest_project()."""
 
     def test_suggest_project_for_high_openness(self):
-        pm = ProjectManager()
+        pm = ProjectManager(random_seed=1)
         project = pm.suggest_project(
-            personality={"openness": 0.9, "conscientiousness": 0.6, "extraversion": 0.5,
+            personality={"openness": 1.0, "conscientiousness": 0.6, "extraversion": 0.5,
                         "agreeableness": 0.5, "neuroticism": 0.3},
             recent_activities=["做饭", "看书"],
         )

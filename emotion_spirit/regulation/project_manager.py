@@ -63,8 +63,9 @@ class ProjectManager:
         ],
     }
 
-    def __init__(self) -> None:
+    def __init__(self, random_seed: int | None = None) -> None:
         self._projects: list[Project] = []
+        self._rng = random.Random(random_seed) if random_seed is not None else random
 
     # ------------------------------------------------------------------
     #  suggestion
@@ -103,7 +104,7 @@ class ProjectManager:
         if total <= 0:
             return None
 
-        r = random.random() * total
+        r = self._rng.random() * total
         cum = 0.0
         for cat, w in category_weights.items():
             cum += w
@@ -111,7 +112,7 @@ class ProjectManager:
                 templates = self.PROJECT_TEMPLATES.get(cat, [])
                 if not templates:
                     continue
-                name_t, days, milestones = random.choice(templates)
+                name_t, days, milestones = self._rng.choice(templates)
                 return Project(
                     name=name_t,
                     category=cat,
