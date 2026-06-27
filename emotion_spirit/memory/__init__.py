@@ -9,4 +9,5 @@ __all__ = [
     "cascade_engine", "suppression",
     "memory_sampler",
     "reflex_learner",
+    "activity_history",
 ]
