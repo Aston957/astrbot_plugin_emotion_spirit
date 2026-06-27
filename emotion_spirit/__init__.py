@@ -1,7 +1,7 @@
 """emotion_spirit — Sylanne Engine 之上的长期记忆、人格演化与超我调控。
 
 显式 import 所有 @register 装饰模块 (Phase B P3-7 衔接)。
-import emotion_spirit 触发 39 模块装饰器注册, 确保 registry.build(config) 拿到 39 个 ModuleSpec。
+import emotion_spirit 触发 48 模块装饰器注册, 确保 registry.build(config) 拿到 48 个 ModuleSpec。
 B6 plugin_factory.py 依赖此副作用。
 
 Phase 3.0B Task 3: +body_state (29 → 30)
@@ -10,6 +10,9 @@ Phase 3.0C Task 4.4: +persona_labels_db (loader, 不加 @register, 故 registry 
 Phase 0 Task 3: +dream_generator, +reflex_learner, +reflex_learner_store, +memory_sampler (30 → 34)
 Phase 0 Task 5: +cascade_engine, +decay_model, +suppression,
                  +collapse_archetype, +collapse_archetype_selector (34 → 39)
+v1.1.0C: +activity_history, +adaptation, +project_manager, +recovery_tracker,
+         +personality_feedback, +user_activity_detector, +energy_model,
+         +environment_context, +emotion_predictor (39 → 48)
 
 Spec deviation (vs plan Step 4.4):
 - Plan 期望 30 → 31 (additive), 实际仍 30。persona_labels_db 是数据 loader, 不是
@@ -31,12 +34,16 @@ from .memory import (
     persona_profiles, social_graph, topic_privacy, meaning_reservoir,
     cascade_engine, decay_model, suppression,
     memory_sampler, reflex_learner,
+    activity_history,
 )
 from .regulation import (
     superego, superego_guard, pattern_extractor, shadow_detector,
     life_simulator, personality_drift, counterfactual, persona_analyzer,
     persona_report_parser, force_dynamics, body_state, dream_generator,
     collapse_archetype,
+    adaptation, project_manager, recovery_tracker,
+    personality_feedback, user_activity_detector,
+    energy_model, environment_context, emotion_predictor,
 )
 from .output import (
     emotion_classifier, surface_consumer, diary_writer, prompt_injector,
