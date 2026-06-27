@@ -215,10 +215,27 @@ class LifeSimulatorV2:
         n: int = 3,
     ) -> list["PlannedEvent"]:
         """按人格权重从模板库选择 n 个活动。"""
-        from .life_plan import PlannedEvent as _PlannedEvent, select_template_activities, _time_to_slot
+        from .life_plan import (
+            PlannedEvent as _PlannedEvent, select_template_activities, _time_to_slot,
+            PERSONALITY_ACTIVITY_BIAS,
+        )
         import time as _time
 
         activities = select_template_activities(personality, n=n)
+
+        # v1.1.0C: apply PERSONALITY_ACTIVITY_BIAS to re-rank selected activities.
+        # This gives the bias dict a reason to exist — it personalizes template
+        # selection beyond the baseline PERSONALITY_TEMPLATE_WEIGHTS, so a
+        # high-extraversion character gets social activities sorted higher,
+        # a high-openness character gets creative activities first, etc.
+        weighted_activities = []
+        for cat, activity in activities:
+            weight = 1.0
+            for trait, biases in PERSONALITY_ACTIVITY_BIAS.items():
+                weight += personality.get(trait, 0.5) * biases.get(cat, 0.0)
+            weighted_activities.append((cat, activity, weight))
+        weighted_activities.sort(key=lambda x: -x[2])
+        activities = [(cat, activity) for cat, activity, _ in weighted_activities[:n]]
         time_slots = ["morning", "afternoon", "evening"]
         slot_times = {"morning": "10:00", "afternoon": "14:00", "evening": "18:00"}
 
