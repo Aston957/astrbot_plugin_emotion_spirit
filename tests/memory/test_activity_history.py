@@ -190,12 +190,24 @@ class TestRegistryIntegration:
     def test_registered_in_registry(self) -> None:
         from emotion_spirit.core.registry import ModuleRegistry
 
-        ModuleRegistry.reset()
-        # Re-import to trigger @register
-        import importlib
-        from emotion_spirit.memory import activity_history
-        importlib.reload(activity_history)
-        spec = ModuleRegistry.get_all().get("activity_history")
-        assert spec is not None
-        assert "ActivityHistory" in spec.provides
-        assert spec.depends_on == []
+        # Save the full registry (all 48 modules populated at import), then restore
+        # it in a finally block. reset() below wipes everything; reload() only
+        # re-registers activity_history. Without restore we leak an empty/partial
+        # registry into every later test (e.g. test_registry_mismatch_fix /
+        # test_registry_build_dryrun), which they assert against and fail.
+        # Mirrors the isolate_registry() pattern in tests/test_module_registry.py.
+        saved = dict(ModuleRegistry.get_all())
+        try:
+            ModuleRegistry.reset()
+            # Re-import to trigger @register
+            import importlib
+            from emotion_spirit.memory import activity_history
+            importlib.reload(activity_history)
+            spec = ModuleRegistry.get_all().get("activity_history")
+            assert spec is not None
+            assert "ActivityHistory" in spec.provides
+            assert spec.depends_on == []
+        finally:
+            ModuleRegistry._registry.clear()
+            for name, spec in saved.items():
+                ModuleRegistry._registry[name] = spec

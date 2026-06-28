@@ -1,4 +1,4 @@
-# emotion_spirit v1.0.0
+# emotion_spirit v1.1.0
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
@@ -29,7 +29,7 @@
 GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, 含 sylanne + KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-1.0.0.zip`
+2. 下载 `astrbot-plugin-emotion-spirit-1.1.0.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. 复制到 AstrBot 的 `data/plugins/` 目录
 5. 重启 AstrBot → 插件自动加载
@@ -97,6 +97,24 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 - **3072 KB 文献化 baseline** (Phase 3.0C): 涵盖 5 轴人格 (MBTI × 依恋 × 情绪策略 × 冲突风格 × 时间取向)
 - **Step 4 narrative 回测**: natural 10.2% / social 32.6% / individual 57.2%
 
+### 生活模拟 / Life Simulation (v1.1.0)
+- **LifeSimulatorV2**: 日程生成引擎, 规则模板 + LLM 双模式生成每日计划; 模型人格差异调制活动选择
+- **随机事件注入**: 按 personality 概率分布自然插入生活事件, 带 graceful LLM fallback
+- **DailyPlan 持久化**: `to_dict`/`from_dict` 跨会话保存, 重启不丢日程
+- **`/view_schedule` 命令**: 查看 bot 当日计划与事件
+- **6 维事件权重**: 阅读/散步/烹饪/思考/创造/休息/观察, 各含 valence/arousal/share_tendency
+
+### 分级 LLM 调度 / Tiered LLM Dispatch (v1.1.0)
+- **`_get_llm_callable(feature)` chokepoint**: 所有无 LLM 注入统一入口, 按 feature 查分级 provider
+- **5 个分级 provider**: engine / analyzer (sylanne) / life_sim / dream / diary — 每个功能段独立配 provider_id, 慢的 reasoning 模型给 diary/life_sim, 快的 flash 给 engine
+- **配置迁移 framework**: `@register_migration` + 版本号自动推进 + 幂等设计; `split_llm_tier` rule 把旧 v3 的 `llm_tier` 5 provider 自动迁到新的 per-feature 段, 用户 config 无感升级
+- **WebUI 15 配置段**: persona_mode / auto_source / feature_toggles / sylanne / memory_pool / emotion_sensitivity / sentinel_thresholds / safety_layer / life_sim_v2 / dream / diary / reflex_learner / intimacy_thresholds / superego_thresholds / shadow_detector
+
+### 日记系统 / Diary (v1.1.0)
+- **DiaryWriter LLM 生成**: `enable_diary_llm=true` 时真调 LLM 生成日记正文 (之前只构造 prompt 不调 LLM)
+- **定时写日记**: `diary.schedule_hours` 配触发时间, `_schedule_diary_generation_loop` 异步调度 (复刻 2am scheduler 模式, 防重复触发)
+- **分级 provider**: reasoning 类模型 30s+ 正常, 快速需求选 flash; 手动 `/reflect_diary` 立即触发
+
 ### 其他特性
 - **pyproject.toml 现代打包**: `pip install -e .[dev]` 干净, setuptools >=80, python >=3.11
 - **4 层目录结构**: `emotion_spirit/{core|memory|regulation|output}/`, 依赖方向严格单向
@@ -132,7 +150,7 @@ pip install -e .[dev]
 
 # 验证
 python -c "import emotion_spirit; print(emotion_spirit.__version__)"
-# 期望: 1.0.0
+# 期望: 1.1.0
 ```
 
 ### 通过 AstrBot 拖拽 (传统)
@@ -327,7 +345,7 @@ pressure = tracker.get_pressure()
 emotion_spirit/
 ├── __init__.py                # 公开 API 入口 + _DeprecatedImportFinder (C3) + PEP 440 version (C2)
 ├── layer.py                   # 抽象基类 (留根)
-├── _version.py                # PEP 440 version 真相源 (1.0.0)
+├── _version.py                # PEP 440 version 真相源 (1.1.0)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
 ├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)

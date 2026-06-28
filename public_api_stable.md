@@ -1,9 +1,9 @@
-# emotion_spirit Public API (v1.0.0)
+# emotion_spirit Public API (v1.1.0)
 
 > **稳定 API** = 跨 minor 版本保证不破坏。v1.0 引入的 API 在 v1.x 全程稳定。
 > **Internal API** = 可能在任意 minor 版本变更。仅 codebase 内部使用。
 >
-> **版本**: v1.0.0 (PEP 440, per `emotion_spirit/_version.py`)
+> **版本**: v1.1.0 (PEP 440, per `emotion_spirit/_version.py`)
 > **维护**: 每次 minor 版本更新需同步检查, 新 stable API 需经过 1 个 minor 版本 deprecation 周期
 
 ## Stable (公共契约)

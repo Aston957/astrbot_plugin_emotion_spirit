@@ -8,6 +8,17 @@ from emotion_spirit.migrations.registry import reset_registry, get_latest_versio
 from emotion_spirit.migrations.rules.v3_0_to_v3_1 import split_llm_tier
 
 
+@pytest.fixture(autouse=True)
+def _reset_migration_registry():
+    """autouse: 防止 tests/migrations/ 下其他文件 reset 后留半装状态,
+    避免 ModuleRegistry / MigrationRegistry 跨测试污染.
+    Mirrors tests/migrations/test_rules_v3_0_to_v3_1.py 的 clear_registry fixture.
+    """
+    reset_registry()
+    yield
+    reset_registry()
+
+
 class TestSplitLlmTier:
     """split_llm_tier: llm_tier → 各功能段 + diary_schedule → diary."""
 

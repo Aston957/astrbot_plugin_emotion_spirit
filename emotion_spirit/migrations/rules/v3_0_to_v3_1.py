@@ -99,7 +99,8 @@ def split_llm_tier(config: dict) -> dict:
         config.setdefault("diary", {})["schedule_hours"] = ds["schedule_hours"]
         config.pop("diary_schedule", None)
 
-    # ─── 3. diary 段默认值兜底 ───
+    # ─── 3. diary 段默认值兜底 (setdefault 本来就幂等:
+    # 已存在 enable_diary_llm 不覆盖, 缺时补 False) ───
     diary = config.setdefault("diary", {})
     diary.setdefault("enable_diary_llm", False)
 

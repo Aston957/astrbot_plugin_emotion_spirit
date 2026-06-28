@@ -10,7 +10,7 @@ from emotion_spirit.migrations.state import MigrationState
 def test_full_upgrade_v3_0_to_v3_1(tmp_path):
     """Simulate: user has old config, plugin starts, migration runs, new config persisted.
 
-    This is the integration test that the main.py integration code relies on.
+    v3.0 → v3.1 (3 rules) → v3.1 → v4 (1 rule: merge_life_sim_config) = 4 步
     """
     # 1. Pre-write an old config file
     config_file = tmp_path / "config.json"
@@ -31,6 +31,7 @@ def test_full_upgrade_v3_0_to_v3_1(tmp_path):
     # 2. Load rules (simulating main.py import)
     reset_registry()
     from emotion_spirit.migrations.rules import v3_0_to_v3_1  # noqa: F401
+    from emotion_spirit.migrations.rules import v3_1_to_v4  # noqa: F401
 
     # 3. Run migration (simulating main.py _run_config_migration_and_reload)
     state = MigrationState(tmp_path).load_or_init()
@@ -55,11 +56,12 @@ def test_full_upgrade_v3_0_to_v3_1(tmp_path):
     assert state_file.exists()
     saved_state = json.loads(state_file.read_text("utf-8"))
     assert saved_state["current_version"] == 4
-    assert len(saved_state["applied"]) == 3
+    assert len(saved_state["applied"]) == 4  # 3 v3→v3.1 + 1 v3.1→v4 (merge_life_sim_config)
 
     # 7. Second startup with migrated config: should be no-op
     reset_registry()
     from emotion_spirit.migrations.rules import v3_0_to_v3_1  # noqa: F401
+    from emotion_spirit.migrations.rules import v3_1_to_v4  # noqa: F401
     state2 = MigrationState(tmp_path).load_or_init()
     config_v2 = json.loads(config_file.read_text("utf-8"))
     new_config_v2, _ = run_migrations(config_v2, state2)
