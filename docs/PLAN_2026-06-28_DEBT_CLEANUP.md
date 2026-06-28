@@ -284,4 +284,30 @@ grep -i "emotion_spirit.*init\|error\|traceback" D:/astrbot/astrbot.log | tail -
 - [ ] §E1: git ls-files data/cmd_config.json 输出空; .pre-commit-config.yaml 存在
 - [ ] §V: 插件端 106+ passed; 源码端一致; AstrBot 重启无 Traceback; WebUI 15 段正常
 
+---
+
+## ✅ Ship 状态 (2026-06-28)
+
+7 项全部清完并 ship 闭环:
+
+- §T1 ✅ 9 债清 commits + ship-prep 修的 38 isolation fail
+- §T2 ✅ 死方法删除
+- §T3 ✅ diary 耗时 README 提示
+- §T4 ✅ egg-info .gitignore, manual_personas 清除
+- §T5 ✅ tools/sync_plugin_to_source.py 双向 --apply, 8 文件白名单
+- §F1-a ✅ 11 组件 DI 双轨 TODO 注释
+- §E1 ✅ data/cmd_config.json 双闸防护 (未 tracked + .gitignore), pre-commit hook 在线
+
+**Ship 里程碑**:
+- v1.1.0 tag force 重打到 commit 652b58b (含 ship-prep 修复的真正干净版)
+- CI 5 矩阵格 (3.11/3.13 × 4.9.2/4.14.6/4.25.5) 全绿, 3 of 3 required status checks PASS
+- 远端 v2.0.0 / v3.0.0 / v3.0.1 污染 tag 已删
+- 1242 tests, 0 failed (本地)
+- 详见 memory [[emotion-spirit-v110-ship-prep2-2026-06-28]]
+
+**已知问题推 v1.1.1**:
+- `test_periodic_save_dirty_only` 概率性 fail (Windows mtime 精度)
+- `merge_life_sim_config` 升级时 `enable_life_fragment` 字段丢失
+- v1.1.0C T1 修 extraversion 同根未波及的其它人格维度测试断言
+
 清完这 7 项 + 验证全 ✅, 即可进 task 9 ship v1.1.0。

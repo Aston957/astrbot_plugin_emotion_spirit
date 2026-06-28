@@ -5,6 +5,73 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.1.0] — 2026-06-28
+
+> 自 v1.0.0 (2026-06-24) 以来的累计变更。ship 完整闭环 — 5 矩阵格 CI 全绿。
+
+### Added
+
+#### 新增子系统
+- **LifeSimulatorV2**: 规则 + LLM 双模式日程生成引擎, 6 维事件权重 (阅读/散步/烹饪/思考/创造/休息/观察), 随机事件注入, `DailyPlan` 持久化, `/view_schedule` 命令
+- **Migration Framework**: `MigrationRegistry` + `MigrationRunner` + `MigrationState` + `@register_migration` 装饰器; v3→v4 `split_llm_tier` rule 把旧 `llm_tier` 5 个 provider_id 迁移到各功能段
+
+#### 配置改造 (15 WebUI 段)
+- **删除** `llm_tier` + `diary_schedule` 段
+- **新建** `sylanne` 段 (engine + analyzer provider_id) + `diary` 段 (enable + provider + schedule)
+- `life_sim_v2` / `dream` 各加 provider_id
+- **`_get_llm_callable(feature)` chokepoint**: 5 个分级 provider_id 真正接线 (engine / analyzer / life_sim / dream / diary), 之前 schema-only 死配置
+
+#### 功能升级
+- **DiaryWriter**: 真接 LLM 生成正文 + 定时写日记 (之前只构造 prompt 不调 LLM)
+- **`_schedule_diary_generation_loop`**: 防重复触发, 异步调度 (复刻 2am scheduler 模式)
+- **Migration 幂等**: 重复跑 split_llm_tier 不会覆盖用户已有的 diary 配置
+
+### Changed
+
+- README / public_api_stable 同步 v1.1.0 (4+2 处版本号 + 3 个新功能子段)
+- `_version.py` + `metadata.yaml` 双处统一 1.1.0
+- `TestVersionConsistency` bump-proof (硬编码 → 两源互比 + SemVer regex, 未来 bump 不会破)
+- `tools/sync_plugin_to_source.py` 支持 `--direction=source-to-plugin --apply` 双向 sync
+
+### Fixed
+
+#### Ship-prep 修复 (让 CI 5/5 全绿)
+- **`test_activity_history.py`**: `TestRegistryIntegration::test_registered_in_registry` 漏 restore registry, 加 try/finally save+restore (镜像 `test_module_registry.py:isolate_registry`), 修全套 34 isolation fail
+- **`test_plugin_factory.py`**: 硬编码 `assert len == 35/36` 陈旧, 改用动态 `expected_count = sum(provides)` (v1.1.0 模块 35→43)
+- **`test_split_llm_tier.py`**: 撤销误加的 autouse reset fixture (该文件 test 走函数体不走 registry, reset 反倒污染后续 test)
+- **`test_integration.py`**: 加 `_ensure_all_rules_registered` autouse fixture, 强制 reset + importlib.reload 4 rule; 函数体内 `reset + import` 改 `reset + importlib.reload` (避免 import 跳过 `@register_migration` 副作用)
+- **`test_suggest_project_for_high_conscientiousness`**: 断言漏 `physical` (权重 0.1 ~4% 概率被 random.choices 选中), 跟 v1.1.0C T1 修的 extraversion 同根, 抄同修法模板
+- **`release.yml`**: cmd_config.json sanity check 反向 (require → exclude, AstrBot 平台级运行时配置不该进 release zip)
+- **`docs/api.md` / `docs/architecture.md` / `docs/ARCHITECTURE_FRAMEWORK.md`**: 头部 `> v1.0.0` 同步到 `> v1.1.0`
+
+#### Debt cleanup (9 commits, 见 `docs/PLAN_2026-06-28_DEBT_CLEANUP.md`)
+- T1 flaky test_suggest_project exon stabilization
+- T2 `diary_writer.should_write` 死方法删除
+- T3 reasoning 模型日记生成 30s+ 文档提示
+- T4 `*.egg-info` / `.gitignore` 收紧
+- T5 `tools/sync_plugin_to_source.py` 双端 drift checker
+- F1-a main.py 11 组件 DI 双轨 TODO 锚点 (真改留 v1.2)
+- E1 `data/cmd_config.json` secret 防护 (双闸: .gitignore + check_secrets pre-commit)
+
+### Removed
+
+- 远端污染 tag `v2.0.0` / `v3.0.0` / `v3.0.1` 已删 (版本号倒退污染)
+- `manual_personas` 死配置 (main.py + README)
+- 7 个 stale `1.0.0` 字符串残留 (README / public_api_stable / docs)
+
+### Tests
+
+- **1242 tests, 0 failed** (本地 Windows + Python 3.12)
+- **CI 5 矩阵格 (3.11/3.13 × 4.9.2/4.14.6/4.25.5) 全绿** (3 of 3 required status checks PASS)
+- secret scan 三道闸 (file check / pre-commit hook / 双 .gitignore) 全过
+- 已知问题 (推 v1.1.1 patch): `test_periodic_save_dirty_only` 概率性 fail (Windows mtime 精度) + `merge_life_sim_config` 升级时 `enable_life_fragment` 字段丢失
+
+### Migration Notes
+
+- 用户从 v1.0.0 升级: 配置文件无需手动改, Migration Framework 自动跑 v3→v4 split_llm_tier
+- 用户从 v3.1 升级 (若有): 同样自动跑, 但 `enable_life_fragment` 字段会丢 (已知问题, v1.1.1 修)
+- 旧 `llm_tier` 段会自动迁移到 `sylanne` / `life_sim_v2` / `dream` / `diary` 各段, 用户无感
+
 ## [1.0.0] — 2026-06-24
 
 > 首个正式版本。emotion_spirit 是 AstrBot 生态的情感计算插件，负责"自我 + 超我"层。
