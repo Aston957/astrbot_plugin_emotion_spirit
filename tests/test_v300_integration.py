@@ -10,6 +10,7 @@
 
 import sys
 import os
+import re
 import time
 import asyncio
 
@@ -117,21 +118,35 @@ class TestBotEmotionExtraction:
 
 
 class TestVersionConsistency:
-    """Phase I: 版本号在 _version.py 和 metadata.yaml 一致。"""
+    """Phase I: 版本号在 _version.py 和 metadata.yaml 一致。
+
+    不钉死具体字面量 —— 任何 bump 都会让硬编码断言破。
+    改为两源互比 + SemVer 形态校验, 与 release.yml:36-64 的
+    tag==metadata==_version 交叉检查同源思路。
+    """
+
+    _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+($|[-+].*$)")
 
     def test_version_string(self):
         from emotion_spirit._version import __version__
-        assert __version__ == "1.0.0"
+        assert self._SEMVER_RE.match(__version__), (
+            f"__version__ {__version__!r} not a valid PEP 440 / SemVer base"
+        )
 
     def test_metadata_version(self):
         import yaml
+        from emotion_spirit._version import __version__
         meta_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "metadata.yaml",
         )
         with open(meta_path, encoding="utf-8") as f:
             meta = yaml.safe_load(f)
-        assert meta["version"] == "1.0.0"
+        # 两源必须互比一致, 而不是都钉死到某个字面量
+        assert meta["version"] == __version__, (
+            f"metadata.yaml version {meta['version']!r} != "
+            f"_version.py __version__ {__version__!r}"
+        )
 
 
 # ═══ 6. LifeEvent 事件类型完整性 ═══
