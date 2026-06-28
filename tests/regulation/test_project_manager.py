@@ -55,14 +55,21 @@ class TestProjectManagerSuggest:
 
     def test_suggest_project_for_high_extraversion(self):
         pm = ProjectManager()
-        # High E + zero C → routine=0; physical dominates.
+        # High E + zero C → routine=0; physical dominates but not exclusive.
         project = pm.suggest_project(
             personality={"openness": 0.4, "conscientiousness": 0.0, "extraversion": 0.9,
                         "agreeableness": 0.5, "neuroticism": 0.2},
         )
         assert project is not None
-        # physical = 0.9 + 0.8 = 1.7; creative = 0.4+0.45 = 0.85; intellectual = 0.2
-        assert project.category in ("physical", "creative")
+        # Category weights per emotion_spirit/regulation/project_manager.py suggest_project():
+        #   physical     = E + (1-N)  = 0.9 + 0.8  = 1.7  (~61.8% chance)
+        #   creative     = O + E*0.5  = 0.4 + 0.45 = 0.85 (~30.9%)
+        #   intellectual = O*0.5 + C  = 0.2 + 0.0  = 0.2  (~7.3%) ← previously MISSED here
+        #   routine      = C*1.5      = 0.0       = 0    (weight 0, never picked)
+        # All three non-zero weights are valid weighted-sample outcomes.
+        # Flake root cause: the original assertion omitted `intellectual` despite the
+        # comment line above computing its weight as 0.2 — pure math error in the test.
+        assert project.category in ("physical", "creative", "intellectual")
 
     def test_suggest_returns_none_when_all_zero(self):
         pm = ProjectManager()
