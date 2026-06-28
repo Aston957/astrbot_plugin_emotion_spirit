@@ -253,10 +253,13 @@ class EmotionSpiritPlugin(Star):
         self._enable_narrative = toggles.get("enable_narrative", True)
         self._enable_surface_logging = toggles.get("enable_surface_logging", False)
 
-        # v1.1.0A: life_sim_v2 配置 (合并旧 life_simulator + proactive_chat)
-        life_sim_v2_cfg = self._config.get("life_sim_v2", {})
-        self._enable_proactive_prompt = life_sim_v2_cfg.get("enable_proactive_prompt", True)
-        self._enable_life = True  # v2 always enabled when plugin is active
+        # 新配置段: life_simulator (Mode A) + proactive_chat (Mode B)
+        life_sim_cfg = self._config.get("life_simulator", {})
+        proactive_cfg = self._config.get("proactive_chat", {})
+        self._enable_life_fragment = life_sim_cfg.get("enable_life_fragment", True)
+        self._enable_proactive_prompt = proactive_cfg.get("enable_proactive_prompt", True)
+        # 兼容: 只要有一个 mode 开启就算 life_sim 开启
+        self._enable_life = self._enable_life_fragment or self._enable_proactive_prompt
 
         # Phase 1 组件 (从 _modules 拿)
         self._consumer = self._modules["surface_consumer"]
@@ -304,7 +307,7 @@ class EmotionSpiritPlugin(Star):
 
         # Phase G: LifeSimulator LLM callable 注入
         if self._life_sim is not None:
-            self._life_sim.configure(llm_caller=self._get_llm_callable())
+            self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
 
         # v1.1.0A: LifeSimulator v2 (轴心功能 — 主动日程规划)
         from emotion_spirit.regulation.life_simulator import LifeSimulatorV2
@@ -315,7 +318,8 @@ class EmotionSpiritPlugin(Star):
             signals=self._buffer_signals,
             reservoir=self._reservoir,
         )
-        self._life_sim_v2.configure(llm_caller=self._get_llm_callable())
+        self._life_sim_v2._use_llm_polish = self._config.get("life_sim_v2", {}).get("use_llm_polish", False)
+        self._life_sim_v2.configure(llm_caller=self._get_llm_callable("life_sim"))
         self._last_plan_date: str = ""  # 防止同一天重复生成日程
 
         # Phase B: RealtimeDispatch + RhythmLearner
@@ -329,27 +333,26 @@ class EmotionSpiritPlugin(Star):
         from emotion_spirit.agents.memory_agent import MemoryAgent
         from emotion_spirit.agents.personality_agent import PersonalityAgent
         from emotion_spirit.agents.relationship_agent import RelationshipAgent
-        from emotion_spirit.agents.life_agent import LifeAgent
 
         self._self_core = SelfCore(llm_budget=2)
         self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
         self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
         self._self_core.register(RelationshipAgent(self._self_core.bus, self._intimacy, self._social_graph))
-        self._self_core.register(LifeAgent(
-            self._self_core.bus,
-            self._life_sim_v2,
-            personality=self._baseline_personality.get("deep", {}),
-        ))
+        # v1.1.0C: LifeAgent registration extracted to helper
+        self._setup_v110c_agents()
         self._last_bot_reply_time: dict[str, float] = {}  # for ReflexLearner behavior signal
 
-        # v1.1.0B: ReflexLearner (Phase 0 T3: @register 化, 从 _modules 取)
-        self._reflex_store = self._modules["reflex_learner_store"]
-        self._reflex_learner = self._modules["reflex_learner"]
+        # v1.1.0B: ReflexLearner
+        from emotion_spirit.memory.reflex_learner import ReflexLearner, ReflexLearnerStore
+        self._reflex_store = ReflexLearnerStore()
+        self._reflex_learner = ReflexLearner(self._reflex_store)
         self._self_core.set_store(self._reflex_store)
 
-        # v1.1.0B: DreamGenerator (Phase 0 T3: @register 化, 从 _modules 取)
-        self._dream_generator = self._modules["dream_generator"]
-        self._dream_generator.configure(llm_caller=self._get_llm_callable())
+        # v1.1.0B: DreamGenerator
+        from emotion_spirit.regulation.dream_generator import DreamGenerator
+        from emotion_spirit.memory.memory_sampler import MemorySampler
+        self._dream_generator = DreamGenerator(self._pool, MemorySampler(self._pool))
+        self._dream_generator.configure(llm_caller=self._get_llm_callable("dream"))
 
         # Phase 2.5: 关系人格
         self._relationship_personality = self._modules["relationship_personality"]
@@ -371,6 +374,64 @@ class EmotionSpiritPlugin(Star):
 
         # 多人格支持
         self._personas_cache: dict[str, dict[str, Any]] = self._scan_all_personas()
+
+    # ── v1.1.0C helpers ────────────────────────────────────────────────────
+
+    def _setup_v110c_agents(self) -> None:
+        """Register v1.1.0C agents on SelfCore.
+
+        Currently adds LifeAgent. Called once from __init__ after
+        ``self._self_core`` and ``self._life_sim_v2`` are both ready.
+
+        v1.1.0C Tech-Debt Cleanup (Item 3): extracted from the monolithic
+        __init__ to keep the lifecycle steps clearly named.
+        """
+        from emotion_spirit.agents.life_agent import LifeAgent
+
+        self._life_agent = LifeAgent(self._self_core.bus, self._life_sim_v2)
+        self._self_core.register(self._life_agent)
+
+    def _get_v110c_adaptation_context(self, user_id: str) -> dict[str, Any]:
+        """Build the v1.1.0C adaptation context for ``on_llm_request``.
+
+        Returns a dict with two keys:
+          - ``suppression_level`` (float in [0, 1])
+          - ``collapse_archetype`` (str | None)
+
+        Extracted from the inline logic in on_llm_request so the surface
+        construction in main.py stays readable. Failures degrade silently
+        to neutral defaults — the rest of the pipeline is never blocked
+        by a v1.1.0C bookkeeping call.
+        """
+        suppression_level = 0.0
+        collapse_archetype = getattr(self._pool, "_collapse_archetype", None)
+
+        try:
+            sup_mod = self._modules.get("suppression")
+            signals = self._latest_signals.get(user_id)
+            if sup_mod and signals:
+                ctx = {
+                    "authority_present": 0,
+                    "social_audience": 0,
+                }
+                suppression_level = sup_mod.compute(
+                    personality=self._baseline_personality.get("deep", {}),
+                    context=ctx,
+                    conscience_pressure=getattr(signals, "body_criticality", 0.0),
+                    relationship_intimacy=self._intimacy.get_intimacy(
+                        user_id, self._current_persona,
+                    ),
+                )
+        except Exception:
+            logger.warning(
+                "emotion_spirit: v1.1.0C adaptation context failed",
+                exc_info=True,
+            )
+
+        return {
+            "suppression_level": suppression_level,
+            "collapse_archetype": collapse_archetype,
+        }
 
     def _setup_commands(self) -> None:
         """注册 12 命令到 3 ns。"""
@@ -512,25 +573,65 @@ class EmotionSpiritPlugin(Star):
             logger.debug("emotion_spirit: 检测默认人格失败", exc_info=True)
             return "xiaofu"
 
-    def _get_llm_callable(self) -> Any:
-        try:
-            provider = self.context.get_using_provider()
-            if provider and hasattr(provider, "text_chat"):
-                async def _llm(system_prompt: str, user_prompt: str) -> str:
-                    resp = await provider.text_chat(
-                        prompt=user_prompt, system_prompt=system_prompt,
-                    )
-                    return resp.completion_text
-                return _llm
-            else:
+    # ─── 分级 LLM provider 映射表 ───
+    _FEATURE_PROVIDER_MAP: dict[str, tuple[str, str]] = {
+        # feature  → (config_section, provider_id_field)
+        "engine":   ("sylanne",     "engine_provider_id"),
+        "analyzer": ("sylanne",     "analyzer_provider_id"),
+        "life_sim": ("life_sim_v2", "life_sim_provider_id"),
+        "dream":    ("dream",       "dream_provider_id"),
+        "diary":    ("diary",       "diary_provider_id"),
+    }
+
+    def _feature_provider_id(self, feature: str) -> str | None:
+        """按 feature 名从对应配置段读 provider_id。"""
+        mapping = self._FEATURE_PROVIDER_MAP.get(feature)
+        if not mapping:
+            return None
+        section, field = mapping
+        return self._config.get(section, {}).get(field) or None
+
+    def _get_llm_callable(self, feature: str | None = None) -> Any:
+        """按 feature 取分级 LLM provider；对应 provider_id 空则回退全局。
+
+        feature 取值: "engine" | "life_sim" | "dream" | "analyzer" | "diary" | None
+
+        采用 lazy 解析: 返回的闭包在被 await 时才查 provider。
+        这样避开"插件 build_modules 早于 provider 加载"的时序问题 ——
+        启动时 provider 还没注册, 立即查会拿到 None; 延迟到实际调用时 provider 已就绪。
+        """
+        ctxt = self.context
+        feature_name = feature
+
+        def _resolve_provider() -> Any:
+            provider = None
+            if feature_name:
+                pid = self._feature_provider_id(feature_name)
+                if pid:
+                    try:
+                        provider = ctxt.get_provider_by_id(pid)
+                    except Exception:
+                        logger.debug("emotion_spirit: get_provider_by_id(%s) 失败, 回退全局", pid)
+                        provider = None
+            if not provider:
+                provider = ctxt.get_using_provider()
+            return provider
+
+        async def _llm(system_prompt: str, user_prompt: str) -> str:
+            provider = _resolve_provider()
+            if not provider or not hasattr(provider, "text_chat"):
                 logger.warning(
-                    "emotion_spirit: LLM provider 不可用 (get_using_provider=%s, has_text_chat=%s)",
+                    "emotion_spirit: LLM provider 不可用 (feature=%s, provider=%s)",
+                    feature_name,
                     type(provider).__name__ if provider else "None",
-                    hasattr(provider, "text_chat") if provider else False,
                 )
-        except Exception:
-            logger.warning("emotion_spirit: 获取 LLM provider 失败", exc_info=True)
-        return None
+                raise RuntimeError(f"LLM provider unavailable for feature={feature_name}")
+            resp = await provider.text_chat(
+                prompt=user_prompt, system_prompt=system_prompt,
+            )
+            return resp.completion_text
+
+        return _llm
 
     @staticmethod
     def _is_persona_initialized(persona_data: dict) -> bool:
@@ -603,26 +704,11 @@ class EmotionSpiritPlugin(Star):
         logger.info("emotion_spirit: 超我层已重置（13 维 baseline 已用新 labels 重推）")
 
     def _migrate_old_spirit_data(self) -> None:
-        labels: dict[str, str] | None = None
-        manual_list = self._config.get("manual_personas", [])
-        if isinstance(manual_list, list) and manual_list:
-            first = manual_list[0]
-            if isinstance(first, dict):
-                raw_labels = first.get("labels", {})
-                if isinstance(raw_labels, dict) and any(raw_labels.values()):
-                    labels = {
-                        "mbti": raw_labels.get("mbti", "ISTJ"),
-                        "attachment": raw_labels.get("attachment", "安全型"),
-                        "emotion_style": raw_labels.get("emotion_style", "混合型"),
-                        "conflict_style": raw_labels.get("conflict_style", "合作型"),
-                        "time_focus": raw_labels.get("time_focus", "活在当下"),
-                    }
-        if not labels:
-            labels = self._get_default_labels()
-            logger.warning(
-                "emotion_spirit: 检测到老数据但无 persona 配置, 使用默认 labels (ISTJ-安全型)。"
-                "请用 /setup_relabel 调整为正确 persona。"
-            )
+        labels = self._get_default_labels()
+        logger.warning(
+            "emotion_spirit: 检测到老数据, 使用默认 labels (ISTJ-安全型)。"
+            "请用 /setup_relabel 调整为正确 persona。"
+        )
         # 关键: 如果 _current_persona 是 sentinel 占位符(说明没真正选过),
         # 不能假装"已初始化" — 否则会污染后续 restart 的 _load_persona_state 路径。
         # 保留 labels 供 /view 类参考,但 persona_initialized 留 False,等用户显式初始化。
@@ -673,6 +759,9 @@ class EmotionSpiritPlugin(Star):
 
         # v1.1.0A: 2am 日程生成定时器
         asyncio.ensure_future(self._schedule_plan_generation_loop())
+
+        # diary 定时生成 (按 diary.schedule_hours)
+        asyncio.ensure_future(self._schedule_diary_generation_loop())
 
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
@@ -753,6 +842,69 @@ class EmotionSpiritPlugin(Star):
                 logger.warning("emotion_spirit: 日程生成失败", exc_info=True)
                 await asyncio.sleep(60)  # 失败后等 1 分钟重试
 
+    async def _schedule_diary_generation_loop(self) -> None:
+        """按 diary.schedule_hours 定时生成日记（LLM 或 prompt-only）。"""
+        import datetime as _dt
+
+        while True:
+            try:
+                diary_cfg = self._config.get("diary", {})
+                schedule_str = diary_cfg.get("schedule_hours", "14,22")
+                try:
+                    target_hours = [int(h.strip()) for h in schedule_str.split(",") if h.strip()]
+                except ValueError:
+                    target_hours = [14, 22]
+
+                # 找下一个触发时间
+                now = _dt.datetime.now()
+                candidates = []
+                for h in target_hours:
+                    t = now.replace(hour=h, minute=0, second=0, microsecond=0)
+                    if now >= t:
+                        t += _dt.timedelta(days=1)
+                    candidates.append(t)
+                next_target = min(candidates)
+                wait_seconds = (next_target - now).total_seconds()
+                logger.info(
+                    "emotion_spirit: 日记定时器，下次触发 %s (%.0f 秒后)",
+                    next_target.strftime("%Y-%m-%d %H:%M"), wait_seconds,
+                )
+                await asyncio.sleep(wait_seconds)
+
+                # 防重复: 同一小时的同一天不重复生成
+                today_hour_key = f"{_dt.date.today().isoformat()}-{next_target.hour}"
+                last_diary_key = getattr(self, "_last_diary_key", "")
+                if last_diary_key == today_hour_key:
+                    logger.debug("emotion_spirit: 日记 %s 已生成，跳过", today_hour_key)
+                    continue
+
+                # 生成日记
+                if self._diary is not None:
+                    llm_enabled = diary_cfg.get("enable_diary_llm", False)
+                    if llm_enabled:
+                        text = await self._diary.generate_diary_llm()
+                        if text:
+                            diary_type = self._diary.determine_diary_type()
+                            self._diary.record_diary(text, diary_type)
+                            logger.info("emotion_spirit: LLM 日记已生成 (%s, %d 字)", diary_type, len(text))
+                        else:
+                            logger.warning("emotion_spirit: LLM 日记生成返回空，跳过")
+                    else:
+                        # 旧行为: 只存 prompt 不调 LLM
+                        diary_type = self._diary.determine_diary_type()
+                        prompt = self._diary.build_diary_prompt(diary_type)
+                        self._diary.record_diary(prompt, diary_type)
+                        logger.info("emotion_spirit: prompt-only 日记已记录 (%s)", diary_type)
+
+                    self._last_diary_key = today_hour_key
+                    self._save_if_dirty()
+
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.warning("emotion_spirit: 日记定时生成失败", exc_info=True)
+                await asyncio.sleep(120)
+
     def _get_current_personality_dict(self) -> dict[str, float]:
         """获取当前人格参数 dict。"""
         try:
@@ -801,8 +953,17 @@ class EmotionSpiritPlugin(Star):
     def _connect_engine_sync(self) -> None:
         """尝试连接 SylannEngine（使用 shared() 共享实例模式）。"""
         try:
-            llm = self._get_llm_callable()
-            if llm is None:
+            # 探测 provider 是否已就绪 (避开 lazy 闭包, 直接查)
+            pid = self._feature_provider_id("engine")
+            provider = None
+            if pid:
+                try:
+                    provider = self.context.get_provider_by_id(pid)
+                except Exception:
+                    provider = None
+            if not provider:
+                provider = self.context.get_using_provider()
+            if not provider or not hasattr(provider, "text_chat"):
                 self._retry_count = getattr(self, '_retry_count', 0) + 1
                 if self._retry_count < 3:
                     logger.info("emotion_spirit: LLM provider 不可用, %d 秒后重试...", 5 * self._retry_count)
@@ -813,6 +974,8 @@ class EmotionSpiritPlugin(Star):
                 return
 
             # 使用 SylanneEngine.shared() 获取或创建共享实例
+            # llm callable 用 lazy 版本 (运行时才解析 provider, 支持 engine 切换)
+            llm = self._get_llm_callable("engine")
             asyncio.ensure_future(self._start_engine_shared(llm))
 
         except (ImportError, RuntimeError) as e:
@@ -924,24 +1087,8 @@ class EmotionSpiritPlugin(Star):
 
         # v1.1.0B: Run agent PRE cycle
         signals = self._latest_signals.get(user_id)
-
-        # v1.1.0C: compute suppression_level from SuppressionState
-        suppression_level = 0.0
-        suppression_mod = self._modules.get("suppression")
-        if suppression_mod is not None:
-            try:
-                personality = self._consumer.consume({}).personality_deep or {}
-                suppression_level = suppression_mod.compute(
-                    personality=personality,
-                    context={},
-                    conscience_pressure=0.0,
-                    relationship_intimacy=self._intimacy.get_intimacy(
-                        user_id, self._current_persona,
-                    ),
-                )
-            except Exception:
-                suppression_level = 0.0
-
+        # v1.1.0C: compute suppression_level + collapse_archetype (extracted helper)
+        v110c_ctx = self._get_v110c_adaptation_context(user_id)
         surface_with_phase = {
             "_phase": "pre",
             "intimacy_gravity": self._intimacy.get_intimacy(user_id, self._current_persona),
@@ -950,16 +1097,49 @@ class EmotionSpiritPlugin(Star):
             "emotion_delta": getattr(signals, 'emotion_velocity', 0.0) if signals else 0.0,
             "cascade_active": self._pool.cascade_active(),
             "boundary_pressure": 0.0,
+            "suppression_level": v110c_ctx["suppression_level"],
+            "collapse_archetype": v110c_ctx["collapse_archetype"],
             "has_interaction": True,
             "user_id": user_id,
-            "collapse_archetype": self._pool._collapse_archetype,
-            "suppression_level": suppression_level,
         }
         composed = await self._self_core.run_cycle(user_id, surface_with_phase, "pre")
 
         await self._flush_inject_queue()
 
-        # v2 (LifeSimulatorV2) handles plan injection in build_schedule_context()
+        # Phase G: LifeSimulator LLM 生活片段生成
+        # 在 consume_surface 之后、prompt 注入之前检查 Mode A/B
+        _life_event_inject = ""
+        if self._life_sim is not None:
+            try:
+                # 读取当前会话的缓存 signals (由 SurfaceHandler.consume 写入)
+                signals = self._latest_signals.get(user_id)
+                if signals is not None:
+                    personality_dict = {
+                        **(signals.personality_deep or {}),
+                        **(signals.personality_surface or {}),
+                    }
+                    # Mode A: 生活片段插入 (enable_life_fragment)
+                    event_a = self._life_sim.check_mode_a(signals, personality_dict) if self._enable_life_fragment else None
+                    # Mode B: 主动对话注入 (enable_proactive_prompt)
+                    event_b = event_a or (self._life_sim.check_mode_b(signals, personality_dict) if self._enable_proactive_prompt else None)
+                    if event_b:
+                        life_event = await self._life_sim.generate_life_prose(
+                            event_b,
+                            persona_desc=self._current_persona.get("label", "") if self._current_persona else "",
+                            personality=personality_dict,
+                        )
+                        if life_event is not None:
+                            # 消费 life event 并格式化为 prompt 注入文本
+                            consumed = self._life_sim.consume_life_event()
+                            if consumed is not None:
+                                parts = [f"[生活片段] 你刚才{consumed.text}"]
+                                if consumed.mood and consumed.mood != "neutral":
+                                    parts.append(f"（心情: {consumed.mood}）")
+                                if consumed.wants_to_share:
+                                    parts.append("这件事你想分享给朋友")
+                                _life_event_inject = "，".join(parts) + "。"
+            except Exception:
+                logger.debug("emotion_spirit: life_sim tick error", exc_info=True)
 
         if self._persona_mode == "disabled":
             return
@@ -988,7 +1168,11 @@ class EmotionSpiritPlugin(Star):
             repair_advice=self._repair_advice,
             gossip_tendency=gossip_tendency,
         )
-        # v1.1.0A: 日程注入 (LifeSimulatorV2 handles plan injection)
+        # Phase G: 生活片段注入 (在常规 context 之前)
+        if _life_event_inject:
+            context = f"{_life_event_inject}\n\n{context}" if context else _life_event_inject
+
+        # v1.1.0A: 日程注入 (在生活片段之后、常规 context 之前)
         if hasattr(self, '_life_sim_v2') and self._life_sim_v2._current_plan:
             schedule_ctx = self._life_sim_v2.build_schedule_context()
             if schedule_ctx:
@@ -1206,10 +1390,15 @@ class EmotionSpiritPlugin(Star):
             )
             if life_sim_data:
                 self._life_sim.from_dict(life_sim_data)
-            self._life_sim.configure(llm_caller=self._get_llm_callable())
+            self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
         self._diary = DiaryWriter(
             self._pool, self._patterns, self._buffer_signals,
             self._alignment, self._conscience,
+        )
+        diary_cfg = self._config.get("diary", {})
+        self._diary.configure(
+            llm_caller=self._get_llm_callable("diary"),
+            llm_enabled=diary_cfg.get("enable_diary_llm", False),
         )
         if diary_data:
             self._diary.from_dict(diary_data)

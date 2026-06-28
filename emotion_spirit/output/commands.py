@@ -68,7 +68,7 @@ class CommandImpl:
                 source = "规则解析"
                 logger.info("emotion_spirit: 规则解析成功 — %s", labels)
 
-            llm = self._p._get_llm_callable()
+            llm = self._p._get_llm_callable("analyzer")
             if llm:
                 try:
                     analyzer = PersonaAnalyzer(llm)
@@ -149,6 +149,24 @@ class CommandImpl:
 
         lines.append("")
         lines.append("💡 使用 /view_detail 查看完整 13 维参数")
+
+        # 6. 生成首日日程
+        life_sim_v2 = getattr(self._p, '_life_sim_v2', None)
+        if life_sim_v2 is not None:
+            try:
+                p_dict = self._p._get_current_personality_dict()
+                recent = self._p._get_recent_memory_texts(limit=5)
+                plan = await life_sim_v2.generate_daily_plan(
+                    personality=p_dict, recent_memories=recent, yesterday_events=[],
+                )
+                self._p._last_plan_date = plan.date
+                lines.append("")
+                lines.append(f"📅 首日日程已生成: {plan.date} ({len(plan.events)} 个事件)")
+                for e in plan.events:
+                    lines.append(f"  {e.approximate_time} {e.activity}")
+                self._p._save_if_dirty()
+            except Exception:
+                logger.debug("emotion_spirit: setup_init 日程生成失败", exc_info=True)
 
         yield event.plain_result("\n".join(lines))
 
@@ -544,8 +562,19 @@ class CommandImpl:
         yield event.plain_result("\n".join(lines))
 
     async def reflect_diary(self, event: AstrMessageEvent) -> None:
-        """手动生成日记。"""
+        """手动生成日记。enable_diary_llm=true 时调 LLM 生成正文并记录。"""
         diary_type = self._p._diary.determine_diary_type()
+        # 若启用 LLM 日记，真调 LLM 生成正文并记录
+        if getattr(self._p._diary, "_llm_enabled", False):
+            text = await self._p._diary.generate_diary_llm()
+            if text:
+                self._p._diary.record_diary(text, diary_type)
+                self._p._save_if_dirty()
+                yield event.plain_result(f"📝 日记类型: {diary_type} (LLM 生成)\n\n{text}")
+                return
+            else:
+                yield event.plain_result(f"📝 日记类型: {diary_type}\n\n(LLM 生成失败，回退 prompt)\n\n{self._p._diary.build_diary_prompt(diary_type)}")
+                return
         prompt = self._p._diary.build_diary_prompt(diary_type)
         yield event.plain_result(f"📝 日记类型: {diary_type}\n\n{prompt}")
 

@@ -204,7 +204,6 @@ pressure = tracker.get_pressure()
 |--------|------|--------|------|
 | `persona_mode` | select | `disabled` | auto / disabled |
 | `auto_source` | select_persona | - | AstrBot 人格 (auto 模式 LLM 自动解析) |
-| `manual_personas` | template_list | - | 手动配置列表 (每项 5 轴标签) |
 
 ### 2. 功能开关
 

@@ -43,10 +43,10 @@
       }
     }
   },
-  "llm_tier": {
-    "description": "分级 LLM 配置（留空使用 AstrBot 默认 LLM）",
+  "sylanne": {
+    "description": "Sylanne 引擎 LLM 配置",
     "type": "object",
-    "hint": "为不同功能指定不同的 LLM Provider，留空则使用 AstrBot 全局默认",
+    "hint": "核心情感引擎和人格解析使用的 LLM Provider（留空使用 AstrBot 全局默认）",
     "items": {
       "engine_provider_id": {
         "description": "SylannEngine 情感评估",
@@ -54,29 +54,11 @@
         "_special": "select_provider",
         "hint": "SylannEngine 的情感计算使用的 LLM Provider"
       },
-      "life_sim_provider_id": {
-        "description": "生活模拟生成",
-        "type": "string",
-        "_special": "select_provider",
-        "hint": "LifeSimulator 生活片段生成使用的 LLM Provider"
-      },
       "analyzer_provider_id": {
         "description": "人格标签解析",
         "type": "string",
         "_special": "select_provider",
         "hint": "/setup_init 时解析人格标签使用的 LLM Provider"
-      },
-      "dream_provider_id": {
-        "description": "深度睡眠梦境",
-        "type": "string",
-        "_special": "select_provider",
-        "hint": "梦境生成使用的 LLM Provider（定时任务，建议用便宜模型）"
-      },
-      "reflection_provider_id": {
-        "description": "反思引擎",
-        "type": "string",
-        "_special": "select_provider",
-        "hint": "反思引擎使用的 LLM Provider（每日 2 次，建议用便宜模型）"
       }
     }
   },
@@ -102,19 +84,6 @@
         "type": "int",
         "default": 50,
         "hint": "幽灵记忆池容量上限"
-      }
-    }
-  },
-  "diary_schedule": {
-    "description": "日记生成时间配置",
-    "type": "object",
-    "hint": "控制 bot 何时自动生成日记",
-    "items": {
-      "schedule_hours": {
-        "description": "生成时间点",
-        "type": "string",
-        "default": "14,22",
-        "hint": "每天几点生成日记，逗号分隔的小时数（24h 制）"
       }
     }
   },
@@ -233,6 +202,18 @@
         "type": "int",
         "default": 7,
         "hint": "bot 结束睡眠模式的时间"
+      },
+      "use_llm_polish": {
+        "description": "启用 LLM 润色日程描述",
+        "type": "bool",
+        "default": false,
+        "hint": "关闭后日程描述保留简短的模板原句（如'做饭'），开启后由 LLM 润色成具体场景描述（如'在厨房煮了一碗热腾腾的番茄鸡蛋面'）。需要已配置 LLM Provider。"
+      },
+      "life_sim_provider_id": {
+        "description": "生活模拟生成 LLM",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "LifeSimulator 生活片段生成使用的 LLM Provider（留空使用全局默认）"
       }
     }
   },
@@ -252,6 +233,37 @@
         "type": "float",
         "default": 0.1,
         "hint": "每条消息触发睡眠剥夺梦境的基础概率（会被人格和情绪调制）"
+      },
+      "dream_provider_id": {
+        "description": "梦境生成 LLM",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "梦境生成使用的 LLM Provider（定时任务，建议用便宜模型，留空使用全局默认）"
+      }
+    }
+  },
+  "diary": {
+    "description": "日记系统",
+    "type": "object",
+    "hint": "控制 bot 的日记生成行为（定时由 LLM 生成日记正文并记录）",
+    "items": {
+      "enable_diary_llm": {
+        "description": "启用 LLM 生成日记正文",
+        "type": "bool",
+        "default": false,
+        "hint": "关闭时日记仅存储 prompt 不调 LLM（保留旧行为）；开启后定时由 LLM 生成日记正文。需要已配置 LLM Provider。"
+      },
+      "diary_provider_id": {
+        "description": "日记生成 LLM",
+        "type": "string",
+        "_special": "select_provider",
+        "hint": "日记生成使用的 LLM Provider（每日 1-2 次，建议用便宜模型，留空使用全局默认）"
+      },
+      "schedule_hours": {
+        "description": "生成时间点",
+        "type": "string",
+        "default": "14,22",
+        "hint": "每天几点生成日记，逗号分隔的小时数（24h 制）"
       }
     }
   },
