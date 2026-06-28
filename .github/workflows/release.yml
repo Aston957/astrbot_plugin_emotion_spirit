@@ -91,7 +91,10 @@ jobs:
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/main.py" && echo "  ✓ main.py present" || (echo "  ✗ main.py MISSING" && exit 1)
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/metadata.yaml" && echo "  ✓ metadata.yaml present" || (echo "  ✗ metadata.yaml MISSING" && exit 1)
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/emotion_spirit/__init__.py" && echo "  ✓ emotion_spirit package present" || (echo "  ✗ emotion_spirit package MISSING" && exit 1)
-          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/data/cmd_config.json" && echo "  ✓ data/cmd_config.json present" || (echo "  ✗ data/cmd_config.json MISSING" && exit 1)
+          # data/cmd_config.json 是 AstrBot 平台级运行时配置(含 admin 密码/白名单),
+          # 由 WebUI 生成写入 <astrbot_data>/cmd_config.json,不属于插件 release。
+          # release zip 必须确保它不在(否则用户解压会覆盖自己实例的真实配置 + 泄漏模板密码)。
+          unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/data/cmd_config.json" && (echo "  ✗ data/cmd_config.json should NOT be in release (AstrBot runtime config, may carry secrets)" && exit 1) || echo "  ✓ data/cmd_config.json excluded (AstrBot runtime config, not plugin asset)"
           # 不应包含的文件
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/tests/" && (echo "  ✗ tests/ should be excluded" && exit 1) || echo "  ✓ tests/ excluded"
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/verification/" && (echo "  ✗ verification/ should be excluded" && exit 1) || echo "  ✓ verification/ excluded"
