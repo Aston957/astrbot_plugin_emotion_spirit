@@ -257,7 +257,7 @@
         "description": "日记生成 LLM",
         "type": "string",
         "_special": "select_provider",
-        "hint": "日记生成使用的 LLM Provider（每日 1-2 次，建议用便宜模型，留空使用全局默认）"
+        "hint": "日记生成使用的 LLM Provider（每日 1-2 次，建议用便宜模型，留空使用全局默认；reasoning 类模型生成较慢，30s+ 正常，若需快速可用 flash 类模型）"
       },
       "schedule_hours": {
         "description": "生成时间点",

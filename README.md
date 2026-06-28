@@ -216,6 +216,8 @@ pressure = tracker.get_pressure()
 | `proactive_chat` | `enable_proactive_prompt` | bool | true | Mode B: 长沉默后主动发起对话 |
 | `memory_pool` | `warm_max` / `cold_max` / `ghost_max` | int | 500/2000/50 | 记忆池容量 |
 | `safety_layer` | `enabled` | bool | true | 安全层开关 |
+| `diary` | `enable_diary_llm` | bool | false | 启用 LLM 生成日记正文（关闭时仅存 prompt） |
+| `diary` | `diary_provider_id` | select_provider | - | 日记 LLM Provider（reasoning 类模型 30s+ 正常, 快速需求选 flash 类模型） |
 
 ### 3. 性能调优
 
