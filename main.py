@@ -295,8 +295,17 @@ class EmotionSpiritPlugin(Star):
         from emotion_spirit.bridge.engine_manager import EngineManager
         from emotion_spirit.bridge.hotpool_forwarder import HotPoolForwarder
         from emotion_spirit.bridge.personality_bridge import PersonalityBridge
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.engine_manager), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._engine_manager = EngineManager()
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.hotpool_forwarder), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._hotpool_forwarder = HotPoolForwarder(memory_pool=self._pool)
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.personality_bridge), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._personality_bridge = PersonalityBridge()
         self._engine_manager.set_forwarder(self._hotpool_forwarder)
         # configure bot_decision proactive deps
@@ -325,7 +334,13 @@ class EmotionSpiritPlugin(Star):
         # Phase B: RealtimeDispatch + RhythmLearner
         from emotion_spirit.output.realtime_dispatch import RealtimeDispatch
         from emotion_spirit.output.rhythm_learner import RhythmLearner
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.realtime_dispatch), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._realtime_dispatch = RealtimeDispatch()
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.rhythm_learner), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._rhythm_learner = RhythmLearner()
 
         # v1.1.0B: Multi-agent architecture
@@ -334,6 +349,9 @@ class EmotionSpiritPlugin(Star):
         from emotion_spirit.agents.personality_agent import PersonalityAgent
         from emotion_spirit.agents.relationship_agent import RelationshipAgent
 
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.agents.self_core), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._self_core = SelfCore(llm_budget=2)
         self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
         self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
@@ -344,13 +362,22 @@ class EmotionSpiritPlugin(Star):
 
         # v1.1.0B: ReflexLearner
         from emotion_spirit.memory.reflex_learner import ReflexLearner, ReflexLearnerStore
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.memory.reflex_learner), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._reflex_store = ReflexLearnerStore()
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.memory.reflex_learner), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._reflex_learner = ReflexLearner(self._reflex_store)
         self._self_core.set_store(self._reflex_store)
 
         # v1.1.0B: DreamGenerator
         from emotion_spirit.regulation.dream_generator import DreamGenerator
         from emotion_spirit.memory.memory_sampler import MemorySampler
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.regulation.dream_generator), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._dream_generator = DreamGenerator(self._pool, MemorySampler(self._pool))
         self._dream_generator.configure(llm_caller=self._get_llm_callable("dream"))
 
@@ -388,6 +415,9 @@ class EmotionSpiritPlugin(Star):
         """
         from emotion_spirit.agents.life_agent import LifeAgent
 
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.agents.life_agent), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._life_agent = LifeAgent(self._self_core.bus, self._life_sim_v2)
         self._self_core.register(self._life_agent)
 
@@ -1391,6 +1421,9 @@ class EmotionSpiritPlugin(Star):
             if life_sim_data:
                 self._life_sim.from_dict(life_sim_data)
             self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
+        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.diary_writer), 应走 plugin_factory DI
+        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
+        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._diary = DiaryWriter(
             self._pool, self._patterns, self._buffer_signals,
             self._alignment, self._conscience,
