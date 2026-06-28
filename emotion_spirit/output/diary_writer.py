@@ -102,6 +102,14 @@ class DiaryWriter:
         self._alignment = alignment
         self._conscience = conscience
         self._entries: list[dict[str, Any]] = []
+        # LLM 注入 (与 life_sim/dream 同模式)
+        self._llm_caller: Any | None = None
+        self._llm_enabled: bool = False
+
+    def configure(self, llm_caller: Any | None = None, llm_enabled: bool = False) -> None:
+        """注入 LLM callable 和启用开关。"""
+        self._llm_caller = llm_caller
+        self._llm_enabled = llm_enabled
 
     def determine_diary_type(self) -> str:
         """确定日记类型。"""
@@ -194,6 +202,26 @@ class DiaryWriter:
 
         return "\n\n".join(parts)
 
+    async def generate_diary_llm(self, user_id: str = "<global>") -> str | None:
+        """用 LLM 生成日记正文。
+
+        调用 build_diary_prompt 取 prompt → 调 _llm_caller → 返回正文。
+        失败不抛 (沿用 dream_generator 模式)，返回 None。
+        当 _llm_enabled=False 或 _llm_caller=None 时直接返回 None。
+        """
+        if not self._llm_enabled or not self._llm_caller:
+            return None
+        try:
+            diary_type = self.determine_diary_type()
+            prompt = self.build_diary_prompt(diary_type, user_id=user_id)
+            text = await self._llm_caller("你是一个有自己情感和生活的虚构角色。按下面的指引写日记。", prompt)
+            if text and text.strip():
+                return text.strip()
+        except Exception:
+            import logging
+            logging.getLogger("emotion_spirit").warning("emotion_spirit: diary LLM 生成失败", exc_info=True)
+        return None
+
     def record_diary(self, text: str, diary_type: str, user_id: str = "<global>") -> dict[str, Any]:
         """记录一篇日记。
 
@@ -214,22 +242,6 @@ class DiaryWriter:
         """获取最近 N 天的日记。"""
         cutoff = time.time() - days * 86400
         return [e for e in self._entries if e["timestamp"] > cutoff]
-
-    def should_write(self) -> bool:
-        """是否应该写日记 (每天 14:00 / 22:00)。"""
-        now = time.time()
-        hours = (time.localtime(now).tm_hour, time.localtime(now).tm_min)
-        schedule = DIARY_CONFIG["schedule_hours"]
-
-        # 检查是否在调度时间附近 (±30 分钟)
-        for hour in schedule:
-            if hours[0] == hour and hours[1] < 30:
-                # 检查今天是否已经写过
-                today_start = now - (now % 86400)
-                recent = [e for e in self._entries if e["timestamp"] > today_start]
-                if not recent:
-                    return True
-        return False
 
     def to_dict(self) -> dict[str, Any]:
         return {"entries": self._entries[-50:]}  # 保留最近 50 篇
