@@ -50,8 +50,17 @@ class TestProjectManagerSuggest:
                         "agreeableness": 0.5, "neuroticism": 0.9},
         )
         assert project is not None
-        # creative=0.0 → never chosen; intellectual=0.9, physical=0.1, routine=1.35
-        assert project.category in ("intellectual", "routine")
+        # Category weights per emotion_spirit/regulation/project_manager.py suggest_project():
+        #   creative     = O + E*0.5  = 0.0 + 0*0.5 = 0.0 (never chosen)
+        #   physical     = E + (1-N)  = 0.0 + 0.1  = 0.1  (~4.2%)  ← previously MISSED here
+        #   intellectual = O*0.5 + C  = 0.0 + 0.9  = 0.9  (~38.3%)
+        #   routine      = C*1.5      = 0.9*1.5    = 1.35 (~57.4%)
+        # creative has weight 0 and is never picked; original assertion omitted
+        # `physical` (which has weight 0.1, ~4% chance to be selected by
+        # random.choices) — pure math error in the test. Mirror
+        # test_suggest_project_for_high_extraversion's fix: assert all non-zero
+        # weight categories are valid outcomes.
+        assert project.category in ("intellectual", "physical", "routine")
 
     def test_suggest_project_for_high_extraversion(self):
         pm = ProjectManager()
