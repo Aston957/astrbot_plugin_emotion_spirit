@@ -48,7 +48,14 @@ from .regulation import (
 from .output import (
     emotion_classifier, surface_consumer, diary_writer, prompt_injector,
     predictive_sentinel, narrative_identity, bot_decision, trend_utils,
-    buffer_signals,
+    buffer_signals, realtime_dispatch, rhythm_learner,
+    command_router,
+)
+from .bridge import (
+    engine_manager, hotpool_forwarder, personality_bridge,
+)
+from .agents import (
+    self_core, life_agent,
 )
 
 # Phase 4 C2: 暴露 PEP 440 合法 version (per code review I3)

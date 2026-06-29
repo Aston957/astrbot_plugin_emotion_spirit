@@ -20,7 +20,10 @@ emotion_spirit 的 12D personality:
 
 from __future__ import annotations
 
+from ..core.registry import register
+
 __all__ = ["PersonalityBridge"]
+
 
 # 5D Embodiment 维度名
 EMBODIMENT_DIMS = (
@@ -50,6 +53,11 @@ _SPLIT_WEIGHTS = {
 _DEFAULT = 0.5
 
 
+@register(
+    name="personality_bridge",
+    provides=["PersonalityBridge"],
+    depends_on=[],
+)
 class PersonalityBridge:
     """5D ↔ 12D 人格映射器。"""
 

@@ -36,6 +36,15 @@ def test_plugin_factory_build_returns_requested_modules():
     config["modules"]["meaning_reservoir"]["enabled"] = False
     config["modules"]["personality_drift"]["enabled"] = False
     config["modules"]["relationship_personality"]["enabled"] = False
+    # v1.2.1 DI cleanup 新模块 (deps 依赖上面禁用的模块, 测试不构建它们)
+    config["modules"]["life_simulator_v2"]["enabled"] = False
+    config["modules"]["self_core"]["enabled"] = False
+    config["modules"]["realtime_dispatch"]["enabled"] = False
+    config["modules"]["rhythm_learner"]["enabled"] = False
+    config["modules"]["hotpool_forwarder"]["enabled"] = False
+    config["modules"]["engine_manager"]["enabled"] = False
+    config["modules"]["personality_bridge"]["enabled"] = False
+    config["modules"]["command_router"]["enabled"] = False
     modules = build(config)
     assert "store" in modules
     assert "memory_pool" in modules

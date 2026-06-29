@@ -171,6 +171,21 @@ class LifeSimulator:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@register(
+    name="life_simulator_v2",
+    provides=["LifeSimulatorV2"],
+    depends_on=[
+        "surface_consumer", "memory_pool", "intimacy",
+        "buffer_signals", "meaning_reservoir",
+    ],
+    param_wire={
+        "memory_pool": "memory",
+        "buffer_signals": "signals",
+        "surface_consumer": "consumer",
+        "intimacy": "intimacy",
+        "meaning_reservoir": "reservoir",
+    },
+)
 class LifeSimulatorV2:
     """v2: 主动规划日程 + 实时根据对话调整。"""
 

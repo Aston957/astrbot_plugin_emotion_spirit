@@ -14,6 +14,8 @@ from __future__ import annotations
 import logging
 from typing import Any, TYPE_CHECKING
 
+from ..core.registry import register
+
 if TYPE_CHECKING:
     from .hotpool_forwarder import HotPoolForwarder
 
@@ -22,6 +24,11 @@ logger = logging.getLogger(__name__)
 __all__ = ["EngineManager"]
 
 
+@register(
+    name="engine_manager",
+    provides=["EngineManager"],
+    depends_on=[],  # no DI; forwarder 通过 set_forwarder() 运行时注入
+)
 class EngineManager:
     """SylannEngine 生命周期管理器。
 

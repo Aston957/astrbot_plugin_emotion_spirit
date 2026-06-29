@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, TYPE_CHECKING
 
+from ..core.registry import register
 from .base import SKIP, LLM, VALID_FLAGS, CognitiveAgent, AgentIntent
 from .event_bus import EventBus
 
@@ -26,6 +27,11 @@ class ComposedInputs:
     carried: dict[str, dict] = field(default_factory=dict)
 
 
+@register(
+    name="self_core",
+    provides=["SelfCore"],
+    depends_on=[],
+)
 class SelfCore:
     """Agent orchestrator (global singleton per session)."""
 

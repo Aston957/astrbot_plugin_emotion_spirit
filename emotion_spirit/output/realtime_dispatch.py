@@ -24,6 +24,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..core.registry import register
+
 __all__ = [
     "RealtimeDispatch",
     "DeliberateSilence",
@@ -414,6 +416,11 @@ class BreathingRhythmController:
 
 # ═══ 主调度器 (组合以上组件) ═══
 
+@register(
+    name="realtime_dispatch",
+    provides=["RealtimeDispatch"],
+    depends_on=[],
+)
 class RealtimeDispatch:
     """即时聊天调度器 — 组合分段、中断、沉默、呼吸。
 

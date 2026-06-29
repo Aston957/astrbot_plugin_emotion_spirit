@@ -69,6 +69,28 @@ def _format_emotion_block(signals: "SemanticSignals") -> str:
     )
 
 
+def _format_force_state_block(force_dynamics, labels=None) -> str:
+    """v1.2: 三元力学情感基调 (force_state_from_labels → dominant 描述)。
+
+    Args:
+        force_dynamics: ForceDynamics 实例或 None (DI 注入, 未装配 → 空字符串)
+        labels: 5 轴标签 dict (mbti/attachment/emotion_style/conflict_style/time_focus)。
+                None → 不输出 (无 labels 时无法 force_state_from_labels)
+    Returns:
+        多行字符串 ("  - 力学基调 ...") 或空字符串 (任一前置缺失)。
+    """
+    if force_dynamics is None or labels is None:
+        return ""
+    try:
+        fs = force_dynamics.force_state_from_labels(labels)
+    except Exception:
+        return ""
+    return (
+        f"  - 力学基调 (三元主导): {fs.dominant} "
+        f"(nat={fs.natural:.2f} soc={fs.social:.2f} ind={fs.individual:.2f})"
+    )
+
+
 from ..core.registry import register
 
 
@@ -105,11 +127,30 @@ class DiaryWriter:
         # LLM 注入 (与 life_sim/dream 同模式)
         self._llm_caller: Any | None = None
         self._llm_enabled: bool = False
+        # v1.2: 三元力学注入 (DI 注入, 不手 new; 若未装配 → 情感基调不输出)
+        self._force_dynamics: Any | None = None
+        self._default_labels: dict[str, str] | None = None
 
     def configure(self, llm_caller: Any | None = None, llm_enabled: bool = False) -> None:
         """注入 LLM callable 和启用开关。"""
         self._llm_caller = llm_caller
         self._llm_enabled = llm_enabled
+
+    def configure_force_dynamics(
+        self,
+        force_dynamics,
+        default_labels: dict[str, str] | None = None,
+    ) -> None:
+        """v1.2: 注入三元力学引擎 + 默认人格 labels (用于日记情感基调)。
+
+        Args:
+            force_dynamics: ForceDynamics 实例 (来自 plugin_factory build)。
+                            None 也合法 — 情感基调不输出, 日记 API 行为不变。
+            default_labels: 5 轴标签 dict (来自 main.py self._labels)。None 也合法 —
+                            情感基调不输出, 日记 API 行为不变。
+        """
+        self._force_dynamics = force_dynamics
+        self._default_labels = default_labels
 
     def determine_diary_type(self) -> str:
         """确定日记类型。"""
@@ -143,6 +184,11 @@ class DiaryWriter:
         # v1.1.1: 注入情绪结构化数据（LLM 自己解读）
         if signals is not None and signals.pad_distribution:
             parts.append(_format_emotion_block(signals))
+
+        # v1.2: 三元力学情感基调 (DI 注入, 默认 labels; 任一缺失 → 静默跳过)
+        fs_block = _format_force_state_block(self._force_dynamics, self._default_labels)
+        if fs_block:
+            parts.append("你当前的三元力学基调（自然/社会/个体三力权重）:\n" + fs_block)
 
         # 最近记忆
         recent = sorted(self._pool.warm_for(user_id), key=lambda e: e.created_at, reverse=True)[:3]
@@ -184,6 +230,11 @@ class DiaryWriter:
         # v1.1.1: 注入情绪结构化数据
         if signals is not None and signals.pad_distribution:
             parts.append(_format_emotion_block(signals))
+
+        # v1.2: 三元力学情感基调 (DI 注入, 默认 labels; 任一缺失 → 静默跳过)
+        fs_block = _format_force_state_block(self._force_dynamics, self._default_labels)
+        if fs_block:
+            parts.append("你当前的三元力学基调（自然/社会/个体三力权重）:\n" + fs_block)
 
         # 使用叙事模板生成人格化描述
         if conflict_values:

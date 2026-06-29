@@ -24,6 +24,8 @@ import time
 from collections import deque
 from typing import Any
 
+from ..core.registry import register
+
 
 def _median(data: list[float]) -> float:
     """计算中位数 (避免 statistics 模块被 verification/ 同名文件遮蔽)。"""
@@ -147,6 +149,11 @@ class RhythmProfile:
         return p
 
 
+@register(
+    name="rhythm_learner",
+    provides=["RhythmLearner"],
+    depends_on=[],
+)
 class RhythmLearner:
     """按会话的节奏学习器, 带亲密度门控。
 

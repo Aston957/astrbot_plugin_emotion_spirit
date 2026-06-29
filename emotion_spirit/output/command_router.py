@@ -10,6 +10,8 @@ from __future__ import annotations
 from typing import Callable, Any
 import asyncio
 
+from ..core.registry import register
+
 try:
     from astrbot.api.event import filter as _astrbot_filter
     _ASTRBOT_AVAILABLE = True
@@ -71,6 +73,11 @@ class NamespaceRouter:
         return self._commands[sub][0]
 
 
+@register(
+    name="command_router",
+    provides=["CommandRouter"],
+    depends_on=[],
+)
 class CommandRouter:
     """3 ns 命令路由器。"""
 

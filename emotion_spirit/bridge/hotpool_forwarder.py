@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from ..core.registry import register
+
 if TYPE_CHECKING:
     from ..memory.memory_pool import MemoryPool
     from ..memory.unified_entry import UnifiedEntry
@@ -34,6 +36,11 @@ _VALID_SIGNALS = frozenset({
 })
 
 
+@register(
+    name="hotpool_forwarder",
+    provides=["HotPoolForwarder"],
+    depends_on=["memory_pool"],
+)
 class HotPoolForwarder:
     """将 SylannEngine 的 inject() 信号转发到 MemoryPool。
 

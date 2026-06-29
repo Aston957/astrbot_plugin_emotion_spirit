@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 __all__ = ["LifeAgent"]
 
 
+# v1.2.1 revert: LifeAgent 仍手 new — 它依赖 self_core.bus (EventBus), factory 的 param_wire
+# 只支持 dep_name → param_name 1:1 mapping, 不能表达 "self_core.bus"。
+# 同 MemoryAgent / PersonalityAgent / RelationshipAgent 一起手 new 是正确路径。
 class LifeAgent(CognitiveAgent):
     """Cognitive agent wrapping LifeSimulatorV2."""
 
@@ -43,9 +46,9 @@ class LifeAgent(CognitiveAgent):
     def perceive(self, surface: dict[str, Any]) -> dict[str, Any]:
         return {
             "phase": surface.get("_phase", PRE),
-            "emotion_delta": surface.get("emotion_delta", 0.0),
-            "cascade_active": surface.get("cascade_active", False),
-            "boundary_pressure": surface.get("boundary_pressure", 0.0),
+            "emotion_delta": surface.get("emotion_delta") or 0.0,
+            "cascade_active": surface.get("cascade_active") or False,
+            "boundary_pressure": surface.get("boundary_pressure") or 0.0,
             "_evo_delta": surface.get("_evo_delta", lambda k: 0.0),
         }
 
@@ -53,7 +56,7 @@ class LifeAgent(CognitiveAgent):
 
     def gate(self, perceived: dict[str, Any]) -> str:
         if perceived.get("phase") == PRE:
-            delta = abs(perceived.get("emotion_delta", 0.0))
+            delta = abs(perceived.get("emotion_delta") or 0.0)
             evo_fn = perceived.get("_evo_delta", lambda k: 0.0)
             thr = 0.3 + evo_fn("life_sim_adapt_threshold")
             return RULE if delta >= thr else SKIP

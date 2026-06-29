@@ -31,9 +31,10 @@ from emotion_spirit.output.public_api import PublicAPI
 from emotion_spirit.output.commands import CommandImpl
 from emotion_spirit.output.surface_handler import SurfaceHandler
 
-# 兼容层: 这些直接 import 不动, 减少 commands.py 的依赖耦合
-from emotion_spirit.regulation.persona_analyzer import save_report, load_report
+# parse_persona_report: 在 _setup_persona_state() 用 (line 507)
 from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+# 注意: save_report/load_report 不在 main.py 导入 — commands.py 内部直接
+#       from emotion_spirit.regulation.persona_analyzer import save_report (line 41, 241)
 
 
 def _ns_command(name: str, cmd_attr: str, desc: str = ""):
@@ -102,8 +103,9 @@ class EmotionSpiritPlugin(Star):
         # ═══ 3. persona 状态 (在 setup_persona_state 中用 _modules 初始化) ═══
         self._setup_persona_state()
 
-        # ═══ 4. 命令路由器 (3 ns) ═══
-        self._router = CommandRouter()
+        # ═══ 4. 命令路由器 (3 ns) — v1.2.1 DI 接线, factory 自动 wire (无依赖)
+        self._router = self._modules["command_router"]
+        # CommandImpl 需 plugin 自身引用, 暂留手 new — 见 UPDATE_HANDBOOK §6 清债清单
         self._cmd = CommandImpl(self)
         self._setup_commands()
 
@@ -291,22 +293,16 @@ class EmotionSpiritPlugin(Star):
         self._topic_privacy = self._modules["topic_privacy"]
         self._decision = self._modules["bot_decision"]
 
-        # Phase F: Bridge 层 (SylannEngine ↔ emotion_spirit)
-        from emotion_spirit.bridge.engine_manager import EngineManager
-        from emotion_spirit.bridge.hotpool_forwarder import HotPoolForwarder
-        from emotion_spirit.bridge.personality_bridge import PersonalityBridge
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.engine_manager), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._engine_manager = EngineManager()
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.hotpool_forwarder), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._hotpool_forwarder = HotPoolForwarder(memory_pool=self._pool)
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.bridge.personality_bridge), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._personality_bridge = PersonalityBridge()
+        # Phase 3.0: 三元力学 (force_dynamics/body_state): 已 @register, 从 factory 取用, 不手 new。
+        # 力学是纯计算模块, 无 llm_caller 二次注入需求 (不同于 DreamGenerator/diary)。
+        # v1.2: 从 ghost (build 但 main 不消费) 接入。
+        self._force_dynamics = self._modules.get("force_dynamics")
+        self._body_state = self._modules.get("body_state")
+
+        # Phase F: Bridge 层 (SylannEngine ↔ emotion_spirit) — v1.2.1 DI 接线
+        self._engine_manager = self._modules["engine_manager"]
+        self._hotpool_forwarder = self._modules["hotpool_forwarder"]
+        self._personality_bridge = self._modules["personality_bridge"]
         self._engine_manager.set_forwarder(self._hotpool_forwarder)
         # configure bot_decision proactive deps
         self._decision.configure_proactive_deps(
@@ -318,67 +314,38 @@ class EmotionSpiritPlugin(Star):
         if self._life_sim is not None:
             self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
 
-        # v1.1.0A: LifeSimulator v2 (轴心功能 — 主动日程规划)
-        from emotion_spirit.regulation.life_simulator import LifeSimulatorV2
-        self._life_sim_v2 = LifeSimulatorV2(
-            consumer=self._consumer,
-            memory=self._pool,
-            intimacy=self._intimacy,
-            signals=self._buffer_signals,
-            reservoir=self._reservoir,
-        )
+        # v1.2.1: LifeSimulatorV2 (DI 接线, factory 自动 wire 5 依赖)
+        self._life_sim_v2 = self._modules["life_simulator_v2"]
         self._life_sim_v2._use_llm_polish = self._config.get("life_sim_v2", {}).get("use_llm_polish", False)
         self._life_sim_v2.configure(llm_caller=self._get_llm_callable("life_sim"))
         self._last_plan_date: str = ""  # 防止同一天重复生成日程
 
-        # Phase B: RealtimeDispatch + RhythmLearner
-        from emotion_spirit.output.realtime_dispatch import RealtimeDispatch
-        from emotion_spirit.output.rhythm_learner import RhythmLearner
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.realtime_dispatch), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._realtime_dispatch = RealtimeDispatch()
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.rhythm_learner), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._rhythm_learner = RhythmLearner()
+        # Phase B: RealtimeDispatch + RhythmLearner (v1.2.1 DI 接线)
+        self._realtime_dispatch = self._modules["realtime_dispatch"]
+        self._rhythm_learner = self._modules["rhythm_learner"]
 
-        # v1.1.0B: Multi-agent architecture
-        from emotion_spirit.agents.self_core import SelfCore
+        # v1.1.0B: Multi-agent architecture (v1.2.1 SelfCore 走 DI;
+        #         3 CognitiveAgent 子类仍手 new — 它们是 SelfCore 的子组件,
+        #         不是独立 factory build 模块, 推 v1.2.x 单独 plan 评估 @register spec)
         from emotion_spirit.agents.memory_agent import MemoryAgent
         from emotion_spirit.agents.personality_agent import PersonalityAgent
         from emotion_spirit.agents.relationship_agent import RelationshipAgent
 
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.agents.self_core), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._self_core = SelfCore(llm_budget=2)
+        self._self_core = self._modules["self_core"]
         self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
         self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
         self._self_core.register(RelationshipAgent(self._self_core.bus, self._intimacy, self._social_graph))
-        # v1.1.0C: LifeAgent registration extracted to helper
+        # v1.1.0C: LifeAgent registration extracted to helper (v1.2.1 LifeAgent 走 DI)
         self._setup_v110c_agents()
         self._last_bot_reply_time: dict[str, float] = {}  # for ReflexLearner behavior signal
 
-        # v1.1.0B: ReflexLearner
-        from emotion_spirit.memory.reflex_learner import ReflexLearner, ReflexLearnerStore
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.memory.reflex_learner), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._reflex_store = ReflexLearnerStore()
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.memory.reflex_learner), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._reflex_learner = ReflexLearner(self._reflex_store)
+        # v1.2.1: ReflexLearner (双轨清) — factory 自动 wire store → learner
+        self._reflex_store = self._modules["reflex_learner_store"]
+        self._reflex_learner = self._modules["reflex_learner"]
         self._self_core.set_store(self._reflex_store)
 
-        # v1.1.0B: DreamGenerator
-        from emotion_spirit.regulation.dream_generator import DreamGenerator
-        from emotion_spirit.memory.memory_sampler import MemorySampler
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.regulation.dream_generator), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._dream_generator = DreamGenerator(self._pool, MemorySampler(self._pool))
+        # v1.2.1: DreamGenerator (双轨清) — factory 自动 wire memory_pool + memory_sampler
+        self._dream_generator = self._modules["dream_generator"]
         self._dream_generator.configure(llm_caller=self._get_llm_callable("dream"))
 
         # Phase 2.5: 关系人格
@@ -412,12 +379,11 @@ class EmotionSpiritPlugin(Star):
 
         v1.1.0C Tech-Debt Cleanup (Item 3): extracted from the monolithic
         __init__ to keep the lifecycle steps clearly named.
+        v1.2.1: LifeAgent 仍手 new — 依赖 self_core.bus (EventBus), factory param_wire
+        无法表达 "self_core.bus", 同 MemoryAgent/PersonalityAgent/RelationshipAgent 一起手 new。
         """
         from emotion_spirit.agents.life_agent import LifeAgent
 
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.agents.life_agent), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
         self._life_agent = LifeAgent(self._self_core.bus, self._life_sim_v2)
         self._self_core.register(self._life_agent)
 
@@ -944,6 +910,21 @@ class EmotionSpiritPlugin(Star):
             return {"openness": 0.5, "extraversion": 0.5, "agreeableness": 0.5,
                     "neuroticism": 0.5, "conscientiousness": 0.5}
 
+    def get_current_force_state(self, labels: dict[str, str] | None = None):
+        """三元力学当前 ForceState (v1.2 接线 + 入日记消费; v1.3 叙事层继续用)。
+
+        Args:
+            labels: 5 轴标签 dict。None → 用 self._labels (默认人格)。
+        Returns:
+            ForceState (3 权重) 或 None (force_dynamics 未装配 / labels 不可用)。
+        """
+        if getattr(self, "_force_dynamics", None) is None:
+            return None
+        use = labels if labels is not None else getattr(self, "_labels", None)
+        if not use:
+            return None
+        return self._force_dynamics.force_state_from_labels(use)
+
     def _get_recent_memory_texts(self, limit: int = 5) -> list[str]:
         """从 MemoryPool 取最近的记忆文本。"""
         try:
@@ -1360,7 +1341,6 @@ class EmotionSpiritPlugin(Star):
         from emotion_spirit.regulation.pattern_extractor import PatternExtractor
         from emotion_spirit.regulation.shadow_detector import ShadowDetector
         from emotion_spirit.regulation.life_simulator import LifeSimulator
-        from emotion_spirit.output.diary_writer import DiaryWriter
         from emotion_spirit.regulation.personality_drift import PersonalityDrift
         from emotion_spirit.output.predictive_sentinel import PredictiveSentinel
         from emotion_spirit.output.narrative_identity import NarrativeIdentity
@@ -1421,17 +1401,18 @@ class EmotionSpiritPlugin(Star):
             if life_sim_data:
                 self._life_sim.from_dict(life_sim_data)
             self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
-        # TODO(tech-debt): 本组件已 @register (见 emotion_spirit.output.diary_writer), 应走 plugin_factory DI
-        # 而非 main.py 手 new。本次 (2026-06-28) 保留手 new 因 llm_caller 运行时注入和
-        # init 顺序问题。v1.2 改走 DI。见 plan-2026-06-28-debt-cleanup §F1。
-        self._diary = DiaryWriter(
-            self._pool, self._patterns, self._buffer_signals,
-            self._alignment, self._conscience,
-        )
+        # v1.2: diary_writer 走 factory DI (见 emotion_spirit.output.diary_writer @register),
+        # 已在 __init__ 期装配到 self._diary (main.py:282)。下方 configure() 保留
+        # llm_caller / llm_enabled 注入, 等同旧手 new 路径, 日记 LLM 不回归。
         diary_cfg = self._config.get("diary", {})
         self._diary.configure(
             llm_caller=self._get_llm_callable("diary"),
             llm_enabled=diary_cfg.get("enable_diary_llm", False),
+        )
+        # v1.2: 三元力学情感基调注入 (DI 同模式, _force_dynamics/_labels 任一缺失 → 静默跳过)
+        self._diary.configure_force_dynamics(
+            self._force_dynamics,
+            getattr(self, "_labels", None),
         )
         if diary_data:
             self._diary.from_dict(diary_data)
