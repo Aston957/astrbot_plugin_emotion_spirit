@@ -830,7 +830,7 @@ new_config, new_state = run_migrations(config, state)
 
 ### 7.2 `emotion_spirit/_version.py`
 
-**功能**:`__version__ = "1.1.0"`,PEP 440 兼容。
+**功能**:`__version__ = "1.2.1"`,PEP 440 兼容。
 
 **设计**:`pyproject.toml` 用 `dynamic = ["version"]` 从这里 attr 读。
 

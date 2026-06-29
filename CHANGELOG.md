@@ -5,6 +5,37 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.1] — 2026-06-29
+
+> 自 v1.1.0 (2026-06-28) 以来的变更。DI 双轨清零 + ForceState 入日记 + 注册模块 48→56。
+
+### Added
+
+- **ForceState 入日记**: `DiaryWriter` 新增 `_format_force_state_block` helper + `configure_force_dynamics` 方法, 日记与超我反思 prompt 均注入三元力学基调 (自然/社会/个体)
+- **`get_current_force_state(labels)` 公开 API**: 基于 `force_state_from_labels(labels)` 便捷入口
+- **8 模块补 `@register` spec**: `bridge/{engine_manager, hotpool_forwarder, personality_bridge}`, `output/{realtime_dispatch, rhythm_learner, command_router}`, `agents/self_core`, `regulation/life_simulator_v2` — 注册模块 48→56
+- **UPDATE_HANDBOOK.md**: 可拦式规约手册 (框架规则三件套 + 技术债管理 + 迁移纪律 + ship 纪律)
+- **Plan 文档**: `docs/PLAN_2026-06-29_MEMORY_ARCHIVE_AND_FORCE_WIRING.md`
+
+### Changed
+
+- **DI 双轨清零 (12→0)**: `main.py` 从 `self._modules[...]` 取 9 个组件, 删除 12 处手 `new` + `TODO(tech-debt)` 注释 + 8 处 unused import
+- **`emotion_spirit/__init__.py`**: 新增 bridge/agents 子目录 + realtime_dispatch + rhythm_learner + command_router imports (触发 56 模块注册)
+- **`tests/*`**: 注册数 48→56 维护 (3 处 disable list + consistency check + dry_run count)
+
+### Fixed
+
+- **`life_agent.py`**: `perceive`/`gate` 加 `or 0.0` 防御 `None`, 修 `abs(None)` 运行时报错
+- **`main.py`**: 删 2 dead imports (`save_report`, `load_report` from `persona_analyzer`), 删 `save_report`/`load_report` 死代码
+- **`CommandRouter`**: 0 参 → factory DI (plan §0 漏列的真双轨)
+
+### Known Issues (未修)
+
+- `test_v2_full_lifecycle`: wall clock 偶发 flaky (`_time_to_slot` 对齐问题)
+- `test_periodic_save_dirty_only`: Windows 概率性 1/3 失败
+- 4 `CognitiveAgent` 子类仍手 `new` (factory `param_wire` 不支持 `dep.attr`, 待 v1.2.x 工厂扩展)
+- `merge_life_sim_config` 漏搬 `enable_life_fragment` (待下个带 schema 变更版本修)
+
 ## [1.1.0] — 2026-06-28
 
 > 自 v1.0.0 (2026-06-24) 以来的累计变更。ship 完整闭环 — 5 矩阵格 CI 全绿。
