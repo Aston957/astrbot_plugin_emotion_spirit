@@ -31,8 +31,16 @@ GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, �
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 2. 下载 `astrbot-plugin-emotion-spirit-1.2.1.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
-4. 复制到 AstrBot 的 `data/plugins/` 目录
-5. 重启 AstrBot → 插件自动加载
+4. **关键**: 进入插件目录执行 `pip install -e .` (v1.2.2+ 必需)
+   ```bash
+   cd astrbot_plugin_emotion_spirit
+   pip install -e .
+   ```
+   > 为什么需要这步？emotion_spirit 使用绝对导入 (`from emotion_spirit.xxx import`),
+   > AstrBot 只把插件目录加入 sys.path, 不会自动将内部 `emotion_spirit/` 包提升为顶级包。
+   > pip install 后 emotion_spirit 成为 site-packages 的合法包, 导入才能成功。
+5. 复制整个 `astrbot_plugin_emotion_spirit/` 文件夹到 AstrBot 的 `data/plugins/` 目录
+6. 重启 AstrBot → 插件自动加载
 
 zip **包含** (用户运行所需):
 - `main.py`、`metadata.yaml`、`_conf_schema.json`
