@@ -326,6 +326,9 @@ class EmotionSpiritPlugin(Star):
         self._realtime_dispatch = self._modules["realtime_dispatch"]
         self._rhythm_learner = self._modules["rhythm_learner"]
 
+        # v1.2.3: SegmentedReplyCoordinator — 分段回复桥接层
+        self._segmented_coordinator = self._modules["segmented_reply_coordinator"]
+
         # v1.1.0B: Multi-agent architecture (v1.2.1 SelfCore 走 DI;
         #         3 CognitiveAgent 子类仍手 new — 它们是 SelfCore 的子组件,
         #         不是独立 factory build 模块, 推 v1.2.x 单独 plan 评估 @register spec)
@@ -805,6 +808,18 @@ class EmotionSpiritPlugin(Star):
             len(self._pool.cold), len(self._pool.ghosts),
         )
 
+        # v1.2.3: RhythmLearner 注入 persona 的亲密度门控 + 混合率 (顺手补漏接线)
+        if hasattr(self, '_rhythm_learner'):
+            seg_cfg = self._config.get("segmented_reply", {})
+            intimacy_gate = seg_cfg.get("intimacy_gate", 0.6)
+            blend = seg_cfg.get("blend", 0.6)
+            self._rhythm_learner.set_personality_params(intimacy_gate, blend)
+            logger.debug(
+                "emotion_spirit: rhythm_learner 已注入 personality_params "
+                "(intimacy_gate=%.2f, blend=%.2f)",
+                intimacy_gate, blend,
+            )
+
     async def _schedule_plan_generation_loop(self) -> None:
         """每天 2am 生成第二天的日程计划。"""
         from emotion_spirit.core.config import LIFE_SIM_V2_CONFIG
@@ -1261,7 +1276,11 @@ class EmotionSpiritPlugin(Star):
 
     @filter.on_llm_response(desc="处理 LLM 回复，更新记忆和亲密度")
     async def on_llm_response(self, event: AstrMessageEvent, response: Any) -> None:
-        """Bot 回复后: 写入 MemoryPool + 更新 IntimacyTracker。"""
+        """Bot 回复后: 写入 MemoryPool + 更新 IntimacyTracker。
+
+        v1.2.3: 若 segmented_reply.enable=true, 通过 SegmentedReplyCoordinator
+        生成分段发送计划, 逐段 yield 带打字延迟。
+        """
         try:
             bot_text = getattr(response, "completion_text", "") or ""
             if not bot_text:
@@ -1297,12 +1316,94 @@ class EmotionSpiritPlugin(Star):
             self._reflex_learner.learn(behavior)
             self._last_bot_reply_time[user_id] = _time_mod.time()
 
+            # ═══ v1.2.3: 分段回复 ═══
+            seg_config = self._config.get("segmented_reply", {})
+            if seg_config.get("enable", False) and hasattr(self, '_segmented_coordinator'):
+                try:
+                    await self._on_segmented_reply(bot_text, user_id, seg_config, event)
+                except Exception:
+                    logger.debug("emotion_spirit: segmented reply error, falling back", exc_info=True)
+
             logger.debug(
                 "emotion_spirit on_llm_response: user=%s tone=%s weight=%.2f len=%d",
                 user_id[:8], tone, weight, len(bot_text),
             )
         except Exception:
             logger.debug("emotion_spirit: on_llm_response error", exc_info=True)
+
+    async def _on_segmented_reply(
+        self,
+        bot_text: str,
+        user_id: str,
+        seg_config: dict,
+        event: AstrMessageEvent,
+    ) -> None:
+        """分段回复逻辑 (v1.2.3)。
+
+        通过 SegmentedReplyCoordinator 生成计划, 逐段 yield。
+        enable=false 时此方法不被调用。
+        """
+        try:
+            # 获取力学信号
+            force = getattr(self, '_force_dynamics', None)
+            force_state = force.get_current_force_state(self._labels) if force else None
+            signals = self._latest_signals.get(user_id) if hasattr(self, '_latest_signals') else None
+
+            expression_drive = 0.5
+            rhythm_strain = 0.5
+            pad_valence = 0.5
+            hot_pool_pressure = 0.0
+
+            if signals:
+                expression_drive = getattr(signals, 'affect_expression_drive', 0.5) or 0.5
+                rhythm_strain = getattr(signals, 'rhythm_strain', 0.5) or 0.5
+                pad_valence = getattr(signals, 'pad_valence', 0.5) or 0.5
+                hot_pool_pressure = getattr(signals, 'hot_pool_pressure', 0.0) or 0.0
+            elif force_state:
+                # 无 signals 时回退到 ForceState 的近似信号
+                expression_drive = force_state.get('social', 0.5) * 0.8 + 0.2
+                rhythm_strain = force_state.get('natural', 0.5) * 0.6 + 0.2
+                pad_valence = force_state.get('individual', 0.5) * 1.2 - 0.1
+                pad_valence = max(0.0, min(1.0, pad_valence))
+
+            config_for_coord = dict(seg_config)
+            # 复用 reflex_learner 的 ignored_seconds
+            config_for_coord["behavior_ignored_seconds"] = self._config.get(
+                "reflex_learner", {}
+            ).get("behavior_ignored_seconds", 7200.0)
+
+            # 记录用户消息到达 (让 ignored_rate 有数据)
+            self._segmented_coordinator.record_user_message(user_id)
+
+            # 生成分段计划
+            plan = self._segmented_coordinator.plan(
+                full_text=bot_text,
+                session_key=user_id,
+                expression_drive=expression_drive,
+                rhythm_strain=rhythm_strain,
+                pad_valence=pad_valence,
+                hot_pool_pressure=hot_pool_pressure,
+                config=config_for_coord,
+            )
+
+            if not plan:
+                # 主动沉默: 不 yield
+                return
+
+            # 记录本次 bot 回复
+            self._segmented_coordinator.record_bot_reply(user_id)
+
+            # 逐段 yield (POC X 路径: on_llm_response 多段 yield)
+            import asyncio
+            for part in plan:
+                delay = part.get("delay_before_seconds", 0.0)
+                text = part.get("text", "")
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                if text:
+                    yield event.plain_result(text)
+        except Exception:
+            logger.debug("emotion_spirit: _on_segmented_reply error", exc_info=True)
 
     @staticmethod
     def _extract_bot_emotion(text: str) -> tuple[str, float]:
@@ -1491,6 +1592,10 @@ class EmotionSpiritPlugin(Star):
         dream_data = self._store.get("dream_state")
         if dream_data:
             self._dream_generator.from_dict(dream_data)
+        # v1.2.3: SegmentedReplyCoordinator 状态恢复
+        coord_data = self._store.get("segmented_coordinator")
+        if coord_data and hasattr(self, '_segmented_coordinator'):
+            self._segmented_coordinator.from_dict(coord_data)
         self._injector = PromptInjector(
             self._pool, self._intimacy, self._alignment,
             self._conscience, self._ideal, self._shadow, self._diary,
@@ -1534,6 +1639,9 @@ class EmotionSpiritPlugin(Star):
             self._store.set("reflex_deltas", self._reflex_store.to_dict())
         if hasattr(self, '_dream_generator') and hasattr(self._dream_generator, 'to_dict'):
             self._store.set("dream_state", self._dream_generator.to_dict())
+        # v1.2.3: SegmentedReplyCoordinator 状态 (ignored_rate deque)
+        if hasattr(self, '_segmented_coordinator'):
+            self._store.set("segmented_coordinator", self._segmented_coordinator.to_dict())
 
     def _save_if_dirty(self) -> None:
         self._persist_modules()

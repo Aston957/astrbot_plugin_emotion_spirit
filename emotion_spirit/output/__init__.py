@@ -8,4 +8,5 @@ __all__ = [
     "command_router", "commands", "narrative_identity",
     "predictive_sentinel", "public_api", "buffer_signals",
     "trend_utils", "realtime_dispatch", "rhythm_learner",
+    "segmented_reply_coordinator",
 ]

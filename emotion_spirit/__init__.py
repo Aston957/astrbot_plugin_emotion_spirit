@@ -49,7 +49,7 @@ from .output import (
     emotion_classifier, surface_consumer, diary_writer, prompt_injector,
     predictive_sentinel, narrative_identity, bot_decision, trend_utils,
     buffer_signals, realtime_dispatch, rhythm_learner,
-    command_router,
+    command_router, segmented_reply_coordinator,
 )
 from .bridge import (
     engine_manager, hotpool_forwarder, personality_bridge,

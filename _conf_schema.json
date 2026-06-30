@@ -378,5 +378,60 @@
         "hint": "confirmation_bias rate 低于此值视为系统性丢弃"
       }
     }
+  },
+  "segmented_reply": {
+    "description": "分段回复 (v1.2.3: 吸收 Sylanne 1.4.7 实时调度, 力学信号+用户节奏自动调制)",
+    "type": "object",
+    "hint": "控制 bot 回复是否分段、节奏参数。关闭则一次性 yield (旧行为, 默认)",
+    "items": {
+      "enable": {
+        "description": "是否启用分段回复",
+        "type": "bool",
+        "default": false,
+        "hint": "opt-in 行为变更开关 (D6)。关闭=bot 一次性回复; 开启=按标点+字符数切分, 段间模拟打字延迟"
+      },
+      "default_max_part_chars": {
+        "description": "单段默认最大字符数",
+        "type": "int",
+        "default": 48,
+        "hint": "学不到用户节奏时的默认值; 学到后被 RhythmLearner 调制"
+      },
+      "default_chars_per_second": {
+        "description": "默认打字速度 (字符/秒, 决定段间延迟)",
+        "type": "float",
+        "default": 7.5,
+        "hint": "越大段间等待越短; 学到用户节奏后被调制"
+      },
+      "blend": {
+        "description": "基础同步混合率",
+        "type": "float",
+        "default": 0.6,
+        "hint": "向用户节奏靠拢的比例 (0=全默认, 1=全学用户)"
+      },
+      "enable_deliberate_silence": {
+        "description": "是否启用主动沉默",
+        "type": "bool",
+        "default": false,
+        "hint": "受伤/消化/满足时不发或极简回复。子开关独立于 enable, 但 enable=false 时本项无意义"
+      },
+      "intimacy_gate": {
+        "description": "只有亲密度 ≥ 此值才学用户节奏",
+        "type": "float",
+        "default": 0.6,
+        "hint": "RhythmLearner 亲密度门控 (per-persona 可覆盖)"
+      },
+      "max_delay_seconds": {
+        "description": "段间最长延迟上限",
+        "type": "float",
+        "default": 2.0,
+        "hint": "防止 cps 学得太慢导致段间干等过久; delay = min(len/cps, 此值)"
+      },
+      "ignored_window_turns": {
+        "description": "计算被忽略率的回顾轮数",
+        "type": "int",
+        "default": 10,
+        "hint": "最近 N 轮中 bot 回复后用户超过 ignored_seconds 回的视为被忽略"
+      }
+    }
   }
 }

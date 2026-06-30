@@ -5,6 +5,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.3] — 2026-06-30
+
+> 分段回复引擎接通。行为变更 opt-in，默认关闭，不破坏旧用户。
+
+### Added
+
+- **SegmentedReplyCoordinator** (`output/segmented_reply_coordinator.py`, @register, 57 模块): 桥接现成的 RealtimeDispatch/RhythmLearner/DeliberateSilence/BreathingRhythmController 到回复链路
+  - `plan()`: 1) ignored_rate 计算 (D8) → 2) RhythmLearner 调制 (max_part, cps) → 3) 长度因子 (D9) → 4) 主动沉默判断 (D10) → 5) 分段发送计划
+  - per-session deque 记录交互时刻，与 BreakpointStore 同档序列化
+- **`_conf_schema.json` `segmented_reply` 配置块**: enable/default_max_part_chars/default_chars_per_second/blend/enable_deliberate_silence/intimacy_gate/max_delay_seconds/ignored_window_turns
+- **main.py `on_llm_response` 分段回复路径** (POC X 路径): 启用时遍历 Coordinator 计划逐段 yield 带打字延迟
+- **`rhythm_learner.set_personality_params` 注入**: `initialize()` 时从 config 注入 intimacy_gate + blend (顺手补漏接线)
+
+### Changed
+
+- **模块注册 56→57**: `segmented_reply_coordinator` 加入 @register
+- **`_persist_modules`**: 新增 segmented_coordinator 状态序列化
+- **`_load_persistent_data`**: 新增 segmented_coordinator 状态恢复
+
 ## [1.2.2] — 2026-06-30
 
 > 用户安装反馈修复版本。9 bug (B1-B9) 全部修复，纯修复无新功能。
