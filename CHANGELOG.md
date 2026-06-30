@@ -5,6 +5,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.4] — 2026-06-30
+
+> main.py 模块化减负。纯重构，无 API/行为变更。
+
+### Changed
+
+- **DB 访问统一**: `_scan_all_personas` / `_detect_default_persona` 也走 `_get_persona_db_cursor()`
+- **冗余 import 清理**: `json`/`datetime`/`asyncio` 集中顶层，删方法内重复
+- **`Path(get_astrbot_data_path())` 去重**: 12 次 → 5 次（1 初始化 + 1 实例属性 + 3 合理残留如 config/cmd_config/db）
+- **`on_llm_request` 拆分**: 171 → 75 行, 抽 `_observe_rhythm_and_dream` / `_run_engine_and_agents` / `_inject_life_event` 3 子方法
+- **`_setup_persona_state` 拆分**: 163 → 8 行, 抽 `_init_persona_config` / `_init_feature_toggles` / `_init_modules_phase1` / `_init_modules_phase2` / `_init_social_and_mechanics` / `_init_life_and_agents` / `_init_logging_and_cache` 7 子方法
+- **`_load_persistent_data` 拆分**: 126 → 5 行, 抽 `_load_core_data` / `_load_phase2_data` / `_load_life_and_v2_data` 3 子方法
+- **过时注释清理**: 删除 `"~470 行"` 误导注释
+
+### Notes
+
+- **不新增模块**: 沿用 56+v1.2.3=57 @register, 不破坏 DI 架构
+- **为后续功能提供范式**: 新增模块只需在 `_init_life_and_agents()` 和 `_load_life_and_v2_data()` 中添加对应行即可
+
 ## [1.2.3] — 2026-06-30
 
 > 分段回复引擎接通。行为变更 opt-in，默认关闭，不破坏旧用户。
