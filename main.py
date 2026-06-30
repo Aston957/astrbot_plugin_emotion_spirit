@@ -218,7 +218,6 @@ class EmotionSpiritPlugin(Star):
         self._init_persona_config()
         self._init_feature_toggles()
         self._init_modules_phase1()
-        self._init_modules_phase2()
         self._init_social_and_mechanics()
         self._init_life_and_agents()
         self._init_logging_and_cache()

@@ -3,7 +3,7 @@
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-1250%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-smoke%2Bunit-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
@@ -11,6 +11,8 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [架构图 (architecture-diagram.html)](docs/mockups/architecture-diagram.html) | [Public API](public_api_stable.md) | [CHANGELOG](CHANGELOG.md)
+
+> ⚠️ 以下链接指向开发仓库中的文件，release zip 不含这些文件。如需查阅，请访问 [GitHub 仓库](https://github.com/Aston957/astrbot_plugin_emotion_spirit)。
 
 ---
 
@@ -136,7 +138,7 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 
 ## 截图 / Screenshots
 
-5 张 mockup 在 `docs/mockups/`:
+5 张 mockup 在 `docs/mockups/`（仅开发仓库可用，release zip 不含）:
 
 | Mockup | 内容 | 引用时机 |
 |--------|------|----------|
@@ -168,9 +170,14 @@ python -c "import emotion_spirit; print(emotion_spirit.__version__)"
 
 ### 通过 AstrBot 拖拽 (传统)
 
-1. 将 `emotion_spirit` 目录复制到 AstrBot 的 `data/plugins/` 目录(从 Release zip 解压后得到的就是这个)
-2. 重启 AstrBot
-3. 插件自动加载 (sylanne 已内嵌，无需额外安装)
+1. 将 `astrbot_plugin_emotion_spirit/` 目录复制到 AstrBot 的 `data/plugins/` 目录(从 Release zip 解压后得到的就是这个)
+2. **关键**: 进入插件目录执行 `pip install -e .`（同方式 1 的说明，v1.2.2+ 必需）
+   ```bash
+   cd data/plugins/astrbot_plugin_emotion_spirit
+   pip install -e .
+   ```
+3. 重启 AstrBot
+4. 插件自动加载 (sylanne 已内嵌，无需额外安装)
 
 ### KB 数据 / KB Data (自动加载 / Auto-loaded)
 
@@ -187,10 +194,13 @@ Confidence 分布:**A=0 / B=16 / C=160 / D=2896**(`B` 16-personalities literatur
 ## 快速开始 / Quick Start
 
 ```python
-# 在 AstrBot 插件中调用
+# 在 AstrBot 插件中调用 (PublicAPI 需要 modules 字典, 由 plugin_factory.build() 提供)
 from emotion_spirit import PublicAPI
+from emotion_spirit.core.plugin_factory import build as build_modules, build_modules_default_config
 
-api = PublicAPI()
+# 构建 modules (通常在插件 __init__ 中完成, 此处演示独立用法)
+modules = build_modules(build_modules_default_config("/path/to/data/plugin_data/emotion_spirit", {}))
+api = PublicAPI(modules)
 
 # 1. 获取情绪状态
 state = await api.get_emotion_state(session_key)
@@ -341,6 +351,8 @@ pressure = tracker.get_pressure()
 
 ## 文档导航 / Documentation
 
+> 以下链接指向开发仓库中的文件，release zip 不含。请访问 [GitHub 仓库](https://github.com/Aston957/astrbot_plugin_emotion_spirit) 查阅。
+
 | 受众 | 文档 | 内容 |
 |------|------|------|
 | **Bot operator** | [README.md](README.md) | 本文件 (安装 + 命令 + 快速开始) |
@@ -437,7 +449,7 @@ emotion_spirit/
 |------|------|
 | 模块 | 109 (58 core + 46 sylanne + 5 migrations) |
 | @register 模块 | 57 (56→57 @v1.2.3, +SegmentedReplyCoordinator) |
-| 测试 | 1250 passed, 0 failures |
+| 测试 | smoke + unit (见 CI badge) |
 | 人格维度 | 13 维 |
 | 外部依赖 | 0 (仅依赖 AstrBot) |
 | Python | >= 3.11 |
