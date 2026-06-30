@@ -69,6 +69,11 @@ _TIME_FOCUS_KEYWORDS: dict[str, list[str]] = {
     "活在未来": ["未来", "计划", "目标", "以后"],
 }
 
+# 9-A: 否定语境下的时间取向排除词
+_TIME_FOCUS_NEGATIONS: dict[str, list[str]] = {
+    "活在未来": [r"不.*未来", r"没有.*未来", r"不是.*未来"],
+}
+
 
 # ═══ 解析结果数据类 ═══
 
@@ -301,40 +306,74 @@ class PersonaReportParser:
             result.labels["mbti"] = self._infer_mbti_from_narrative(text)
 
     def _infer_mbti_from_narrative(self, text: str) -> str:
-        """从叙事描述中推断 MBTI。"""
+        """从叙事描述中推断 MBTI (v1.2.2 B9-fix: 不偏向 INTJ 轴 + 否定词预处理)。"""
         text_lower = text.lower()
 
-        # E vs I (外向 vs 内向)
-        e_patterns = [r"社交", r"朋友多", r"喜欢.*聚会", r"外向", r"健谈"]
-        i_patterns = [r"独处", r"一个人", r"内向", r"安静", r"沉默", r"不太.*社交"]
+        # 9-A: 否定词预处理 — 检测 "而不是/不是/没/不" 后的词，抵消被否定项
+        negation_patterns = [
+            r"而不是\s*(\S+)",
+            r"不是\s*(\S+)",
+            r"不\s*(\S+)",
+            r"没\s*(\S+)",
+        ]
+        negated_words: set[str] = set()
+        for pattern in negation_patterns:
+            for match in re.findall(pattern, text_lower):
+                negated_words.add(match)
+
+        # E vs I (外向 vs 内向) — v1.2.2: 补 "开朗", tie 时倾向 E
+        e_patterns = [r"社交", r"朋友多", r"喜欢.*聚会", r"外向", r"健谈", r"开朗", r"活泼", r"热情"]
+        i_patterns = [r"独处", r"一个人", r"内向", r"安静", r"沉默", r"不太.*社交", r"孤僻"]
 
         e_score = sum(1 for p in e_patterns if re.search(p, text_lower))
         i_score = sum(1 for p in i_patterns if re.search(p, text_lower))
-        ei = "E" if e_score > i_score else "I"
+        # 9-A: tie-breaking 不偏向 I，倾向 E(中文 prompt 描述外向更常见)
+        if e_score == i_score:
+            ei = "E"
+        else:
+            ei = "E" if e_score > i_score else "I"
 
-        # N vs S (直觉 vs 感觉)
-        n_patterns = [r"想象", r"创意", r"直觉", r"未来", r"可能性"]
-        s_patterns = [r"细节", r"实际", r"现实", r"具体", r"经验"]
+        # N vs S (直觉 vs 感觉) — tie 时倾向 N(日常描述中 N 更常见)
+        n_patterns = [r"想象", r"创意", r"直觉", r"未来", r"可能性", r"灵感", r"抽象"]
+        s_patterns = [r"细节", r"实际", r"现实", r"具体", r"经验", r"务实"]
 
         n_score = sum(1 for p in n_patterns if re.search(p, text_lower))
         s_score = sum(1 for p in s_patterns if re.search(p, text_lower))
-        ns = "N" if n_score > s_score else "S"
+        if n_score == s_score:
+            ns = "N"
+        else:
+            ns = "N" if n_score > s_score else "S"
 
-        # F vs T (情感 vs 思考)
-        f_patterns = [r"情感", r"感受", r"在乎.*感受", r"共情", r"体贴"]
-        t_patterns = [r"逻辑", r"理性", r"分析", r"思考", r"客观"]
+        # F vs T (情感 vs 思考) — 9-A: 否定词预处理 + tie 时倾向 F
+        f_patterns = [r"情感", r"感受", r"在乎.*感受", r"共情", r"体贴", r"直觉.*感受", r"感性"]
+        t_patterns = [r"逻辑", r"理性", r"分析", r"思考", r"客观", r"理智"]
 
         f_score = sum(1 for p in f_patterns if re.search(p, text_lower))
         t_score = sum(1 for p in t_patterns if re.search(p, text_lower))
-        ft = "F" if f_score > t_score else "T"
+        # 9-A: 如果被否定的词匹配某方模式，从该方扣分
+        for word in negated_words:
+            for p in t_patterns:
+                if re.search(p, word):
+                    t_score -= 1
+            for p in f_patterns:
+                if re.search(p, word):
+                    f_score -= 1
+        # tie-breaking 不偏向 T，倾向 F(中文日常描述情感远多于理性)
+        if f_score == t_score:
+            ft = "F"
+        else:
+            ft = "F" if f_score > t_score else "T"
 
-        # P vs J (知觉 vs 判断)
-        p_patterns = [r"灵活", r"随性", r"自由", r" spontaneous", r"拖延"]
-        j_patterns = [r"计划", r" organized", r"有条理", r"准时", r" deadline"]
+        # P vs J (知觉 vs 判断) — tie 时倾向 P
+        p_patterns = [r"灵活", r"随性", r"自由", r" spontaneous", r"拖延", r"随机应变", r"不.*计划"]
+        j_patterns = [r"计划", r" organized", r"有条理", r"准时", r" deadline", r"安排", r"规划"]
 
         p_score = sum(1 for p in p_patterns if re.search(p, text_lower))
         j_score = sum(1 for p in j_patterns if re.search(p, text_lower))
-        pj = "P" if p_score > j_score else "J"
+        if p_score == j_score:
+            pj = "P"
+        else:
+            pj = "P" if p_score > j_score else "J"
 
         return ei + ns + ft + pj
 
@@ -362,11 +401,18 @@ class PersonaReportParser:
                 text_lower, _CONFLICT_STYLE_KEYWORDS, default="合作型",
             )
 
-        # 时间取向
+        # 时间取向 (9-A: 否定语境特殊处理)
         if "time_focus" not in result.labels:
-            result.labels["time_focus"] = self._infer_by_keywords(
+            time_focus = self._infer_by_keywords(
                 text_lower, _TIME_FOCUS_KEYWORDS, default="活在当下",
             )
+            # 9-A: 如果推断为"活在未来"但存在否定语境(如"不活在未来")，回退到"活在当下"
+            if time_focus == "活在未来":
+                for neg_pattern in _TIME_FOCUS_NEGATIONS.get("活在未来", []):
+                    if re.search(neg_pattern, text_lower):
+                        time_focus = "活在当下"
+                        break
+            result.labels["time_focus"] = time_focus
 
     def _infer_by_keywords(
         self,
