@@ -526,21 +526,42 @@ class EmotionSpiritPlugin(Star):
             logger.debug("emotion_spirit: 扫描人格失败", exc_info=True)
         return personas_cache
 
-    def _read_persona_prompt(self, persona_id: str) -> str | None:
-        try:
-            import sqlite3
+    @staticmethod
+    def _get_persona_db_cursor():
+        """上下文管理器: 打开 AstrBot personas 数据库游标。
+
+        v1.2.3-clean(TD-2): 消除 _read_persona_prompt / _list_available_personas
+        等方法的重复 sqlite3.connect / close 代码。
+        用法: with self._get_persona_db_cursor() as cursor: ...
+        """
+        import contextlib
+        import sqlite3
+        from pathlib import Path
+
+        @contextlib.contextmanager
+        def _cursor():
             db_path = Path(get_astrbot_data_path()) / "data_v4.db"
             if not db_path.exists():
-                return None
+                yield None
+                return
             conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT system_prompt FROM personas WHERE persona_id = ?",
-                (persona_id,),
-            )
-            row = cursor.fetchone()
-            conn.close()
-            return row[0] if row else None
+            try:
+                yield conn.cursor()
+            finally:
+                conn.close()
+        return _cursor()
+
+    def _read_persona_prompt(self, persona_id: str) -> str | None:
+        try:
+            with self._get_persona_db_cursor() as cursor:
+                if cursor is None:
+                    return None
+                cursor.execute(
+                    "SELECT system_prompt FROM personas WHERE persona_id = ?",
+                    (persona_id,),
+                )
+                row = cursor.fetchone()
+                return row[0] if row else None
         except Exception:
             logger.debug("persona_report_parser: 读取数据库失败", exc_info=True)
             return None
@@ -548,16 +569,11 @@ class EmotionSpiritPlugin(Star):
     def _list_available_personas(self) -> list[str]:
         """返回 AstrBot 数据库中可用的 persona_id 列表。"""
         try:
-            import sqlite3
-            db_path = Path(get_astrbot_data_path()) / "data_v4.db"
-            if not db_path.exists():
-                return []
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
-            cursor.execute("SELECT persona_id FROM personas")
-            rows = cursor.fetchall()
-            conn.close()
-            return [row[0] for row in rows if row[0]]
+            with self._get_persona_db_cursor() as cursor:
+                if cursor is None:
+                    return []
+                cursor.execute("SELECT persona_id FROM personas")
+                return [row[0] for row in cursor.fetchall() if row[0]]
         except Exception:
             logger.debug("emotion_spirit: 读取 persona 列表失败", exc_info=True)
             return []
@@ -672,13 +688,14 @@ class EmotionSpiritPlugin(Star):
         v1.2.2-fix(B5): config.auto_source 显式指定且存在于可用列表时,
         无论 saved_persona 是否为 sentinel,都优先使用 config,
         并重置 initialized=False 触发 /setup_init 走 LLM 路径。
+        v1.2.3-clean(TD-1): 移除 B5 逻辑已覆盖的冗余 sentinel 分支。
         """
         persona_data = self._store.get("persona", {})
         if self._is_persona_initialized(persona_data):
             saved_persona_id = persona_data.get("persona_id", "")
             config_persona = self._config.get("auto_source", "")
 
-            # v1.2.2: config 显式指定 + 存在于可用 persona 列表 → config 优先
+            # config 显式指定 + 存在于可用 persona 列表 → config 优先
             if config_persona and config_persona not in _SENTINEL_PERSONA_IDS:
                 available = self._list_available_personas()
                 if config_persona in available:
@@ -696,20 +713,6 @@ class EmotionSpiritPlugin(Star):
                     config_persona, available,
                 )
 
-            # 原逻辑: sentinel 占位时 config 优先
-            if (
-                config_persona
-                and saved_persona_id in _SENTINEL_PERSONA_IDS
-                and config_persona not in _SENTINEL_PERSONA_IDS
-            ):
-                logger.info(
-                    "emotion_spirit: config 指定 '%s' 覆盖持久化占位 %r,"
-                    "使用 config 路径",
-                    config_persona, saved_persona_id,
-                )
-                self._persona_initialized = False
-                self._labels = {}
-                return
             self._persona_initialized = True
             self._labels = dict(persona_data.get("labels", {}))
             if saved_persona_id:
