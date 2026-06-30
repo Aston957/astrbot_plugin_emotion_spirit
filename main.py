@@ -48,23 +48,25 @@ def _ns_command(name: str, cmd_attr: str, desc: str = ""):
         cmd_attr: self._cmd 上对应的方法名 (CommandImpl 类)
         desc: 命令描述,显示在 /help 列表和 dashboard 命令面板
 
-    Note (v4.25.5 兼容性):
-    - 不在签名里放 *args/**kwargs(v4.25.5 CommandFilter 会把 validate 后的 kwargs 当作必填)
+    Note (v4.26.1 兼容性):
+    - 必须加 *args 接收 CommandFilter 注入的位置参数 (v4.26.1 validate 后通过 _orig_args 注入)
     - 给每个 handler 唯一 __name__,避免 12 个 CommandFilter 共享同一个 _handler
       导致 cmd_attr 闭包永远是第一个命令
     """
-    async def _ns_handler(self, event: AstrMessageEvent):
+    async def _ns_handler(self, event: AstrMessageEvent, *args, **kwargs):
         handler = getattr(self._cmd, cmd_attr)
-        # 从 v4.25.5 校验后的 parsed_params 读第一个用户参数
-        parsed = event.get_extra("parsed_params") or {}
-        first_arg = parsed.get("args")
-        # 'args' 缺失或为 typing.Any(没传用户参数)→ 不传位置参数
-        if first_arg is None or first_arg is Any:
-            args_tuple: tuple = ()
-        elif isinstance(first_arg, str):
-            args_tuple = (first_arg,)
+        # v4.26.1: CommandFilter 通过 *args 传参; 兜底兼容旧版 parsed_params
+        if args:
+            args_tuple = args
         else:
-            args_tuple = (str(first_arg),)
+            parsed = event.get_extra("parsed_params") or {}
+            first_arg = parsed.get("args")
+            if first_arg is None or first_arg is Any:
+                args_tuple: tuple = ()
+            elif isinstance(first_arg, str):
+                args_tuple = (first_arg,)
+            else:
+                args_tuple = (str(first_arg),)
         async for r in handler(event, *args_tuple):
             yield r
 
@@ -540,6 +542,23 @@ class EmotionSpiritPlugin(Star):
             logger.debug("persona_report_parser: 读取数据库失败", exc_info=True)
             return None
 
+    def _list_available_personas(self) -> list[str]:
+        """返回 AstrBot 数据库中可用的 persona_id 列表。"""
+        try:
+            import sqlite3
+            db_path = Path(get_astrbot_data_path()) / "data_v4.db"
+            if not db_path.exists():
+                return []
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            cursor.execute("SELECT persona_id FROM personas")
+            rows = cursor.fetchall()
+            conn.close()
+            return [row[0] for row in rows if row[0]]
+        except Exception:
+            logger.debug("emotion_spirit: 读取 persona 列表失败", exc_info=True)
+            return []
+
     def _detect_default_persona(self) -> str:
         try:
             import json
@@ -645,12 +664,36 @@ class EmotionSpiritPlugin(Star):
         )
 
     def _load_persona_state(self) -> None:
+        """加载 persona 状态,处理持久化与 config 的优先级。
+
+        v1.2.2-fix(B5): config.auto_source 显式指定且存在于可用列表时,
+        无论 saved_persona 是否为 sentinel,都优先使用 config,
+        并重置 initialized=False 触发 /setup_init 走 LLM 路径。
+        """
         persona_data = self._store.get("persona", {})
         if self._is_persona_initialized(persona_data):
             saved_persona_id = persona_data.get("persona_id", "")
             config_persona = self._config.get("auto_source", "")
-            # 优先级: 持久化是 sentinel 占位 + config 显式指定了真实 persona
-            # → 视为首次启动,config 优先,让 /setup_init 走正常路径
+
+            # v1.2.2: config 显式指定 + 存在于可用 persona 列表 → config 优先
+            if config_persona and config_persona not in _SENTINEL_PERSONA_IDS:
+                available = self._list_available_personas()
+                if config_persona in available:
+                    logger.info(
+                        "emotion_spirit: config.auto_source='%s' 覆盖 saved='%s',"
+                        "重置 initialized=False 以触发 LLM 分析",
+                        config_persona, saved_persona_id,
+                    )
+                    self._current_persona = config_persona
+                    self._persona_initialized = False
+                    self._labels = {}
+                    return
+                logger.warning(
+                    "emotion_spirit: config.auto_source='%s' 不在可用列表 %s,忽略",
+                    config_persona, available,
+                )
+
+            # 原逻辑: sentinel 占位时 config 优先
             if (
                 config_persona
                 and saved_persona_id in _SENTINEL_PERSONA_IDS
@@ -700,35 +743,31 @@ class EmotionSpiritPlugin(Star):
         logger.info("emotion_spirit: 超我层已重置（13 维 baseline 已用新 labels 重推）")
 
     def _migrate_old_spirit_data(self) -> None:
+        """迁移旧数据到新的 persona 持久化格式。
+
+        v1.2.2-fix(B6): 无论是不是 sentinel, 都留 initialized=False,
+        让 /setup_init 能真正走 LLM 分析路径, 避免 ISTJ 默认值锁死。
+        """
         labels = self._get_default_labels()
-        logger.warning(
-            "emotion_spirit: 检测到老数据, 使用默认 labels (ISTJ-安全型)。"
-            "请用 /setup_relabel 调整为正确 persona。"
-        )
-        # 关键: 如果 _current_persona 是 sentinel 占位符(说明没真正选过),
-        # 不能假装"已初始化" — 否则会污染后续 restart 的 _load_persona_state 路径。
-        # 保留 labels 供 /view 类参考,但 persona_initialized 留 False,等用户显式初始化。
-        if self._current_persona in _SENTINEL_PERSONA_IDS:
+        is_sentinel = self._current_persona in _SENTINEL_PERSONA_IDS
+
+        if is_sentinel:
             logger.warning(
-                "emotion_spirit: 迁移完成但 _current_persona 是占位符 %r,"
+                "emotion_spirit: 检测到旧数据且 persona 为占位符 %r,"
                 "labels 暂用 ISTJ 默认值 (mbti=%s),"
                 "persona_initialized 留 False,等待 /setup_init 或 /setup_switch",
                 self._current_persona, labels.get("mbti"),
             )
-            self._labels = labels
-            self._persona_initialized = False
-            return
-        self._store.set("persona", {
-            "initialized": True,
-            "persona_id": self._current_persona,
-            "labels": labels,
-            "initialized_at": datetime.now(timezone.utc).isoformat(),
-            "schema_version": 1,
-        })
-        self._store.save()
-        self._persona_initialized = True
+        else:
+            logger.warning(
+                "emotion_spirit: 检测到旧数据且 persona='%s',"
+                "labels 暂用 ISTJ 默认值,但 initialized 留 False,"
+                "请运行 /setup_init 获取真实人格分析",
+                self._current_persona,
+            )
+        # 统一留 False, 强制走 /setup_init LLM 路径
         self._labels = labels
-        logger.info("emotion_spirit: 老数据迁移完成，persona = %s", labels)
+        self._persona_initialized = False
 
     # ═══ 生命周期 ═══
 
