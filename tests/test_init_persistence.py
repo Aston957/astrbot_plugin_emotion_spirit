@@ -228,10 +228,11 @@ def test_t10_migrate_old_spirit_data():
         # 3) 调用 _migrate_old_spirit_data()，这是被测对象
         plugin._migrate_old_spirit_data()
 
-        # 4) 验证 _persona_initialized 被设置为 True
-        assert plugin._persona_initialized is True
+        # 4) v1.2.2 B6-fix: 非 sentinel persona 统一留 initialized=False,
+        #    避免 ISTJ 默认值锁死，让 /setup_init 能走 LLM 路径
+        assert plugin._persona_initialized is False
 
-        # 5) 验证 _labels 匹配 _get_default_labels() (ISTJ-安全型)
+        # 5) 验证 _labels 匹配 _get_default_labels() (ISTJ-安全型, 供 /view 类参考)
         expected_labels = EmotionSpiritPlugin._get_default_labels(plugin)
         assert plugin._labels == expected_labels
         assert plugin._labels == {
@@ -242,12 +243,10 @@ def test_t10_migrate_old_spirit_data():
             "time_focus": "活在当下",
         }
 
-        # 6) 验证 store 写入了 persona
+        # 6) v1.2.2 B6-fix: 迁移不再写 store (避免 initialized=True 锁死)
+        #    store 仍无 persona 键，等待 /setup_init 真正初始化时写入
         persona_data = store.get("persona")
-        assert persona_data is not None
-        assert persona_data["persona_id"] == "xiaofu"
-        assert persona_data["schema_version"] == 1
-        assert EmotionSpiritPlugin._is_persona_initialized(persona_data) is True
+        assert persona_data is None
 
 
 # ═══ T6/T7/T9: /spirit_relabel 边界条件 ═══

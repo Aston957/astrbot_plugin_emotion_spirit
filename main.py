@@ -1370,6 +1370,7 @@ class EmotionSpiritPlugin(Star):
     reflect_sentinel_cmd = _ns_command("reflect_sentinel", "reflect_sentinel", "查看预警状态。")
     reflect_shadows_cmd = _ns_command("reflect_shadows", "reflect_shadows", "查看阴影检测。")
     reflect_diary_cmd = _ns_command("reflect_diary", "reflect_diary", "手动生成日记。")
+    view_diary_cmd = _ns_command("view_diary", "view_diary", "查看历史日记（最近 N 篇）。")
     reflect_patterns_cmd = _ns_command("reflect_patterns", "reflect_patterns", "查看行为模式。")
 
     # ═══ 内部方法: 持久化 ═══
@@ -1496,26 +1497,13 @@ class EmotionSpiritPlugin(Star):
             buffer_signals=self._buffer_signals,
         )
 
-    def _save_if_dirty(self) -> None:
-        self._store.set("memory_pool", self._pool.to_dict())
-        self._store.set("intimacy", self._intimacy.to_dict())
-        self._store.set("alignment", self._alignment.to_dict())
-        self._store.set("conscience", self._conscience.to_dict())
-        self._store.set("ideal_self", self._ideal.to_dict())
-        self._store.set("value_resistance", self._value_resistance.to_dict())
-        self._store.set("superego_guard", self._superego_guard.to_dict())
-        # v1.1.0A: LifeSimulator v2 (adapt_plan 会修改 plan 状态)
-        if hasattr(self, '_life_sim_v2'):
-            self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
-            self._store.set("last_plan_date", self._last_plan_date)
-        # v1.1.0B: ReflexLearner + DreamGenerator
-        if hasattr(self, '_reflex_store'):
-            self._store.set("reflex_deltas", self._reflex_store.to_dict())
-        if hasattr(self, '_dream_generator'):
-            self._store.set("dream_state", self._dream_generator.to_dict())
-        self._store.save()
+    def _persist_modules(self) -> None:
+        """统一所有模块持久化 (v1.2.2 B7-fix: 合并 _save_if_dirty/_save_all 两路径)。
 
-    def _save_all(self) -> None:
+        高频调用 (_save_if_dirty) 和低频调用 (_save_all/terminate) 共用此方法,
+        避免"两保存路径分叉"导致 diary/reservoir/patterns 等 >=8 个模块只在
+        terminate 时才写 storage。
+        """
         self._store.set("memory_pool", self._pool.to_dict())
         self._store.set("intimacy", self._intimacy.to_dict())
         self._store.set("alignment", self._alignment.to_dict())
@@ -1537,14 +1525,23 @@ class EmotionSpiritPlugin(Star):
         if self._narrative:
             self._store.set("narrative", self._narrative.to_dict())
         self._store.set("counterfactual", self._counterfactual.to_dict())
-        # v1.1.0A: LifeSimulator v2 持久化
-        self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
-        self._store.set("last_plan_date", self._last_plan_date)
-        # v1.1.0B: ReflexLearner + DreamGenerator persistence
+        # v1.1.0A: LifeSimulator v2 (adapt_plan 会修改 plan 状态)
+        if hasattr(self, '_life_sim_v2'):
+            self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
+            self._store.set("last_plan_date", self._last_plan_date)
+        # v1.1.0B: ReflexLearner + DreamGenerator
         if hasattr(self, '_reflex_store'):
             self._store.set("reflex_deltas", self._reflex_store.to_dict())
         if hasattr(self, '_dream_generator') and hasattr(self._dream_generator, 'to_dict'):
             self._store.set("dream_state", self._dream_generator.to_dict())
+
+    def _save_if_dirty(self) -> None:
+        self._persist_modules()
+        self._store.save()
+
+    def _save_all(self) -> None:
+        self._persist_modules()
+        self._store.save()
 
     # ═══ 公开 API (v1.1.1 + v1.2 扩展) — 保持向后兼容结构 ═══
     # 注: PublicAPI 网关提供 flat 结构 (B6.10), 这里保留 nested "pad"/"distribution" 结构

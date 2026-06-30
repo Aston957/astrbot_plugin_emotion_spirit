@@ -578,6 +578,33 @@ class CommandImpl:
         prompt = self._p._diary.build_diary_prompt(diary_type)
         yield event.plain_result(f"📝 日记类型: {diary_type}\n\n{prompt}")
 
+    async def view_diary(self, event: AstrMessageEvent, days: str = "3") -> None:
+        """查看历史日记（最近 N 篇）。参数 days 指定查看最近多少天，默认 3。"""
+        try:
+            days_int = int(days)
+        except (ValueError, TypeError):
+            days_int = 3
+        if days_int < 1:
+            days_int = 1
+        if days_int > 365:
+            days_int = 365
+
+        entries = self._p._diary.get_recent_diary(days=days_int)
+        if not entries:
+            yield event.plain_result(f"📝 最近 {days_int} 天没有日记记录")
+            return
+
+        lines = [f"📝 最近 {days_int} 天的日记 ({len(entries)} 篇):\n"]
+        for e in sorted(entries, key=lambda x: x.get("timestamp", 0), reverse=True)[:10]:
+            ts = datetime.fromtimestamp(e["timestamp"], tz=timezone.utc).strftime("%m-%d %H:%M")
+            diary_type = e.get("type", "?")
+            text = e.get("text", "")
+            # 截断过长的日记
+            if len(text) > 200:
+                text = text[:200] + "…"
+            lines.append(f"  [{ts}] ({diary_type}) {text}")
+        yield event.plain_result("\n".join(lines))
+
     async def reflect_patterns(self, event: AstrMessageEvent) -> None:
         """查看行为模式。"""
         self._p._patterns.extract()
