@@ -1,4 +1,4 @@
-# emotion_spirit v1.2.1
+# emotion_spirit v1.2.4
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
@@ -29,7 +29,7 @@
 GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, 含 sylanne + KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-1.2.1.zip`
+2. 下载 `astrbot-plugin-emotion-spirit-1.2.4.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. **关键**: 进入插件目录执行 `pip install -e .` (v1.2.2+ 必需)
    ```bash
@@ -123,6 +123,10 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 - **定时写日记**: `diary.schedule_hours` 配触发时间, `_schedule_diary_generation_loop` 异步调度 (复刻 2am scheduler 模式, 防重复触发)
 - **分级 provider**: reasoning 类模型 30s+ 正常, 快速需求选 flash; 手动 `/reflect_diary` 立即触发
 - **ForceState 入日记** (v1.2.1): 日记与超我反思 prompt 均注入三元力学基调 (自然/社会/个体), `configure_force_dynamics` 方法
+- **分段回复引擎** (v1.2.3 opt-in): `_conf_schema.json:segmented_reply.enable` 开启后, bot 长回复按标点切分并段间模拟打字延迟。engines `RealtimeDispatch` / `RhythmLearner` / `DeliberateSilence` 已在仓库, 现在通过 `SegmentedReplyCoordinator` (57 模块) 接入到回复链路
+- **`/view_diary [N]` 命令** (v1.2.2 B8): 查看历史日记 (默认最近 3 天, 可指定天数)
+- **人格解析器去偏置** (v1.2.2 B9): `_infer_mbti_from_narrative` tie-breaking 不再偏向 INTJ; 否定词 (而不是/不是/不/没) 预处理; 时间取向否定语境 ("不活在未来") 不再误判
+- **main.py 模块化减负** (v1.2.4): 3 个超长方法 (`on_llm_request` 171→75 行, `_setup_persona_state` 163→8 行, `_load_persistent_data` 126→5 行) 拆分为按职责命名的子方法, 建立可延续拆分范式
 
 ### 其他特性
 - **pyproject.toml 现代打包**: `pip install -e .[dev]` 干净, setuptools >=80, python >=3.11
@@ -159,7 +163,7 @@ pip install -e .[dev]
 
 # 验证
 python -c "import emotion_spirit; print(emotion_spirit.__version__)"
-# 期望: 1.2.1
+# 期望: 1.2.4
 ```
 
 ### 通过 AstrBot 拖拽 (传统)
@@ -354,7 +358,7 @@ pressure = tracker.get_pressure()
 emotion_spirit/
 ├── __init__.py                # 公开 API 入口 + _DeprecatedImportFinder (C3) + PEP 440 version (C2)
 ├── layer.py                   # 抽象基类 (留根)
-├── _version.py                # PEP 440 version 真相源 (1.2.1)
+├── _version.py                # PEP 440 version 真相源 (1.2.4)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
 ├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)
@@ -432,8 +436,8 @@ emotion_spirit/
 | 指标 | 数值 |
 |------|------|
 | 模块 | 109 (58 core + 46 sylanne + 5 migrations) |
-| @register 模块 | 56 (48→56 @v1.2.1) |
-| 测试 | 1241 passed, 0 failures |
+| @register 模块 | 57 (56→57 @v1.2.3, +SegmentedReplyCoordinator) |
+| 测试 | 1250 passed, 0 failures |
 | 人格维度 | 13 维 |
 | 外部依赖 | 0 (仅依赖 AstrBot) |
 | Python | >= 3.11 |
