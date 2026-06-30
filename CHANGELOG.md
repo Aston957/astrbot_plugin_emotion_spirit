@@ -5,6 +5,31 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.2] — 2026-06-30
+
+> 用户安装反馈修复版本。9 bug (B1-B9) 全部修复，纯修复无新功能。
+
+### Fixed
+
+- **B1 (文档)**: README 方式 1 补 `pip install -e .` 步骤，解释 emotion_spirit 绝对导入需要安装为 site-packages 包
+- **B2 (打包 🔴)**: pyproject.toml `[tool.setuptools].packages` 改用 `find()` 自动发现，删除手维护白名单，防止新增子包再漏列
+- **B3 (导出 🟡)**: `emotion_spirit/__init__.py` 添加 `PublicAPI` 顶层 re-export，`from emotion_spirit import PublicAPI` 现在可用
+- **B4 (命令 🔴)**: `_ns_handler` 加 `*args, **kwargs` 接收 AstrBot v4.26.1 CommandFilter 参数注入，兼容旧版 `parsed_params` 兜底
+- **B5 (persona 🟡)**: `_load_persona_state` 让 `config.auto_source` 显式指定时覆盖持久化 saved persona，新增 `_list_available_personas()` 扫描数据库
+- **B6 (迁移 🔴)**: `_migrate_old_spirit_data` 统一留 `initialized=False`，非 sentinel persona 不再锁 ISTJ 默认值，让 `/setup_init` 走 LLM 路径
+- **B7 (持久化 🔴)**: 合并 `_save_if_dirty` / `_save_all` 为 `_persist_modules()` 统一路径，补上漏存的 diary/reservoir/patterns/buffer_signals/shadow/life_sim/drift/sentinel/narrative/counterfactual ≥8 模块
+- **B8 (命令 🟡)**: 新增 `/view_diary [days]` 命令，暴露现成 `get_recent_diary()` 方法
+- **B9 (解析 🔴)**: `_infer_mbti_from_narrative` tie-breaking 不再偏向 INTJ 轴（E/I tie→E, F/T tie→F, P/J tie→P），否定词预处理，时间取向否定语境处理
+
+### Changed
+
+- **CI 防回归**: 新增 `tests/test_v122_regression.py` (8 tests)，覆盖 B4/B6/B7/B8/B9 行为
+- **test_t10**: 更新匹配 B6 新行为（非 sentinel 统一 `initialized=False`）
+
+### Removed
+
+- **packages 白名单**: 删除 pyproject.toml 中手维护的 8 项子包列表，替换为 `find()`
+
 ## [1.2.1] — 2026-06-29
 
 > 自 v1.1.0 (2026-06-28) 以来的变更。DI 双轨清零 + ForceState 入日记 + 注册模块 48→56。

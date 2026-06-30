@@ -3,7 +3,7 @@
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
 
-[![Tests](https://img.shields.io/badge/tests-1241%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-1250%20passed-brightgreen)]()
 [![CI](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml/badge.svg)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Aston957/astrbot_plugin_emotion_spirit)](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)]()
