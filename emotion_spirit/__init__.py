@@ -61,6 +61,9 @@ from .agents import (
 # Phase 4 C2: 暴露 PEP 440 合法 version (per code review I3)
 from ._version import __version__
 
+# v1.2.2 B3-fix: 顶层门面 re-export (L3 output 对外门面, 提升到顶层不破坏依赖方向)
+from .output.public_api import PublicAPI  # noqa: F401
+
 
 # ═══ Phase 4 C3: v1.x import path redirect ═══
 class _DeprecatedImportFinder(importlib.abc.MetaPathFinder):

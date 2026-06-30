@@ -43,19 +43,12 @@ dev = [
 ]
 
 [tool.setuptools]
-# 显式列出所有子包, 避免 setuptools find() 漏掉
-# bridge (SylannEngine 桥接层), sylanne (内嵌 SylannEngine 计算核心)
-packages = [
-  "emotion_spirit",
-  "emotion_spirit.core",
-  "emotion_spirit.memory",
-  "emotion_spirit.regulation",
-  "emotion_spirit.output",
-  "emotion_spirit.bridge",
-  "emotion_spirit.sylanne",
-  "emotion_spirit.sylanne.compute",
-]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+# 自动发现 emotion_spirit 及其子包, 不再手维护白名单 (v1.2.2 B2-fix)
+# 防止未来新增子包 (如 agents/migrations/regulation.superego) 漏列到 wheel
+include = ["emotion_spirit*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "emotion_spirit._version.__version__" }
