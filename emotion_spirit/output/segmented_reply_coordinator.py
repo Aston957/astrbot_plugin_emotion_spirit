@@ -126,6 +126,10 @@ class SegmentedReplyCoordinator:
         # 延迟策略 (v1.2.5 PR1 §5)
         self._delay_strategy: DelayStrategy = TypingDelayStrategy()
 
+        # 历史追踪 (v1.2.5 PR1 Task 10)
+        self._silence_history: list[dict] = []
+        self._segment_history: list[dict] = []
+
     # ═══ 主入口 ═══
 
     def plan(
@@ -446,15 +450,49 @@ class SegmentedReplyCoordinator:
             return (False, "below_threshold", tendency)
 
     @per_user_only
-    def record_silence_event(self, user_id: str) -> None:
+    def record_silence_event(
+        self,
+        user_id: str,
+        tendency: Optional[SilenceTendency] = None,
+        full_text: str = "",
+        force_state: Optional[Any] = None,
+    ) -> None:
         """记录一次沉默事件 (S3 event tracking).
 
         沉默时调用: 递增连续沉默计数, 重置冷却计数.
+
+        v1.2.5 PR1 Task 10: 新增 history 记录 (for /reflect_force_current).
         """
         self._consecutive_silence_count[user_id] = (
             self._consecutive_silence_count.get(user_id, 0) + 1
         )
         self._turns_since_last_silence[user_id] = 0
+
+        # 记录历史
+        entry: dict[str, Any] = {
+            "user_id": user_id,
+            "timestamp": time.time(),
+        }
+        if tendency is not None:
+            entry["reason"] = tendency.reason
+            entry["score"] = tendency.score
+            entry["components"] = dict(tendency.components)
+        if full_text:
+            entry["full_text_preview"] = full_text[:200]
+        if force_state is not None:
+            from dataclasses import asdict
+            try:
+                entry["force_state"] = (
+                    asdict(force_state)
+                    if hasattr(force_state, '__dataclass_fields__')
+                    else dict(force_state)
+                )
+            except Exception:
+                entry["force_state"] = str(force_state)
+
+        self._silence_history.append(entry)
+        if len(self._silence_history) > 1000:
+            self._silence_history = self._silence_history[-1000:]
 
     @per_user_only
     def record_response_event(self, user_id: str) -> None:
@@ -466,6 +504,75 @@ class SegmentedReplyCoordinator:
         self._turns_since_last_silence[user_id] = (
             self._turns_since_last_silence.get(user_id, 0) + 1
         )
+
+    @per_user_only
+    def record_segment_event(
+        self, user_id: str, num_segments: int, total_delay: float
+    ) -> None:
+        """记录一次分段发送事件 (v1.2.5 PR1 Task 10).
+
+        Args:
+            user_id: 用户标识.
+            num_segments: 分段数量.
+            total_delay: 总延迟秒数.
+        """
+        self._segment_history.append({
+            "user_id": user_id,
+            "num_segments": num_segments,
+            "total_delay": total_delay,
+            "timestamp": time.time(),
+        })
+        if len(self._segment_history) > 1000:
+            self._segment_history = self._segment_history[-1000:]
+
+    def get_history(self) -> dict[str, Any]:
+        """返回 7 天统计 (v1.2.5 PR1 Task 10).
+
+        Returns:
+            dict with silence_count_7d, silence_dominant_reason,
+            segment_count_7d, avg_segment_count, avg_delay_seconds.
+        """
+        cutoff = time.time() - 7 * 24 * 3600
+
+        recent_silences = [
+            e for e in self._silence_history
+            if e.get("timestamp", 0) > cutoff
+        ]
+        recent_segments = [
+            e for e in self._segment_history
+            if e.get("timestamp", 0) > cutoff
+        ]
+
+        silence_count = len(recent_silences)
+        silence_reasons = [
+            e["reason"] for e in recent_silences if "reason" in e
+        ]
+        dominant_reason = (
+            max(set(silence_reasons), key=silence_reasons.count)
+            if silence_reasons else "none"
+        )
+
+        segment_count = len(recent_segments)
+        if segment_count > 0:
+            avg_seg = (
+                sum(e.get("num_segments", 0) for e in recent_segments)
+                / segment_count
+            )
+            avg_delay = (
+                sum(e.get("total_delay", 0) for e in recent_segments)
+                / segment_count
+            )
+        else:
+            avg_seg = 0.0
+            avg_delay = 0.0
+
+        return {
+            "silence_count_7d": silence_count,
+            "silence_dominant_reason": dominant_reason,
+            "segment_count_7d": segment_count,
+            "avg_segment_count": avg_seg,
+            "avg_delay_seconds": avg_delay,
+        }
 
     # ═══ per-session ignored_rate 计算 (D8) ═══
 
@@ -521,14 +628,16 @@ class SegmentedReplyCoordinator:
     # ═══ 序列化 ═══
 
     def to_dict(self) -> dict[str, Any]:
-        """序列化 ignored_rate 状态 (与 BreakpointStore 同档)."""
+        """序列化 ignored_rate 状态 + 历史 (与 BreakpointStore 同档)."""
         return {
             "reply_times": {k: list(v) for k, v in self._reply_times.items()},
             "user_times": {k: list(v) for k, v in self._user_times.items()},
+            "silence_history": self._silence_history[-500:] if self._silence_history else [],
+            "segment_history": self._segment_history[-500:] if self._segment_history else [],
         }
 
     def from_dict(self, data: dict[str, Any]) -> None:
-        """反序列化恢复状态。"""
+        """反序列化恢复状态."""
         self._reply_times = {
             k: deque(v, maxlen=self._window)
             for k, v in data.get("reply_times", {}).items()
@@ -537,3 +646,5 @@ class SegmentedReplyCoordinator:
             k: deque(v, maxlen=self._window)
             for k, v in data.get("user_times", {}).items()
         }
+        self._silence_history = list(data.get("silence_history", []))
+        self._segment_history = list(data.get("segment_history", []))

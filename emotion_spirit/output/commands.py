@@ -620,6 +620,56 @@ class CommandImpl:
 
         yield event.plain_result("\n".join(lines))
 
+    async def reflect_force_current(self, event: AstrMessageEvent) -> None:
+        """/reflect_force_current - 查看当前力平衡 + 沉默/分段历史 (v1.2.5 PR1 Task 10)."""
+        # 获取 force_state
+        if not hasattr(self._p, "_force_dynamics") or self._p._force_dynamics is None:
+            yield event.plain_result("ForceDynamics 未装载")
+            return
+
+        force_state = self._p.get_current_force_state(
+            getattr(self._p, "_labels", {})
+        )
+
+        if force_state is None:
+            yield event.plain_result("无法计算 ForceState (labels 不可用)")
+            return
+
+        # 获取历史
+        history: dict[str, Any] = {}
+        if hasattr(self._p, "_segmented_coordinator"):
+            get_history = getattr(self._p._segmented_coordinator, "get_history", None)
+            if callable(get_history):
+                history = get_history()
+
+        def _force_val(key: str) -> float:
+            if hasattr(force_state, key):
+                return float(getattr(force_state, key))
+            if isinstance(force_state, dict):
+                return float(force_state.get(key, 0.5))
+            return 0.5
+
+        # 找出主导力
+        forces = {
+            "natural": _force_val("natural"),
+            "social": _force_val("social"),
+            "individual": _force_val("individual"),
+        }
+        dominant = max(forces, key=forces.get)
+
+        lines = [
+            "ForceState",
+            f"natural: {forces['natural']:.2f}",
+            f"social: {forces['social']:.2f}",
+            f"individual: {forces['individual']:.2f}",
+            f"dominant: {dominant}",
+            "",
+            "7d:",
+            f"- silence: {history.get('silence_count_7d', 0)} (main: {history.get('silence_dominant_reason', 'none')})",
+            f"- segment: {history.get('segment_count_7d', 0)} (avg {history.get('avg_segment_count', 0):.1f} seg/rep, delay {history.get('avg_delay_seconds', 0):.1f}s)",
+        ]
+        yield event.plain_result("\n".join(lines))
+
     # ═══ /view 扩展命令 ═══
 
     async def view_memory(self, event: AstrMessageEvent) -> None:

@@ -429,6 +429,7 @@ class EmotionSpiritPlugin(Star):
         reflect.command("shadows", help_text="阴影检测")(self._cmd.reflect_shadows)
         reflect.command("diary", help_text="日记查看")(self._cmd.reflect_diary)
         reflect.command("patterns", help_text="模式识别")(self._cmd.reflect_patterns)
+        reflect.command("force_current", help_text="力平衡 + 沉默/分段历史")(self._cmd.reflect_force_current)
 
     # ═══ Persona Management (kept in main.py for now) ═══
 
@@ -1382,7 +1383,10 @@ class EmotionSpiritPlugin(Star):
 
             # 3. 沉默触发 (S1)
             if should_silent and seg_config.get("enable_deliberate_silence", False):
-                self._segmented_coordinator.record_silence_event(user_id)
+                self._segmented_coordinator.record_silence_event(
+                    user_id, tendency=silence_tendency_obj,
+                    full_text=bot_text, force_state=force_state,
+                )
                 response.completion_text = ""
                 response.result_chain = None
                 logger.debug(
@@ -1429,6 +1433,14 @@ class EmotionSpiritPlugin(Star):
 
             # 7. 推进冷却计数
             self._segmented_coordinator.record_response_event(user_id)
+
+            # 8. 记录分段历史 (v1.2.5 PR1 Task 10)
+            total_delay = sum(
+                p.get("delay_before_seconds", 0.0) for p in plan
+            )
+            self._segmented_coordinator.record_segment_event(
+                user_id, num_segments=len(plan), total_delay=total_delay,
+            )
 
         except Exception:
             # F1: 整体失败 → 让 AstrBot 正常发
@@ -1486,6 +1498,7 @@ class EmotionSpiritPlugin(Star):
     reflect_diary_cmd = _ns_command("reflect_diary", "reflect_diary", "手动生成日记。")
     view_diary_cmd = _ns_command("view_diary", "view_diary", "查看历史日记（最近 N 篇）。")
     reflect_patterns_cmd = _ns_command("reflect_patterns", "reflect_patterns", "查看行为模式。")
+    reflect_force_current_cmd = _ns_command("reflect_force_current", "reflect_force_current", "查看当前力平衡 + 沉默/分段历史。")
 
     # ═══ 内部方法: 持久化 ═══
 
