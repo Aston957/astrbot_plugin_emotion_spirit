@@ -104,6 +104,23 @@ jobs:
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "astrbot_plugin_emotion_spirit/docs/" && (echo "  ✗ docs/ should be excluded" && exit 1) || echo "  ✓ docs/ excluded"
           unzip -l "${{ steps.version.outputs.ZIP_NAME }}" | grep -q "narrative_backtest" && (echo "  ✗ narrative_backtest JSON should be excluded" && exit 1) || echo "  ✓ narrative_backtest JSON excluded"
 
+      - name: Clean up previous release for this tag (force-retag safe)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "::notice::Cleaning any previous release/tag pair for ${TAG}"
+          # Delete published release if exists (ignore "not found")
+          gh release delete "${TAG}" --yes 2>/dev/null || true
+          # Delete any draft release that may shadow the published one (softprops picks drafts first → conflict)
+          DRAFT_ID=$(gh api -X GET "repos/${GITHUB_REPOSITORY}/releases" \
+            --jq ".[] | select(.draft == true and .tag_name == \"${TAG}\") | .id" 2>/dev/null | head -1)
+          if [ -n "${DRAFT_ID}" ]; then
+            echo "::notice::Deleting shadowing draft release ${DRAFT_ID}"
+            gh release delete "${DRAFT_ID}" --yes 2>/dev/null || true
+          fi
+          echo "::notice::Cleanup done."
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
