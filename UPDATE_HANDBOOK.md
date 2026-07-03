@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: v1.1.0 | schema version: v4 | 状态: 已 ship（tag → 652b58b），尚未上架市场（0 用户）。
+> 当前版本: v1.2.5-rc.1 (PR1 已 ship, PR2+PR3 待) | schema version: v4 | 状态: PR1 已 ship (tag → `v1.2.5-rc.1`, HEAD `99ef2fa`), PR2 (DefenseModulator) + PR3 (清债 + Bug 13/14) 待执行。
 
 ---
 
@@ -182,7 +182,98 @@ v2 = config.setdefault("life_sim_v2", {})
 5. push 走 proxy（本机直连 GitHub 不通）：`git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 push origin main`
 6. 打 tag `v*` 触发 `release.yml` 自动 build slim zip + 发 Release
 7. **到 https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions 验 Release 真出了**（这步 AI 做不了，必须人看）
-8. 若 ship-prep 修复在打 tag 之后才进 main → tag 已过时，需 force 重打 tag 指向新 commit（已用过一次：v1.1.0 54bc65b → 652b58b）。**优先选打新 patch tag**，force 重打是最后手段且会改变已下载用户的语义。
+8. 若 ship-prep 修复在打 tag 之后才进 main → tag 已过时，需 force 重打 tag 指向新 commit（已用过一次：v1.1.0 54bc65b → 652b58b；v1.2.5 PR1 `830b600` → `3dd9c7d` → `99ef2fa` force 重打 3 次）。**优先选打新 patch tag**，force 重打是最后手段且会改变已下载用户的语义。
+
+### 4.5 ship 阻塞常见模式（v1.2.5 PR1 血教训 4 条）
+
+下面 4 条是 v1.2.5 PR1 ship 时**连续撞**的 4 个 release 阻塞，**每个都强制修了新 commit 才 ship**。下个 PR ship 前先扫一遍这 4 条，能省 30 分钟 + 3 个 force retag。
+
+#### 4.5.1 Plan 必须跟 release workflow 协同设计
+
+**症状**：plan 说 "PR1 用 `v1.2.5-rc.1` tag"，但 `.github/workflows/release.yml` 的 `Verify version consistency` 步骤写死 `TAG_VERSION == PY_BASE`，对 rc suffix 直接红。
+
+**根因**：plan 跟 release.yml 是**两份独立设计**，没人协同 review。release.yml 设计时只考虑了 `v1.0.0` → `1.0.0` 一对一，没考虑 prerelease suffix 场景。
+
+**预防**：
+- **Plan ship 章节 + release.yml 一起 review**，确认 tag 命名规则两边都覆盖
+- 若 plan 用 rc tag，release.yml 必须支持 `TAG_BASE` 比较（剥掉 `-rc.N` / `-beta.N` / `-alpha.N` 后缀）
+- **真实落法（已 ship v1.2.5 PR1 830b600）**：
+  ```bash
+  TAG_BASE=$(echo "${TAG_VERSION}" | sed -E 's/-(rc|beta|alpha)\.[0-9]+$//')
+  # 比较 TAG_BASE 而非 TAG_VERSION
+  ```
+
+#### 4.5.2 CI flake 用产品代码 fallback > 测试 mock time
+
+**症状**：`test_v2_full_lifecycle` 在本地 5 跑 5 PASS，CI 5 矩阵格里 1 格（Python 3.11 × AstrBot 4.14.6）持续红。
+
+**根因**：`build_schedule_context(now=time.time())` 默认查**当前时段**的 planned 事件。CI runner 跑得稍慢/早，plan 生成时段（morning）跟 context 查询时段（night）错配 → 返回空字符串 → `assert context` 失败。
+
+**预防**：
+- **产品代码 fallback > 测试 mock time**：让 `build_schedule_context` 在 `current_events` 为空但 `all_planned` 不空时，自动 fallback 展示今日全部计划（按时段顺序）。这样 CI 永远不因时段错配失败，**用户体验也更好**（用户查不在活动时段也能看到今天的全部安排）。
+- **真实落法（已 ship v1.2.5 PR1 3dd9c7d）**：
+  ```python
+  if current_events:
+      # 正常路径
+      ...
+  else:
+      # Fallback: 当前时段无 planned 事件 → 展示今日全部 planned
+      all_planned = [e for e in self._current_plan.events if e.status == "planned"]
+      if all_planned:
+          all_planned.sort(key=lambda e: _SLOT_ORDER.get(e.time_slot, 99))
+          activities = ", ".join(f"{e.time_slot}{e.activity}" for e in all_planned)
+          parts.append(f"今天计划: {activities}")
+  ```
+- mock time 是 test-side fix，**只让测试 PASS**；产品代码 fallback 是 behavior fix，**让所有 caller 受益**。
+
+#### 4.5.3 gh CLI 在 GitHub Actions runner 上不可靠
+
+**症状**：cleanup step 用 `gh release delete <tag> --yes`，但 log 显示 "Using release 348423945 for tag v1.2.5-rc.1" → 说明 cleanup **没真删掉**，旧 release 还在 → softprops finalize 撞 `already_exists`。
+
+**根因**：GitHub Actions 默认 `GITHUB_TOKEN` 对 `gh` CLI 子命令的支持有限。`gh release delete` 需要显式 `id_token: write` 或其他权限才能稳定运行，但 standard `contents: write` 不够。
+
+**预防**：
+- **永远用 `curl` + REST API，不用 `gh` CLI 在 workflow 里做 destructive 操作**
+- REST API 直接 DELETE `/repos/{owner}/{repo}/releases/tags/{tag}`，稳定可靠
+- **真实落法（已 ship v1.2.5 PR1 99ef2fa）**：
+  ```yaml
+  - name: Clean up previous release for this tag (force-retag safe)
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      TAG="${GITHUB_REF#refs/tags/}"
+      # Delete published release (REST API, 比 gh CLI 在 runner 上更可靠)
+      curl -s -o /dev/null -w "%{http_code}" \
+        -X DELETE \
+        -H "Authorization: token ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}"
+      # Delete all drafts for this tag (list API + filter + delete each)
+      DRAFT_IDS=$(curl -s \
+        -H "Authorization: token ${GITHUB_TOKEN}" \
+        "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+        | python3 -c "import json,sys; rs=json.load(sys.stdin); print('\n'.join(str(r['id']) for r in rs if r.get('tag_name')==\"${TAG}\" and r.get('draft')))")
+      for RID in ${DRAFT_IDS}; do
+        curl -s -o /dev/null \
+          -X DELETE \
+          -H "Authorization: token ${GITHUB_TOKEN}" \
+          "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RID}"
+      done
+  ```
+
+#### 4.5.4 Force retag 必须 workflow 自动清理（不能依赖手工）
+
+**症状**：force 重打 tag 时旧 release 还在 → softprops 试图 update existing release → finalize 撞 `already_exists` → 3 次 retry 全失败 → release workflow 红。
+
+**根因**：softprops `action-gh-release@v2` 的 finalize 步骤对 existing release 处理有 bug —— 它 retry 时还是撞 already_exists，没 fallback 到 create-new。
+
+**预防**：
+- **Force retag 必须在 workflow 里 hardcoded 自动 cleanup**，**绝不依赖手工 `gh release delete`**（手工可能漏 draft, draft 会 shadow published release）
+- cleanup step 必须放在 `Create GitHub Release` 步骤**之前**，且能删 published + draft 两种 release
+- **真实落法**：见 §4.5.3 的 cleanup step 模板
+- **Force retag 决策树**：
+  1. 打新 patch tag（`v1.2.5-rc.2`）— 跟现有 `v1.2.5-rc.1` 共存，无 cleanup 风险
+  2. 必须 force 重打同一 tag（如 PR ship-prep fix 在打 tag 后才进 main） → **必须** workflow 里硬编码 cleanup step + curl REST API
 
 ---
 
@@ -211,17 +302,23 @@ pytest -x 2>&1 | tail -5         # 测试基线
 | `_reset_superego_modules` 手 new 5 个 superego sub-classes (line 720) | 设计债 | 每次 persona 切换都重建, 不优雅 | v1.2.x 评估 factory rebuild + config_keys 复用 |
 | `merge_life_sim_config` 漏搬 `enable_life_fragment` | 迁移静默回归 | 当前 0；上架后兑现 | 下个带 schema 变更的 release |
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
-| `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 (stash 验证 5 跑 3 过 2 挂) | 测试维护 | Win 本地偶发 | mock `time.time` 让 slot 对齐 — 上架前清 |
+| `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 | ✅ **v1.2.5 PR1 已清** (commit `3dd9c7d`) | 已 ship | 见 §4.5.2 — 产品代码 fallback 比 mock time 更 robust |
 | 硬编码映射表是否该进 KB（无 lint） | 框架债务 | 潜在 | 有空回扫 |
 
-### v1.2.5 PR1 已清的债 (2026-07-03, 待 ship)
+### v1.2.5 PR1 已清的债 (2026-07-03, ✅ SHIPPED as v1.2.5-rc.1)
 
+**主要功能 (11 commits)**:
 - ✅ Bug 12: 分段回复 100% 不工作 (`_on_segmented_reply` yield 被 await → TypeError 静默吞) — 改为 `_on_segmented_reply_v2` 主动 send 投递
 - ✅ Bug 12b: emotion_spirit 投递架构调整 (主动 send + 清空 `llm_resp`)
 - ✅ 流式模式 (`streaming_response=true`) 跳过 emotion_spirit 分段投递, 不再与 AstrBot 流式冲突
 - ✅ v1.2.4 阶段 56+v1.2.3=57 模块架构继承, 无新模块 (PR1 纯方法级)
 - ✅ public_api_stable.md 同步到 v1.2.5, 无 stable API 变更
-- ✅ tests: 1298 passed (新增 37: silence_tendency 20 / delay_strategy 5 / on_llm_response_segmented 2 / conf_schema_v125 3 / commands_reflect 7)
+- ✅ tests: **1299 passed** (新增 38: silence_tendency 20 / delay_strategy 5 / on_llm_response_segmented 2 / conf_schema_v125 3 / commands_reflect 7 / life_simulator_fallback 1)
+
+**Ship 阻塞 fix (4 commits, 写入 §4.5)**:
+- ✅ release.yml rc/beta/alpha suffix 支持 (commit `830b600`, 见 §4.5.1)
+- ✅ `build_schedule_context` fallback (commit `3dd9c7d`, 见 §4.5.2) — **提前 PR3 T7 产品侧 fix**, 测试侧 mock time 不再需要
+- ✅ release.yml cleanup step (commit `e717aef` + `99ef2fa`, 见 §4.5.3 + §4.5.4) — 用 curl REST API 而非 gh CLI, force retag 不再撞 softprops
 
 ### v1.2.5 PR1 仍未清的债 (继承自 v1.2.4)
 
@@ -231,7 +328,7 @@ pytest -x 2>&1 | tail -5         # 测试基线
 - (同 §6 主表) `_reset_superego_modules` 手 new 5 个
 - (同 §6 主表) `merge_life_sim_config` 漏搬 `enable_life_fragment`
 - (同 §6 主表) `test_periodic_save_dirty_only` Win 概率性 fail
-- (同 §6 主表) `test_v2_full_lifecycle` wall clock 偶发不对齐
+- ~~(同 §6 主表) `test_v2_full_lifecycle` wall clock 偶发不对齐~~ — **v1.2.5 PR1 已清 (3dd9c7d)**
 - (同 §6 主表) 硬编码映射表是否进 KB
 
 ### v1.2.1 已清的债 (供下次 session 验证不在 regression)
