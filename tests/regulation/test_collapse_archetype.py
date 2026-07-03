@@ -26,7 +26,7 @@ def _personality(**overrides):
 def test_compute_bas_bis_basic():
     """BAS and BIS are computed from personality."""
     sel = CollapseArchetypeSelector()
-    bas, bis = sel.compute_bas_bis(_personality())
+    bas, bis, _ = sel.compute_bas_bis(_personality())
     assert 0 <= bas <= 1
     assert 0 <= bis <= 1
 
@@ -34,16 +34,16 @@ def test_compute_bas_bis_basic():
 def test_high_extraversion_high_bas():
     """High extraversion -> higher BAS."""
     sel = CollapseArchetypeSelector()
-    bas_high, _ = sel.compute_bas_bis(_personality(extraversion=0.9))
-    bas_low, _ = sel.compute_bas_bis(_personality(extraversion=0.1))
+    bas_high, _, _ = sel.compute_bas_bis(_personality(extraversion=0.9))
+    bas_low, _, _ = sel.compute_bas_bis(_personality(extraversion=0.1))
     assert bas_high > bas_low
 
 
 def test_high_neuroticism_high_bis():
     """High neuroticism -> higher BIS."""
     sel = CollapseArchetypeSelector()
-    _, bis_high = sel.compute_bas_bis(_personality(neuroticism=0.9))
-    _, bis_low = sel.compute_bas_bis(_personality(neuroticism=0.1))
+    _, bis_high, _ = sel.compute_bas_bis(_personality(neuroticism=0.9))
+    _, bis_low, _ = sel.compute_bas_bis(_personality(neuroticism=0.1))
     assert bis_high > bis_low
 
 

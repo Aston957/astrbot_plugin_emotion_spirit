@@ -8,8 +8,10 @@ Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md §6
 
 from __future__ import annotations
 from enum import Enum
+from typing import Optional
 
 from ..core.registry import register
+from ..core.utils import clamp as _clamp
 
 __all__ = ["CollapseArchetype", "CollapseArchetypeSelector"]
 
@@ -41,8 +43,16 @@ class CollapseArchetype(Enum):
 class CollapseArchetypeSelector:
     """Selects collapse archetype based on personality via BAS/BIS model."""
 
-    def compute_bas_bis(self, personality: dict[str, float]) -> tuple[float, float]:
-        """Gray RST: personality -> BAS/BIS values."""
+    def compute_bas_bis(
+        self,
+        personality: dict[str, float],
+        force_state: Optional[dict] = None,  # v1.2.5 PR2 §4.3 L1 新增
+    ) -> tuple[float, float, float]:
+        """v1.2.5 PR2: Gray RST + 力加权, 返回 BAS / BIS / collapse_tendency
+
+        collapse_tendency = max(0, BIS - BAS), clamp [0, 1]
+        向后兼容: 不传 force_state → BIS 不加权, BAS/BIS 跟 v1.2.4 一致
+        """
         BAS = (
             0.4 * personality.get("extraversion", 0.5)
             + 0.3 * personality.get("openness", 0.5)
@@ -55,11 +65,23 @@ class CollapseArchetypeSelector:
             + 0.2 * personality.get("conscientiousness", 0.5)
             + 0.1 * (1 - personality.get("extraversion", 0.5))
         )
-        return BAS, BIS
+
+        # L1: 力加权 — 自然力 + 个体力主导 → BIS 升高 (内崩); 社会力主导 → BIS 降低 (找人帮)
+        if force_state is not None:
+            nature_modifier = 0.2 * force_state.get("natural", 0.5)
+            individual_modifier = 0.2 * force_state.get("individual", 0.5)
+            social_buffer = -0.3 * force_state.get("social", 0.5)
+            BIS = BIS * (1 + nature_modifier + individual_modifier + social_buffer)
+
+        # 连续化
+        collapse_tendency = _clamp(BIS - BAS, 0, 1)
+
+        return BAS, BIS, collapse_tendency
 
     def select(self, personality: dict[str, float]) -> CollapseArchetype:
         """Select archetype based on personality."""
-        BAS, BIS = self.compute_bas_bis(personality)
+        # v1.2.5 PR2 §4.3: compute_bas_bis 现在返回 3-tuple, 抛弃 collapse_tendency
+        BAS, BIS, _ = self.compute_bas_bis(personality)
 
         if BAS > 0.7 and BAS > BIS + 0.15:
             return CollapseArchetype.VOLCANO
