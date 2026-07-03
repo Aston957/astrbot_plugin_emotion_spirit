@@ -2,6 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **⏰ 状态更新 (2026-07-03)**: ✅ **PR1 已 ship** (HEAD `99ef2fa`, tag `v1.2.5-rc.1`, 1299 tests, Bug 12 修复 + 沉默语义 S1-S4 + 流式跳过 + /reflect_force_current)
+>
+> **本 PR2 执行前必读**:
+> 1. UPDATE_HANDBOOK.md §4.5 "ship 阻塞常见模式" (4 教训) — PR1 实战血沉淀, ship 前先扫能省 30 分钟 + 3 force retag
+> 2. emotion-spirit-v125-pr1-shipped memory — PR1 11 commits + 4 ship fix 完整记录
+>
+> **PR1 ship 给 PR2 的资产**:
+> - `SegmentedReplyCoordinator.compute_silence_tendency(user_id, ...)` 已存在且接受 `force_state` 参数 (PR1 Task 3) → PR2 Task 5 可直接调
+> - `SilenceTendency` dataclass 已存在 (PR1 Task 1) → PR2 `DefenseStates` 可引用
+> - `silence_tendency_weights.json` KB loader 模式 (`_cached_load`) → PR2 `defense_deltas.json` 可复用
+> - PR1 没用 `force_state` 真正实现 L1 耦合 (只是预留参数) → **PR2 是真正的 L1 实现窗口**
+
 **Goal:** 把压抑/崩溃/沉默 三防御子系统与力学系统耦合。新建 `DefenseModulator` 模块做 L1（三子读 force_state）+ L2（事件回写 force_state），遵守 handbook §1.2 模块化哲学（force_dynamics.compute() 签名不变）。
 
 **Architecture:**
@@ -17,9 +29,9 @@
 
 **关联 Spec:** `docs/superpowers/specs/2026-07-03-segmented-reply-fix-design.md` §4 + §10.3 (T2 不在 PR2, 是 PR3)
 
-**前置:** PR1 已 ship (DefenseModulator 依赖 SegmentedReplyCoordinator 已存在的 `compute_silence_tendency`)
+**前置:** ✅ PR1 已 ship (DefenseModulator 依赖 SegmentedReplyCoordinator 已存在的 `compute_silence_tendency`)
 
-**不在 PR2:** §4.5 KB defense_deltas.json (本 plan Task 4 加) / T2 顺手清债 (PR3)
+**不在 PR2:** T2 顺手清债 (PR3) / v1.3 L3 fixpoint 完全耦合 (拆 v1.3)
 
 ---
 
@@ -1107,6 +1119,14 @@ git commit -m "feat(v1.2.5-pr2): main.py 集成 DefenseModulator (L1 + L2 完整
 **Files:**
 - Modify: `CHANGELOG.md` (PR2 entry)
 - Modify: `UPDATE_HANDBOOK.md` §6 (PR2 已清的债)
+- Modify: `emotion_spirit/_version.py` + `metadata.yaml` (PR2 不 bump version, 仍 1.2.5)
+- Modify: `UPDATE_HANDBOOK.md` 顶部状态 (`v1.2.5-rc.2 (PR2 已 ship, PR3 待)`)
+
+> **⚠️ PR2 ship 必读 UPDATE_HANDBOOK.md §4.5** (ship 阻塞 4 教训):
+> - §4.5.1: plan 必须跟 release workflow 协同设计 — PR2 plan §Global Constraints 已确认 release.yml 支持 rc suffix (PR1 fix 在 `830b600`)
+> - §4.5.3: gh CLI 在 Actions runner 上不可靠 — release.yml 已改用 curl REST API cleanup (PR1 fix 在 `99ef2fa`)
+> - §4.5.4: force retag 必须 workflow 自动清理 — **PR1 fix 已在 workflow 里 hardcoded**, PR2 retag 不需要额外手工
+> - 预测: PR2 ship 应该**一次过**, 不需要 force retag
 
 - [ ] **Step 8.1: 写 CHANGELOG PR2 entry**
 
@@ -1182,10 +1202,66 @@ git commit -m "docs(v1.2.5-pr2): changelog + handbook §6 update"
 
 ---
 
+## Task 9: Git tag + push + Release 验证 (PR2 实际 ship 步骤)
+
+> **PR1 已 ship v1.2.5-rc.1, PR2 用 `v1.2.5-rc.2` 区分**
+
+- [ ] **Step 9.1: 验证本地 working tree 干净**
+
+Run: `git status --short`
+Expected: 空输出
+
+- [ ] **Step 9.2: 验证无 remote-only commit**
+
+Run: `git fetch origin && git rev-list HEAD..origin/main`
+Expected: 空输出
+
+- [ ] **Step 9.3: pre-commit secret scan**
+
+Run: `python scripts/check_secrets.py`
+Expected: OK
+
+- [ ] **Step 9.4: push 8 commits 到 GitHub (走 proxy)**
+
+```bash
+git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 push origin main
+```
+Expected: 推送成功
+
+- [ ] **Step 9.5: 打 tag + push (触发 release.yml)**
+
+```bash
+git tag v1.2.5-rc.2
+git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 push origin v1.2.5-rc.2
+```
+
+> **⚠️ release.yml 的 cleanup step (PR1 fix 99ef2fa) 会自动清理 v1.2.5-rc.2 的旧 release/draft**, 不需要手工删除
+
+Expected: tag 推送成功, GitHub Actions 自动 build + cleanup + create new release
+
+- [ ] **Step 9.6: 用户验 Release (AI 做不了)**
+
+打开 https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions, 验:
+- ✅ Version consistency check: PASS (3 sources base 1.2.5)
+- ✅ Cleanup step: PASS (自动清理 v1.2.5-rc.2 旧 release/draft)
+- ✅ Build release zip: PASS
+- ✅ Create GitHub Release: PASS (全新 v1.2.5-rc.2 release + zip asset)
+
+- [ ] **Step 9.7: 本机 AstrBot 实测 DefenseModulator**
+
+按 spec §4 实测:
+- 3 子任一高激活 (压抑/崩溃/沉默) → DefenseModulator 调 force_dynamics.shift() → 下次 force_state 反映
+- L1: force_state.social 高 → suppression_level 升高
+- L2: silence 触发 → force_state.individual 下降 (从 KB `defense_deltas.json` 读 delta)
+
+---
+
 ## 后续 (PR3 顺手清债)
 
-- **PR3 plan**: §10.3 T1+T2+T7+T3+T4
+- **PR3 plan**: §10.3 T1+T2+T7+T3+T4 + T8(Bug 13) + T9(Bug 14)
 - T1 `merge_life_sim_config enable_life_fragment` 修 (handbook §3.3 P0)
 - T2 `_reset_superego_modules` 双轨消 (handbook §1.2 P1)
-- T7 `test_v2_full_lifecycle` mock time (handbook §6 P0)
+- ~~T7 `test_v2_full_lifecycle` mock time~~ — **PR1 commit 3dd9c7d 已用产品代码 fallback 提前修** (handbook §4.5.2), PR3 不再做
 - T3+T4 12 个 main.py 手 new 评估 (按"先 @register 再走 self._modules"顺序)
+- T8 Bug 13 `datetime.date.today()` AttributeError 修 (PR3 加, 用户 2026-07-03 反馈)
+- T9 Bug 14 `polish_template_events` 嵌套 dict TypeError 修 (PR3 加, 用户 2026-07-03 反馈)

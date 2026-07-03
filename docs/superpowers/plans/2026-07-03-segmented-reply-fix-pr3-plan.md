@@ -2,25 +2,46 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修现存 5 类技术债（handbook §6 清债清单 + §3.3 漏搬）。T1 (迁移静默回归) + T2 (双轨 bug) + T7 (测试偶发) 是 ship 阻塞类必修, T3+T4 (DI 双轨) 是设计债顺手清。
+> **⏰ 状态更新 (2026-07-03)**: ✅ **PR1 已 ship** (HEAD `99ef2fa`, tag `v1.2.5-rc.1`, 1299 tests, Bug 12 修复 + 沉默语义 S1-S4)
+>
+> ✅ **PR1 顺手完成**: ~~T7 (`test_v2_full_lifecycle`)~~ — **PR1 commit `3dd9c7d` 已用产品代码 fallback 修完** (handbook §4.5.2 + §6 v1.2.5 PR1 已清债)
+>
+> **本 PR3 执行前必读**:
+> 1. UPDATE_HANDBOOK.md §4.5 "ship 阻塞常见模式" (4 教训) — PR1 实战血沉淀
+> 2. emotion-spirit-v125-pr1-shipped memory — PR1 完整记录
+> 3. PR3 plan Task 6 (T7) **已标 ⏸ ALREADY DONE BY PR1, 跳过**
+> 4. PR3 ship tag: **`v1.2.5` 正式 release** (PR1+PR2 用 `-rc.X`, PR3 完才正式)
+>    - PR1 tag: `v1.2.5-rc.1` ✅
+>    - PR2 tag: `v1.2.5-rc.2` (待 ship)
+>    - **PR3 tag: `v1.2.5`** (正式 release)
+> 5. PR3 plan 还包括用户 2026-07-03 反馈的 Bug 13 (datetime 类名遮蔽) + Bug 14 (`polish_template_events` 嵌套 dict TypeError)
+
+**Goal:** 修现存 5 类技术债（handbook §6 清债清单 + §3.3 漏搬）+ PR1 期间新发现 2 个 bug。T1 (迁移静默回归) + T2 (双轨 bug) + T8/Bug 13 + T9/Bug 14 是 ship 阻塞类必修, T3+T4 (DI 双轨) 是设计债顺手清。
 
 **Architecture:**
 - T1: 改 `merge_life_sim_config` 在 pop 前保存 `old_life_sim`, 加 `enable_life_fragment` setdefault
 - T2: `_reset_superego_modules` 改成调用现有 `self._modules["superego"]` 子集重建 (单点重建, 无双轨)
 - T3+T4: 12 个 main.py 手 new 模块 → 评估 `@register` 状态 → 已注册的改 `self._modules[...]` 取, 未注册的标 `@register` 走 factory
-- T7: mock `time.time` 让 slot 对齐
+- ~~T7: mock `time.time` 让 slot 对齐~~ — ✅ PR1 commit `3dd9c7d` 已用产品代码 fallback 修完
+- T8 (Bug 13): 修 main.py:807 + 965 两处 `datetime.date.today()/fromtimestamp()` 类名遮蔽 (用户 2026-07-03 反馈)
+- T9 (Bug 14): 修 `life_simulator.py:289 + 568` 两处 `personality.items() + f"{v:.1f}"` 嵌套 dict TypeError + main.py:923 type hint 改真实形状 + AST 防回归 (用户 2026-07-03 反馈)
 
 **Tech Stack:**
 - 同 PR1+PR2
 - 新增 AST 静态检查工具 `tests/test_main_py_no_manual_new.py` (handbook §1.2 强拦)
+- 新增 AST 检查工具: Bug 13 datetime 类名遮蔽 lint + Bug 14 嵌套 dict f-string lint
 
 **关联 Spec:** `docs/superpowers/specs/2026-07-03-segmented-reply-fix-design.md` §10.3
 
-**前置:** PR1+PR2 已 ship
+**前置:** ✅ PR1 已 ship (HEAD `99ef2fa`, tag `v1.2.5-rc.1`, 1299 tests)
 
 **不在 PR3:**
 - T5 CognitiveAgent 3 个 dead code (v1.2.6 backlog)
 - T6 SurfaceHandler @register 不一致 (v1.2.6 backlog)
+- §4.5 力学 L3 fixpoint (v1.3)
+- Steppenwolf 5.3 多人格质心 (v1.3)
+- TTS DelayStrategy (v1.3)
+- CognitiveAgent 4 子类 DI (待 factory `param_wire` 扩展)
 
 ---
 
@@ -694,105 +715,92 @@ git commit -m "refactor(v1.2.5-pr3): T4 9 个 memory/output 走 self._modules (�
 
 ---
 
-## Task 6: T7 mock time.time 修 test_v2_full_lifecycle
+## Task 6: T7 mock time.time 修 test_v2_full_lifecycle ⏸ ALREADY DONE BY PR1
 
-**Files:**
-- Modify: `tests/test_lifesim_v2_full_lifecycle.py` (或类似文件名, grep 找)
-- Test: 跑 10 次本地验证 100% 通过
-
-**Interfaces:**
-- mock `time.time` 让 `_time_to_slot` 跟 wall clock 对齐
-- 跑 10 次 pytest, 100% PASS
-
-- [ ] **Step 6.1: 找 test_v2_full_lifecycle 实际位置**
-
-```bash
-cd "D:/新建文件夹/emotion_spirit/now/astrbot_plugin_emotion_spirit"
-grep -rn "test_v2_full_lifecycle\|_time_to_slot" tests/ --include="*.py" | head -10
-```
-
-- [ ] **Step 6.2: 看现状, 确认偶发原因**
-
-读测试文件, 看哪里调 `time.time`, 哪里算 `_time_to_slot`, 偶发挂在哪里.
-
-- [ ] **Step 6.3: 写 mock time.time**
-
-修改测试 (或加 fixture):
-
-```python
-# tests/test_lifesim_v2_full_lifecycle.py
-import pytest
-from unittest.mock import patch
-import time as _time_mod
-
-@pytest.fixture
-def mocked_time():
-    """Mock time.time 让 _time_to_slot 跟 wall clock 对齐"""
-    base_time = 1700000000.0  # 2023-11-14 22:13:20 UTC, 一个固定起点
-    counter = [0]
-    
-    def fake_time():
-        counter[0] += 1
-        # 每次调用前进 0.001s (1ms), 模拟快速序列
-        return base_time + counter[0] * 0.001
-    
-    with patch('time.time', fake_time):
-        yield fake_time
-
-
-def test_v2_full_lifecycle_no_wall_clock_drift(mocked_time):
-    """v1.2.5 PR3 T7: test_v2_full_lifecycle 用 mock time, slot 对齐"""
-    # 原测试逻辑保留, 加 mocked_time fixture
-    ...
-```
-
-- [ ] **Step 6.4: 跑 10 次验证 100% 通过**
-
-```bash
-cd "D:/新建文件夹/emotion_spirit/now/astrbot_plugin_emotion_spirit"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-    python -m pytest tests/test_lifesim_v2_full_lifecycle.py -q 2>&1 | tail -3
-done
-```
-
-Expected: 10/10 PASS
-
-- [ ] **Step 6.5: 提交**
-
-```bash
-cd "D:/新建文件夹/emotion_spirit/now/astrbot_plugin_emotion_spirit"
-git add tests/test_lifesim_v2_full_lifecycle.py
-git commit -m "fix(v1.2.5-pr3): test_v2_full_lifecycle mock time.time (handbook §6 P0)"
-```
+> **⏸ 跳过** — PR1 commit `3dd9c7d` 已用**产品代码 fallback** (而非 mock time) 修完此债。
+>
+> **决策依据** (handbook §4.5.2):
+> - mock time 是 test-side fix, **只让测试 PASS**
+> - 产品代码 fallback 是 behavior fix, **让所有 caller 受益** (用户查不在活动时段也能看到今日全部计划)
+> - 实际效果: `build_schedule_context()` 在 `current_events` 为空但 `all_planned` 不空时 fallback 展示今日全部计划
+>
+> **PR1 实际修法** (`emotion_spirit/regulation/life_simulator.py:395-433`):
+> ```python
+> if current_events:
+>     # 正常路径
+>     ...
+> else:
+>     # Fallback: 当前时段无 planned 事件 → 展示今日全部 planned
+>     all_planned = [e for e in self._current_plan.events if e.status == "planned"]
+>     if all_planned:
+>         all_planned.sort(key=lambda e: _SLOT_ORDER.get(e.time_slot, 99))
+>         activities = ", ".join(f"{e.time_slot}{e.activity}" for e in all_planned)
+>         parts.append(f"今天计划: {activities}")
+> ```
+>
+> **PR1 测试** (`tests/regulation/test_life_simulator.py`):
+> ```python
+> def test_v2_build_context_fallback_when_current_slot_empty():
+>     """时段错配 (CI flake): 当前时段无 planned → fallback 到今日全部 planned."""
+>     ...
+>     # 用 night 时段时间 (深夜 23:00) 查询
+>     night_ts = datetime(2026, 7, 3, 23, 0, 0).timestamp()
+>     context = sim.build_schedule_context(now=night_ts)
+>     assert context, "build_schedule_context 在时段错配时应 fallback, 不应返回空"
+> ```
+>
+> **PR3 此 task 跳过原因**:
+> 1. PR1 已 ship, 此债已不在 backlog (`handbook §6` v1.2.5 PR1 已清债段已记录)
+> 2. 测试侧 mock time 不需要, 产品代码 fallback 已更优
+> 3. 若 PR3 仍想做测试侧 mock time 作为额外保险, 可作为 PR3 enhancement, 但**不属于"必清"债**
+>
+> **如果未来 PR 仍想加 mock time**:
+> - 不在 PR3 范围
+> - 建议作为 v1.2.6 增强 (handbook §6 backlog)
+> - 或者 PR3 enhancement task (可选, 非 blocking)
 
 ---
 
 ## Task 7: 跑 ship checklist (version + changelog + handbook + smoke)
 
 **Files:**
-- Modify: `CHANGELOG.md` (PR3 entry)
-- Modify: `UPDATE_HANDBOOK.md` §6 (PR3 已清的债)
-- Modify: `emotion_spirit/_version.py` + `metadata.yaml` (bump 到 1.2.5 PR3)
+- Modify: `CHANGELOG.md` (PR3 entry, **首次正式 v1.2.5 release**)
+- Modify: `UPDATE_HANDBOOK.md` §6 (PR3 已清的债 + 顶部状态改 `v1.2.5 已 ship`)
+- Modify: `emotion_spirit/_version.py` + `metadata.yaml` (PR1+PR2 已 bump 到 1.2.5, PR3 不再 bump)
 
-**注意**: PR3 是 v1.2.5 最后一批. 如果 PR1+PR2 已 bump 到 1.2.5, PR3 不用再 bump version, 只更新 changelog + handbook.
+**注意**: PR3 是 v1.2.5 最后一批. PR1+PR2 已 bump 到 1.2.5, PR3 不再 bump version, 只更新 changelog + handbook.
+
+> **⚠️ PR3 ship 必读 UPDATE_HANDBOOK.md §4.5** (ship 阻塞 4 教训):
+> - §4.5.1: plan 必须跟 release workflow 协同设计 — PR3 plan §Global Constraints 已确认 release.yml 支持 rc suffix + 正式 tag (`v1.2.5` 是 base, 无 suffix, 也兼容)
+> - §4.5.2: CI flake 用产品代码 fallback > 测试 mock — T7 已 PR1 用 fallback 修完, PR3 不再做
+> - §4.5.3: gh CLI 在 Actions runner 上不可靠 — release.yml cleanup step 已用 curl REST API (PR1 fix 99ef2fa)
+> - §4.5.4: Force retag 必须 workflow 自动清理 — cleanup step 已 hardcoded, PR3 tag `v1.2.5` 是**首次正式 release** (从未存在过 `v1.2.5` release), **无 cleanup 风险**
+>
+> **预测**: PR3 ship 应该**一次过**, 这是首次正式 `v1.2.5` release (PR1+PR2 用 `-rc.X` 试水, PR3 验证全清债后正式)
 
 - [ ] **Step 7.1: 写 CHANGELOG PR3 entry**
 
 读 `CHANGELOG.md`, 在 PR2 entry 下面加:
 
 ```markdown
-### 顺手清债 (PR3: handbook §6 + §3.3 + Bug 13 + Bug 14 反馈)
+### 顺手清债 (PR3: handbook §6 + §3.3 + Bug 13 + Bug 14 反馈) + 正式 release
 - **T1**: `merge_life_sim_config` 补搬 `enable_life_fragment` (handbook §3.3 漏搬, 上架前必修)
 - **T2**: `_reset_superego_modules` 双轨 bug 修 — 走 `_modules["superego"]` 子字典单点重建, 不再手 new 5 个 sub
 - **T3**: PublicAPI 改 `self._modules["public_api"]` (T3 + 评估后处理)
 - **T4**: 9 个 memory/output 模块 (PatternExtractor / BufferSignals / ShadowDetector / LifeSimulator / PersonalityDrift / PredictiveSentinel / NarrativeIdentity / Counterfactual / PromptInjector) 走 `self._modules[...]` 装配, 删手 new (按 AST 评估报告)
-- **T7**: `test_v2_full_lifecycle` mock `time.time` 让 slot 对齐, Win 偶发挂修复
+- **~~T7~~**: ~~`test_v2_full_lifecycle` mock `time.time` 让 slot 对齐~~ — ✅ PR1 commit `3dd9c7d` 已用**产品代码 fallback** 修完 (handbook §4.5.2, 比 mock time 更优)
 - **T8**: Bug 13 `datetime.date.today()` AttributeError 修 — `main.py:807` 和 `:965` 两处同类错模式都改用 `date.X()` (date 已显式 import), 加 AST 静态检查 `tests/test_datetime_import_patterns.py` 防止同类错回归
 - **T9**: Bug 14 `polish_template_events` 嵌套 dict TypeError 修 — 加 `_flatten_personality` helper, `life_simulator.py:289/568` 两处同类错模式都拍平, `main.py:923` type hint 改真实嵌套形状, 加 AST 静态检查 `tests/test_personality_shape_contract.py` 防回归
+
+### 正式 release
+- **Tag**: `v1.2.5` (正式, PR1 `v1.2.5-rc.1` + PR2 `v1.2.5-rc.2` + PR3 `v1.2.5`)
+- **首次正式 release 自 v1.2.4**, 含 PR1 沉默语义 S1-S4 + PR2 力学耦合 + PR3 清债 + Bug 13/14 修复
 
 ### 新增测试
 - `test_reset_superego_modules.py`: 5 个 (身份验证 + AST 静态检查)
 - `test_main_py_no_manual_new.py`: AST 扫描 + 12 个手 new 状态检查
+- `test_datetime_import_patterns.py`: AST 静态检查 (Bug 13 防回归)
+- `test_personality_shape_contract.py`: AST 静态检查 (Bug 14 防回归)
 ```
 
 - [ ] **Step 7.2: 更新 UPDATE_HANDBOOK.md §6**
@@ -803,7 +811,6 @@ git commit -m "fix(v1.2.5-pr3): test_v2_full_lifecycle mock time.time (handbook 
 ### v1.2.5 PR3 已清的债
 - ✅ T1 `merge_life_sim_config` 补搬 enable_life_fragment (handbook §3.3 P0)
 - ✅ T2 `_reset_superego_modules` 双轨消 (走 _modules["superego"] 单点重建, handbook §1.2 P1)
-- ✅ T7 `test_v2_full_lifecycle` mock time.time (handbook §6 P0)
 - ✅ T8 Bug 13 `datetime.date.today()` AttributeError 修 (用户反馈 2026-07-03, line 807 + 965 两处同类错, AST 防回归)
 - ✅ T9 Bug 14 `polish_template_events` 嵌套 dict TypeError 修 (用户反馈 2026-07-03, life_simulator:289 + 568 两处同类错 + main.py:923 type hint 改真实形状 + AST 防回归)
 - ✅ T3 1 个 facade (PublicAPI) 走 self._modules
@@ -811,6 +818,9 @@ git commit -m "fix(v1.2.5-pr3): test_v2_full_lifecycle mock time.time (handbook 
 - ✅ AST 静态检查 `tests/test_main_py_no_manual_new.py` (handbook §1.2 强拦)
 - ✅ AST 静态检查 `tests/test_datetime_import_patterns.py` (防止 datetime 类名遮蔽)
 - ✅ AST 静态检查 `tests/test_personality_shape_contract.py` (防止 personality.items() 不 flatten 就 format)
+
+### 跨 PR 已清的债 (v1.2.5 PR1 → PR3 累积)
+- ✅ T7 `test_v2_full_lifecycle` 时序 CI flake — **PR1 顺手用产品代码 fallback 修完** (commit `3dd9c7d`, handbook §4.5.2 + §6 v1.2.5 PR1 已清债段)
 
 ### v1.2.6 backlog (PR3 评估报告遗留)
 - ❌ T3 CommandImpl / SurfaceHandler: 需 self 注入, factory param_wire 扩展 (v1.3 工作)
@@ -1303,19 +1313,37 @@ git commit -m "fix(v1.2.5-pr3): Bug 14 polish_template_events 嵌套 dict (life_
 
 ---
 
-## Task 10: Git tag + push + Release 验证
+## Task 10: Git tag + push + Release 验证 (PR3 实际 ship 步骤, tag 是首次正式 v1.2.5)
 
-- [ ] **Step 8.1: 验证本地 working tree 干净**
+> **⚠️ PR3 ship 必读 UPDATE_HANDBOOK.md §4.5** (ship 阻塞 4 教训):
+> - §4.5.1: plan 必须跟 release workflow 协同设计 — ✅ PR1 已修 (release.yml 支持 base version 比较)
+> - §4.5.2: CI flake 用产品代码 fallback > 测试 mock — ✅ T7 PR1 已修 (commit 3dd9c7d)
+> - §4.5.3: gh CLI 在 Actions runner 上不可靠 — ✅ PR1 已修 (curl REST API cleanup)
+> - §4.5.4: Force retag 必须 workflow 自动清理 — ✅ PR1 已 hardcoded, 但 PR3 是**首次正式 release** (`v1.2.5` 从未存在), **无 cleanup 风险**
+>
+> **预测**: PR3 ship 应该**一次过**, 这是 v1.2.5 完整闭环 (PR1+PR2+PR3 全部 ship)
+>
+> **PR3 tag 决策**: 用 `v1.2.5` 正式 tag (不是 `v1.2.5-rc.3`), 因为:
+> 1. PR3 是清债 + Bug 修, 不引入新功能
+> 2. 试水阶段 (rc.1+rc.2) 已通过 PR1+PR2 完成
+> 3. PR3 ship 后用户应该装正式版
+
+- [ ] **Step 10.1: 验证本地 working tree 干净**
 
 Run: `git status --short`
 Expected: 空输出
 
-- [ ] **Step 8.2: 验证无 remote-only commit**
+- [ ] **Step 10.2: 验证无 remote-only commit**
 
 Run: `git fetch origin && git rev-list HEAD..origin/main`
 Expected: 空输出
 
-- [ ] **Step 8.3: push 到 GitHub (走 proxy)**
+- [ ] **Step 10.3: pre-commit secret scan**
+
+Run: `python scripts/check_secrets.py`
+Expected: OK
+
+- [ ] **Step 10.4: push PR3 commits 到 GitHub (走 proxy)**
 
 ```bash
 git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 push origin main
@@ -1323,28 +1351,33 @@ git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 p
 
 Expected: 推送成功
 
-- [ ] **Step 8.4: 打 tag + 等 release.yml 自动 build**
-
-PR1 + PR2 + PR3 都已合并到 main 后, 一次性打 `v1.2.5` tag:
+- [ ] **Step 10.5: 打正式 tag `v1.2.5` + push**
 
 ```bash
+git tag v1.2.5
 git -c http.proxy=http://127.0.0.1:10809 -c https.proxy=http://127.0.0.1:10809 push origin v1.2.5
 ```
 
-Expected: tag 推送成功, GitHub Actions 自动开始 build release zip
+Expected: tag 推送成功, GitHub Actions 自动 build + cleanup (会删 v1.2.5 的旧 release/draft, 如果存在) + create new release
 
-- [ ] **Step 8.5: 用户验 Release (AI 做不了)**
+- [ ] **Step 10.6: 用户验 Release (AI 做不了)**
 
-**用户操作**: 打开 https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions, 验 Release 真出了。
+**用户操作**: 打开 https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions, 验:
+- ✅ Version consistency check: PASS (3 sources 都 `1.2.5`)
+- ✅ Cleanup step: PASS (首次正式 tag 无 cleanup 风险)
+- ✅ Build release zip: PASS
+- ✅ Create GitHub Release: PASS (正式 release, **非 prerelease**)
 
-- [ ] **Step 8.6: 本机 AstrBot 完整实测 (按 spec §10.2 + §10.3)**
+- [ ] **Step 10.7: 本机 AstrBot 完整实测 (按 spec §10.2 + §10.3)**
 
 5 + 3 = 8 个实测 case:
-- PR1 5 个 (分段 + 沉默 + 冷却 + 流式跳过)
+- PR1 5 个 (分段 + 沉默 + 冷却 + 流式跳过) — ✅ 已在 PR1 ship 时验过, PR3 复测确认无 regression
 - PR3 3 个:
-  - [ ] v1.0.0 老用户配置含 `enable_life_fragment=false` 升级 → 字段保留
-  - [ ] `_reset_superego_modules` 后 `self._conscience is self._modules["superego"]["conscience"]` (用 log 验证)
-  - [ ] `test_v2_full_lifecycle` Win 跑 5/5 通过
+  - [ ] v1.0.0 老用户配置含 `enable_life_fragment=false` 升级 → 字段保留 (T1)
+  - [ ] `_reset_superego_modules` 后 `self._conscience is self._modules["superego"]["conscience"]` (用 log 验证, T2)
+  - [ ] Bug 13 修复后 `datetime.date.today()` 在 main.py:807 + 965 都正常 (T8)
+  - [ ] Bug 14 修复后 `polish_template_events` 不再 TypeError (T9)
+  - [ ] `test_v2_full_lifecycle` Win 跑 5/5 通过 (T7 ✅ PR1 已修, 复测)
 
 ---
 
@@ -1376,14 +1409,20 @@ Expected: tag 推送成功, GitHub Actions 自动开始 build release zip
 
 ## v1.2.5 完整 ship checklist (PR1 + PR2 + PR3)
 
-| PR | 内容 | 估时 | ship 时间 |
-|---|---|---|---|
-| PR1 | Bug 12 修复 + 沉默 S1-S4 + 人格加权 | 3-4 小时 | ship 1 |
-| PR2 | 力学耦合 DefenseModulator L1+L2 + KB | 3-4 小时 | ship 2 (PR1 后) |
-| PR3 | T1+T2+T7+T8+T9+T3+T4 顺手清债 | 4-5 小时 | ship 3 (PR2 后) |
-| **总** | v1.2.5 全套 | **10-13 小时** | 3 次 ship |
+| PR | 内容 | 估时 | ship 时间 | tag | 状态 |
+|---|---|---|---|---|---|
+| **PR1** | Bug 12 修复 + 沉默 S1-S4 + 人格加权 + 流式跳过 + /reflect_force_current | 3-4 小时 | 2026-07-03 | `v1.2.5-rc.1` | ✅ **SHIPPED** (HEAD `99ef2fa`, 1299 tests) |
+| PR2 | 力学耦合 DefenseModulator L1+L2 + KB | 3-4 小时 | 待 PR1 后 | `v1.2.5-rc.2` | ⏸ 等待 |
+| PR3 | T1+T2+~~T7~~+T8+T9+T3+T4 顺手清债 (T7 PR1 顺手清) | 3-4 小时 (少了 T7) | 待 PR2 后 | `v1.2.5` (正式) | ⏸ 等待 |
+| **总** | v1.2.5 全套 | **9-11 小时** | 3 次 ship | - | 1/3 done |
 
-每次 ship 走 handbook §4.4 8 步 checklist, PR3 是最后一批, 一次打 `v1.2.5` tag。
+每次 ship 走 handbook §4.4 8 步 checklist, PR3 是最后一批, 一次打正式 `v1.2.5` tag (首次正式 release)。
+
+**Ship 阻塞教训** (handbook §4.5, PR1 ship 实战沉淀):
+1. ✅ PR1 release.yml 改用 base version 比较 (PR1 commit `830b600`) → PR2/PR3 tag 自动兼容
+2. ✅ PR1 release.yml 改用 curl REST API cleanup (PR1 commit `99ef2fa`) → PR2/PR3 force retag 不撞 softprops
+3. ✅ PR1 product-code fallback 修 T7 (PR1 commit `3dd9c7d`) → PR3 跳过 T7 task
+4. ⏸ PR2 + PR3 ship 时**预测一次过** (无已知 release 阻塞)
 
 ---
 
