@@ -31,6 +31,38 @@
 
 ---
 
+## [1.2.5] - 2026-07-03 (PR3: 顺手清债 + Bug 13/14 + 正式 release)
+
+### 修复 (Fixes)
+- **T1**: `merge_life_sim_config` 补搬 `enable_life_fragment` (handbook §3.3 漏搬, 旧 v1.0.0 用户升级后字段保留)
+- **T2**: `_reset_superego_modules` 双轨 bug 修 — 抽 `_rebuild_superego_subdict()` helper, 走 `_modules["superego"]` 子字典单点重建, `initialize()` 也复用 (身份一致 `self._conscience is _modules["superego"]["conscience"]`)
+- **Bug 13**: 修 `main.py` 两处 `datetime.date.today()` / `datetime.date.fromtimestamp()` 类名遮蔽 (line 846 + 1004) → 用 `date.today()` / `date.fromtimestamp()`
+- **Bug 14**: 修 `polish_template_events` 嵌套 dict TypeError — 加 `_flatten_personality()` helper, `life_simulator.py` 两处 `personality.items()` format 先拍平; `_get_current_personality_dict()` type hint 改真实 shape `dict[str, Any]`
+
+### 重构 (Refactor)
+- **T3 + T4**: main.py 10 个模块改走 `self._modules[...]` 装配, 删手 new
+  - facade: PublicAPI
+  - memory/output: PatternExtractor / BufferSignals / ShadowDetector / LifeSimulator / PersonalityDrift / PredictiveSentinel / NarrativeIdentity / Counterfactual / PromptInjector
+  - 剩余 4 个手 new (CommandImpl / SurfaceHandler / LifeAgent + reset 中新建 ConscienceTracker) 都是 self 注入或重置语义所需, 留 v1.3/v1.2.6
+- **AST 静态检查 (handbook §1.2 强拦)**:
+  - `tests/test_main_py_no_manual_new.py`: 扫描 main.py 手 new 模式 + 已修类回退检查 + initialize() 双轨检查
+  - `tests/test_datetime_import_patterns.py`: 防 `datetime.date` / `datetime.time` 类名遮蔽回归
+  - `tests/test_personality_shape_contract.py`: 防 `personality.items()` 直接 format 回归
+
+### 正式 release
+- **Tag**: `v1.2.5` (PR1 `v1.2.5-rc.1` + PR2 `v1.2.5-rc.2` + PR3 `v1.2.5`)
+- **状态**: 完整 v1.2.5 正式版 (含 PR1 沉默语义 + PR2 力学耦合 + PR3 清债 + Bug 13/14 修复)
+
+### 新增测试
+- `test_reset_superego_modules.py`: 4 个 (AST 直赋检查 + ConscienceTracker import + modules dict 重建 + identity 同步)
+- `test_main_py_no_manual_new.py`: 4 个 (AST 扫描 + T4 回退 + PublicAPI + initialize)
+- `test_datetime_import_patterns.py`: 1 个 AST 静态检查
+- `test_schedule_plan_loop.py`: 2 个行为测试
+- `test_life_simulator_personality_flatten.py`: 6 个 (flatten helper + 集成)
+- `test_personality_shape_contract.py`: 2 个 AST 静态检查
+
+---
+
 ## [1.2.5] - 2026-07-03 (PR1: 分段修复 + 沉默语义)
 
 ### 修复 (Bug Fixes)

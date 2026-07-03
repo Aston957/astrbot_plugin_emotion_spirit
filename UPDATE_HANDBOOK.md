@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: v1.2.5-rc.2 (PR1+PR2 已 ship, PR3 待) | schema version: v4 | 状态: PR1+PR2 已 ship (PR1 tag → `v1.2.5-rc.1`, PR2 tag → `v1.2.5-rc.2`), PR3 (清债 + Bug 13/14) 待执行。
+> 当前版本: **v1.2.5** (正式 release, PR1+PR2+PR3 已 ship) | schema version: v4 | 状态: v1.2.5 正式 release 完成 (PR1 tag → `v1.2.5-rc.1`, PR2 tag → `v1.2.5-rc.2`, PR3 tag → `v1.2.5`). v1.2.6 backlog / v1.3 力学叙事层待规划。
 
 ---
 
@@ -296,14 +296,14 @@ pytest -x 2>&1 | tail -5         # 测试基线
 
 | 债 | 类型 | 影响 | 何时清 |
 |---|---|---|---|
-| CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) | 框架债务 | 当前 0 用户无影响；清爽度 | v1.2.x — 需先扩展 factory param_wire 支持 `dep.attr` 语法或 callable transform (见下) |
-| factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达 `self_core.bus` 属性提取 | 框架底层限制 | 阻断上面 4 个 Agent 进 DI | v1.2.x 先扩展 registry |
-| `CommandImpl` / `PublicAPI` / `SurfaceHandler` 仍手 new (需 plugin 自身或 modules 注入) | 设计债 | 0 用户无影响 | v1.2.x 评估 plugin-injection 或 post-construction configure 模式 |
-| `_reset_superego_modules` 手 new 5 个 superego sub-classes (line 720) | 设计债 | 每次 persona 切换都重建, 不优雅 | v1.2.x 评估 factory rebuild + config_keys 复用 |
-| `merge_life_sim_config` 漏搬 `enable_life_fragment` | 迁移静默回归 | 当前 0；上架后兑现 | 下个带 schema 变更的 release |
+| CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) | 框架债务 | 当前 0 用户无影响；清爽度 | **v1.2.6 backlog** |
+| factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达 `self_core.bus` 属性提取 | 框架底层限制 | 阻断上面 4 个 Agent 进 DI | **v1.2.6 backlog** |
+| `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入) | 设计债 | 0 用户无影响 | **v1.2.6 backlog** |
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
-| `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 | ✅ **v1.2.5 PR1 已清** (commit `3dd9c7d`) | 已 ship | 见 §4.5.2 — 产品代码 fallback 比 mock time 更 robust |
 | 硬编码映射表是否该进 KB（无 lint） | 框架债务 | 潜在 | 有空回扫 |
+| `_reset_superego_modules` 手 new 5 个 superego sub-classes | 设计债 | ✅ **v1.2.5 PR3 已清** | 见 PR3 提交 `be3afa5` / `d2fa561` |
+| `merge_life_sim_config` 漏搬 `enable_life_fragment` | 迁移静默回归 | ✅ **v1.2.5 PR3 已清** | 见 PR3 提交 `55dc010` |
+| `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 | ✅ **v1.2.5 PR1 已清** (commit `3dd9c7d`) | 已 ship | 见 §4.5.2 — 产品代码 fallback 比 mock time 更 robust |
 
 ### v1.2.5 PR1 已清的债 (2026-07-03, ✅ SHIPPED as v1.2.5-rc.1)
 
@@ -339,13 +339,35 @@ pytest -x 2>&1 | tail -5         # 测试基线
 - `tests/regulation/test_collapse_archetype.py`: 3 处解构修复 (2-tuple → 3-tuple)
 - 全测: **1326 passed**, 0 regression
 
-### v1.2.5 PR1 仍未清的债 (继承自 v1.2.4)
+### v1.2.5 PR3 已清的债 (2026-07-03, ✅ SHIPPED as v1.2.5)
 
-- (同 §6 主表) CognitiveAgent 4 子类仍手 new
-- (同 §6 主表) factory `param_wire` 1:1 限制
-- (同 §6 主表) `CommandImpl` / `PublicAPI` / `SurfaceHandler` 仍手 new
-- (同 §6 主表) `_reset_superego_modules` 手 new 5 个
-- (同 §6 主表) `merge_life_sim_config` 漏搬 `enable_life_fragment`
+**主要功能 (顺手清债 + Bug 13/14 修复)**:
+- ✅ T1 `merge_life_sim_config` 补搬 `enable_life_fragment` (handbook §3.3 P0) — 提交 `55dc010`
+- ✅ T2 `_reset_superego_modules` 双轨消 (走 `_modules["superego"]` 单点重建, handbook §1.2 P1) — 提交 `be3afa5`
+- ✅ T2 扩展: `initialize()` 也复用 `_rebuild_superego_subdict()`, 修同样双轨 bug — 提交 `d2fa561`
+- ✅ T3 + T4: main.py 10 个模块走 `self._modules[...]` 装配 (PublicAPI + 9 memory/output), 删手 new — 提交 `d2fa561`
+- ✅ Bug 13 `datetime.date.today()` / `datetime.date.fromtimestamp()` AttributeError 修 (line 846 + 1004) + AST guard — 提交 `e93093c`
+- ✅ Bug 14 `polish_template_events` 嵌套 dict TypeError 修 (加 `_flatten_personality()` helper) + `_get_current_personality_dict()` type hint 改真实 shape — 提交 `401ba52`
+- ✅ 模块数保持 58 (PR2 已 +DefenseModulator)
+
+**测试**:
+- `test_reset_superego_modules.py`: 4 个 (AST 直赋检查 + ConscienceTracker import + modules dict 重建 + identity 同步)
+- `test_main_py_no_manual_new.py`: 4 个 (AST 扫描 + T4 回退 + PublicAPI + initialize)
+- `test_datetime_import_patterns.py`: 1 个 AST 静态检查
+- `test_schedule_plan_loop.py`: 2 个行为测试
+- `test_life_simulator_personality_flatten.py`: 6 个 (flatten helper + 集成)
+- `test_personality_shape_contract.py`: 2 个 AST 静态检查
+- 全测: **1348 passed**, 0 regression (仅 1 个预存 Win 概率性 `test_periodic_save_dirty_only` 可能 flake, 不在 CI 阻塞)
+
+**Ship 决策**:
+- PR3 tag: `v1.2.5` (正式 release, PR1+PR2 用 `-rc.X` 试水完成)
+- 首次正式 release 自 v1.2.4, 一次过无 force retag (PR1 4 ship 阻塞 fix 全部 cover)
+
+### v1.2.5 PR3 仍未清的债 (v1.2.6 backlog)
+
+- (同 §6 主表) CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) — 需 factory `param_wire` 扩展
+- (同 §6 主表) factory `param_wire` 1:1 限制 (self/属性提取)
+- (同 §6 主表) `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入)
 - (同 §6 主表) `test_periodic_save_dirty_only` Win 概率性 fail
 - ~~(同 §6 主表) `test_v2_full_lifecycle` wall clock 偶发不对齐~~ — **v1.2.5 PR1 已清 (3dd9c7d)**
 - (同 §6 主表) 硬编码映射表是否进 KB
