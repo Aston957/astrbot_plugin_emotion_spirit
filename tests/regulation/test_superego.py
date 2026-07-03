@@ -12,7 +12,7 @@ from emotion_spirit.regulation.superego import (
     ValueAlignment, ConscienceTracker, IdealSelf,
     ValueResistance, ResistanceResult, GuiltEvent, AlignmentEvent,
 )
-from emotion_spirit.core.label_mapper import labels_to_personality
+from emotion_spirit.utils import labels_to_personality
 
 
 # ═══ 辅助：构造测试用 11 维参数 ═══
@@ -572,6 +572,6 @@ def test_tension_empty_conflict():
 
 def test_tension_full_coverage():
     """v1.7.2 + Phase B B3: Tension 类型集走 KnowledgeBase.TENSION_INCLINATION (5 个值)。"""
-    from emotion_spirit.core.knowledge import KnowledgeBase
+    from emotion_spirit.utils import KnowledgeBase
     # KB 值集 5 个: {guilt, doubt, shame, righteous, value_conflict} (B2 重新分类)
     assert set(KnowledgeBase.TENSION_INCLINATION.values()) == {"guilt", "doubt", "shame", "righteous", "value_conflict"}

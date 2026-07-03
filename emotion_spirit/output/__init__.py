@@ -9,4 +9,5 @@ __all__ = [
     "predictive_sentinel", "public_api", "buffer_signals",
     "trend_utils", "realtime_dispatch", "rhythm_learner",
     "segmented_reply_coordinator",
+    "segmented_reply_orchestrator",  # v1.2.7: 编排器
 ]

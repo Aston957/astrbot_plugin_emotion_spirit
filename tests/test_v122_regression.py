@@ -76,7 +76,7 @@ class TestB9PersonaParserNotBiasedToIntj:
 
     def test_tie_breaking_not_biased_to_intj(self):
         """tie-breaking 必须倾向 E/N/F/P 而非 I/T/J."""
-        from emotion_spirit.regulation.persona_report_parser import PersonaReportParser
+        from emotion_spirit.utils import PersonaReportParser
 
         parser = PersonaReportParser()
 
@@ -91,7 +91,7 @@ class TestB9PersonaParserNotBiasedToIntj:
 
     def test_negation_handling_think_vs_feel(self):
         """否定词预处理: '而不是思考' 不应计为 T."""
-        from emotion_spirit.regulation.persona_report_parser import PersonaReportParser
+        from emotion_spirit.utils import PersonaReportParser
 
         parser = PersonaReportParser()
 
@@ -105,8 +105,9 @@ class TestB9PersonaParserNotBiasedToIntj:
 
     def test_time_focus_negation(self):
         """时间取向否定: '不活在未来' 不应判为'活在未来'."""
-        from emotion_spirit.regulation.persona_report_parser import (
-            PersonaReportParser, _TIME_FOCUS_KEYWORDS, _TIME_FOCUS_NEGATIONS,
+        from emotion_spirit.utils import PersonaReportParser
+        from emotion_spirit.utils.persona_report_parser import (
+            _TIME_FOCUS_KEYWORDS, _TIME_FOCUS_NEGATIONS,
         )
 
         # 验证否定模式存在

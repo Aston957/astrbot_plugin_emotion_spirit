@@ -9,7 +9,7 @@ import math
 from typing import Any
 
 from ...core.config import SUPEREGO_CONFIG
-from ...memory.persona_profiles import get_personality_params
+from ...utils import get_personality_params
 
 
 class IdealSelf:

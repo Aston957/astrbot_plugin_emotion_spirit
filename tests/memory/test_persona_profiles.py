@@ -7,18 +7,20 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from emotion_spirit.memory.persona_profiles import (
+from emotion_spirit.utils import (
     get_personality_params,
     get_intimacy_weights,
     get_intimacy_modulation,
     get_value_behaviors,
     DIMENSION_DISPLAY,
+    get_narrative,
+)
+from emotion_spirit.utils.persona_profiles import (
     _ACTION_ALIGN,
     _ACTION_MISALIGN,
     _select_variant,
-    get_narrative,
 )
-from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.utils import KnowledgeBase
 
 # Phase B Step 3: NARRATIVE_TEMPLATES 走 KnowledgeBase (单一数据源)
 NARRATIVE_TEMPLATES = KnowledgeBase.NARRATIVE_TEMPLATES

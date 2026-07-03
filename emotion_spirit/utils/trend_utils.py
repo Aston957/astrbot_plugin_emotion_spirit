@@ -114,10 +114,3 @@ class TrendDetector:
         self._history = data.get("history", [])
 
 
-from ..core.registry import register
-
-
-@register(name="trend_utils", provides=[], depends_on=[])
-class _ModuleMarker:
-    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
-    pass

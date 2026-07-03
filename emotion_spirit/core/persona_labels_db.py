@@ -31,7 +31,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .knowledge import KnowledgeBase
+from ..utils.knowledge import KnowledgeBase
 
 if TYPE_CHECKING:
     from ..regulation.body_state import BodyState

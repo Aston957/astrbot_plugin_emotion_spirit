@@ -86,7 +86,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ..core.registry import register
-from ..core.knowledge import KnowledgeBase
+from ..utils.knowledge import KnowledgeBase
 from .body_state import BodyState
 
 if TYPE_CHECKING:
@@ -345,3 +345,8 @@ class ForceDynamics:
     def get_cumulative_offset(self) -> dict[str, float]:
         """v1.2.5 PR2: 读累积偏移快照 (供 /reflect_force_current 诊断)."""
         return dict(self._cumulative_offset)
+
+    def restore_offset(self, offset: dict[str, float]) -> None:
+        """v1.2.7 HP-4: 从持久化恢复累积偏移."""
+        for k in ("individual", "natural", "social"):
+            self._cumulative_offset[k] = offset.get(k, 0.0)

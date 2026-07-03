@@ -1,7 +1,6 @@
 """Predict mood trajectory from daily plan activities."""
 from __future__ import annotations
 from typing import Any
-from ..core.registry import register
 
 
 ACTIVITY_EMOTION_EFFECT = {
@@ -13,7 +12,6 @@ ACTIVITY_EMOTION_EFFECT = {
 }
 
 
-@register(name="emotion_predictor", provides=["EmotionPredictor"], depends_on=[])
 class EmotionPredictor:
     def predict_mood_trajectory(self, plan, current_mood: dict) -> list:
         trajectory = [dict(current_mood)]

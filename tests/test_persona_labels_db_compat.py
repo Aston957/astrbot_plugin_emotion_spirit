@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.utils import KnowledgeBase
 from emotion_spirit.regulation.force_dynamics import ForceDynamics
 from emotion_spirit.core.persona_labels_db import (
     force_state_from_persona_id,

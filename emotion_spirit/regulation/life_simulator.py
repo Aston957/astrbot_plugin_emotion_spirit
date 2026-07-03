@@ -203,6 +203,8 @@ class LifeSimulator:
     depends_on=[
         "surface_consumer", "memory_pool", "intimacy",
         "buffer_signals", "meaning_reservoir",
+        "environment_context", "personality_feedback",
+        "project_manager", "recovery_tracker",
     ],
     param_wire={
         "memory_pool": "memory",
@@ -210,6 +212,10 @@ class LifeSimulator:
         "surface_consumer": "consumer",
         "intimacy": "intimacy",
         "meaning_reservoir": "reservoir",
+        "environment_context": "env_ctx",
+        "personality_feedback": "feedback",
+        "project_manager": "project_mgr",
+        "recovery_tracker": "recovery",
     },
 )
 class LifeSimulatorV2:
@@ -222,6 +228,10 @@ class LifeSimulatorV2:
         intimacy: "IntimacyTracker",
         signals: "BufferSignals",
         reservoir: "MeaningReservoir",
+        env_ctx: "EnvironmentContext | None" = None,
+        feedback: "PersonalityFeedback | None" = None,
+        project_mgr: "ProjectManager | None" = None,
+        recovery: "RecoveryTracker | None" = None,
     ) -> None:
         self._consumer = consumer
         self._memory = memory
@@ -231,6 +241,12 @@ class LifeSimulatorV2:
         self._reservoir = reservoir
         self._current_plan: "DailyPlan | None" = None
         self._llm_caller: Callable[[str, str], Awaitable[str]] | None = None
+        # v1.2.7: 4 组件接通
+        self._env_ctx = env_ctx
+        self._feedback = feedback
+        self._project_mgr = project_mgr
+        self._recovery = recovery
+        self._latest_mood_adjustment: str = ""  # emotion_predictor 输出
 
     def configure(self, llm_caller: Callable[[str, str], Awaitable[str]] | None = None) -> None:
         self._llm_caller = llm_caller
@@ -257,7 +273,7 @@ class LifeSimulatorV2:
     ) -> list["PlannedEvent"]:
         """按人格权重从模板库选择 n 个活动。"""
         from .life_plan import (
-            PlannedEvent as _PlannedEvent, select_template_activities, _time_to_slot,
+            PlannedEvent as _PlannedEvent, select_template_activities,
             PERSONALITY_ACTIVITY_BIAS,
         )
         import time as _time
@@ -265,15 +281,27 @@ class LifeSimulatorV2:
         activities = select_template_activities(personality, n=n)
 
         # v1.1.0C: apply PERSONALITY_ACTIVITY_BIAS to re-rank selected activities.
-        # This gives the bias dict a reason to exist — it personalizes template
-        # selection beyond the baseline PERSONALITY_TEMPLATE_WEIGHTS, so a
-        # high-extraversion character gets social activities sorted higher,
-        # a high-openness character gets creative activities first, etc.
+        # v1.2.7: +environment_context + energy_model biases
         weighted_activities = []
-        for cat, activity in activities:
+        for i, (cat, activity) in enumerate(activities):
             weight = 1.0
             for trait, biases in PERSONALITY_ACTIVITY_BIAS.items():
                 weight += personality.get(trait, 0.5) * biases.get(cat, 0.0)
+            # v1.2.7: environment_context bias (season + day-of-week)
+            if self._env_ctx:
+                season_bias = self._env_ctx.get_season_bias()
+                weight += season_bias.get(cat, 0.0)
+                day_bias = self._env_ctx.get_day_bias()
+                weight += day_bias.get(cat, 0.0)
+            # v1.2.7: energy_model bias (slot-dependent)
+            slot_idx = i % 3  # morning/afternoon/evening
+            slot_names = ["morning", "afternoon", "evening"]
+            try:
+                from ..utils.energy_model import get_energy_level, apply_energy_bias
+                energy = get_energy_level(personality, slot_names[slot_idx])
+                weight = apply_energy_bias({cat: weight}, energy).get(cat, weight)
+            except Exception:
+                pass
             weighted_activities.append((cat, activity, weight))
         weighted_activities.sort(key=lambda x: -x[2])
         activities = [(cat, activity) for cat, activity, _ in weighted_activities[:n]]
@@ -352,6 +380,7 @@ class LifeSimulatorV2:
         personality: dict[str, float],
         recent_memories: list[str] | None = None,
         yesterday_events: list[str] | None = None,
+        user_activity: dict | None = None,
     ) -> "DailyPlan":
         """生成明天的日程计划 (模板 + LLM 组合)。"""
         from .life_plan import DailyPlan
@@ -413,7 +442,45 @@ class LifeSimulatorV2:
             adaptations=[],
             dream_seed=dream_seed,
         )
+        # v1.2.7: recovery_tracker — 推进恢复阶段
+        if self._recovery and self._recovery._active_recovery is not None:
+            try:
+                self._recovery.advance_stage()
+            except Exception:
+                pass
+
         self._current_plan = plan
+
+        # v1.2.7: project_manager — 注入多日项目事件
+        if self._project_mgr:
+            try:
+                project = self._project_mgr.suggest_project(personality)
+                if project:
+                    self._project_mgr.inject_into_plan(plan)
+            except Exception:
+                pass
+
+        # v1.2.7: user_activity — 注入用户提及的活动
+        if user_activity:
+            try:
+                from ..utils.user_activity_detector import UserActivityDetector
+                UserActivityDetector().inject_into_plan(plan, user_activity)
+            except Exception:
+                pass
+
+        # v1.2.7: emotion_predictor — 预测情绪轨迹
+        self._latest_mood_adjustment = ""
+        try:
+            from ..utils.emotion_predictor import EmotionPredictor
+            predictor = EmotionPredictor()
+            current_mood = personality.get("neuroticism", 0.5)
+            trajectory = predictor.predict_mood_trajectory(plan, current_mood)
+            adj = predictor.suggest_adjustment(trajectory)
+            if adj:
+                self._latest_mood_adjustment = adj
+        except Exception:
+            pass
+
         return plan
 
     # ── Schedule context injection (Task 6) ─────────────────────────────
@@ -468,6 +535,10 @@ class LifeSimulatorV2:
             done = ", ".join(e.activity for e in done_events[-2:])
             parts.append(f"今天已经做了: {done}")
 
+        # v1.2.7: emotion_predictor mood adjustment
+        if self._latest_mood_adjustment:
+            parts.append(f"情绪提醒: {self._latest_mood_adjustment}")
+
         return "。".join(parts) + "。" if parts else ""
 
     # ── Persistence (Task 7) ───────────────────────────────────────────
@@ -485,6 +556,35 @@ class LifeSimulatorV2:
         plan_data = data.get("current_plan")
         if plan_data:
             self._current_plan = DailyPlan.from_dict(plan_data)
+
+    # ── Extension persistence (v1.2.8: 公开接口, 替代外部伸手 _project_mgr/_recovery 私有) ──
+
+    def persist_extensions(self) -> dict[str, Any]:
+        """持久化接通的扩展组件 (project_manager / recovery_tracker).
+
+        返回 {key: to_dict()|None}。caller (main.py _persist_modules) 遍历写 store,
+        不再直接访问 self._project_mgr / self._recovery 私有属性。
+        """
+        data: dict[str, Any] = {}
+        if self._project_mgr and hasattr(self._project_mgr, "to_dict"):
+            data["project_manager"] = self._project_mgr.to_dict()
+        if self._recovery and hasattr(self._recovery, "to_dict"):
+            data["recovery_tracker"] = self._recovery.to_dict()
+        return data
+
+    def restore_extensions(self, data: dict[str, Any]) -> None:
+        """恢复扩展组件状态 (main.py _load 调用)."""
+        pm_data = data.get("project_manager")
+        if pm_data and self._project_mgr and hasattr(self._project_mgr, "from_dict"):
+            self._project_mgr.from_dict(pm_data)
+        rc_data = data.get("recovery_tracker")
+        if rc_data and self._recovery and hasattr(self._recovery, "from_dict"):
+            self._recovery.from_dict(rc_data)
+
+    def trigger_recovery(self, archetype: str) -> None:
+        """触发崩溃恢复 (封装 recovery_tracker.start_recovery, surface_handler 调用)."""
+        if self._recovery and hasattr(self._recovery, "start_recovery"):
+            self._recovery.start_recovery(archetype)
 
     # ── Plan adaptation (v1.1.0C Task 3: emotion × personality × suppression × collapse) ──
 
@@ -518,15 +618,19 @@ class LifeSimulatorV2:
         Uses compute_social_tendency() to decide whether to keep or cancel events,
         and select_adaptation_activity() to find replacement categories.
 
-        v1.1.0C: New signature accepts emotion_state/personality/suppression/collapse
-        instead of the legacy emotion_delta/cascade_active/boundary_pressure. The
-        new driver is compute_social_tendency → seek/neutral/avoid, which then
-        either cancels non-social events (seek) or social events (avoid).
+        v1.2.7: +recovery_tracker (替换事件) + personality_feedback (只读反馈).
         """
-        from .adaptation import compute_social_tendency, select_adaptation_activity
+        from ..utils.adaptation import compute_social_tendency, select_adaptation_activity
 
         if not self._current_plan:
             return []
+
+        # v1.2.7: recovery_tracker — 若 active recovery, 替换当天事件
+        if self._recovery and self._recovery._active_recovery is not None:
+            try:
+                self._recovery.adapt_plan_for_recovery(self._current_plan)
+            except Exception:
+                pass
 
         tendency = compute_social_tendency(
             emotion_state, personality, suppression_level, collapse_archetype
@@ -558,6 +662,25 @@ class LifeSimulatorV2:
         if self._current_plan.adaptations is None:
             self._current_plan.adaptations = []
         self._current_plan.adaptations.extend(actions)
+
+        # v1.2.7: personality_feedback (只读输出给 compose)
+        if self._feedback:
+            try:
+                cancelled_categories = [
+                    e.category for e in self._current_plan.events
+                    if e.status == "cancelled"
+                ]
+                for cat in cancelled_categories:
+                    delta = self._feedback.compute_feedback(personality, cat)
+                    if delta:
+                        self._current_plan.adaptations.append({
+                            "action": "feedback",
+                            "source_category": cat,
+                            "delta": delta,
+                        })
+            except Exception:
+                pass
+
         return actions
 
     # ── LLM random event generation (Task 3) ──────────────────────────
@@ -596,7 +719,7 @@ class LifeSimulatorV2:
         if not self._llm_caller:
             return []
 
-        from .adaptation import derive_activity_preferences
+        from ..utils.adaptation import derive_activity_preferences
         import json as _json
         import time as _time
         from .life_plan import PlannedEvent as _PlannedEvent

@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Any
 
+from ..core.persona_labels_db import get_defense_deltas
 from ..core.registry import register
 
 
@@ -82,16 +83,18 @@ class DefenseModulator:
         intimacy_level: float,
         context: dict,
         force_state: Optional[dict],
+        conscience_pressure: float = 0.0,  # v1.2.7 HP-2: 显式传参, 替代旧 hasattr 分支
     ) -> DefenseStates:
         """L1: 三子读力学, 返回 DefenseStates
 
         向后兼容: force_state=None 时, 三子都不接收 force_state (跟 v1.2.4 一致)
+        conscience_pressure 默认 0.0 (向后兼容不传的场景)
         """
         # 1. 压抑
         kwargs = {"force_state": force_state} if force_state is not None else {}
         suppression_level = self._suppression.compute(
             personality, context,
-            conscience_pressure=getattr(self._conscience, "pressure", 0.0) if hasattr(self, "_conscience") else 0.0,
+            conscience_pressure=conscience_pressure,
             relationship_intimacy=intimacy_level,
             **kwargs,
         )
@@ -136,7 +139,6 @@ class DefenseModulator:
         if defense_type not in ("suppression", "collapse", "silence"):
             raise ValueError(f"defense_type must be suppression/collapse/silence, got {defense_type!r}")
 
-        from ..core.persona_labels_db import get_defense_deltas
         deltas_kb = get_defense_deltas()
         deltas = deltas_kb[defense_type]
 

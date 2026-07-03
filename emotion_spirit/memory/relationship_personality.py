@@ -22,7 +22,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from ..core.label_mapper import ALL_PERSONALITY_DIMS
+from ..utils.label_mapper import ALL_PERSONALITY_DIMS
 
 
 # Delta 累加范围 (微调应小)

@@ -33,7 +33,7 @@ _this_dir = Path(__file__).parent
 sys.path.insert(0, str(_this_dir.parent.parent))
 sys.path.insert(0, str(_this_dir.parent))
 
-from emotion_spirit.core.label_mapper import labels_to_personality
+from emotion_spirit.utils import labels_to_personality
 from emotion_spirit.output.surface_consumer import SurfaceConsumer
 from emotion_spirit.regulation.superego import (
     ValueResistance, ValueAlignment, ConscienceTracker, IdealSelf,

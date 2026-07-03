@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import re
 
-from ..core.registry import register
 
 __all__ = ["UserActivityDetector"]
 
@@ -44,11 +43,6 @@ def _extract_time_hint(text: str) -> str:
     return "soon"
 
 
-@register(
-    name="user_activity_detector",
-    provides=["UserActivityDetector"],
-    depends_on=[],
-)
 class UserActivityDetector:
     """Extract user activity plans from text messages."""
 
@@ -94,7 +88,7 @@ class UserActivityDetector:
 
     def inject_into_plan(self, plan, detected: dict) -> None:
         """Apply detected plan to a DailyPlan."""
-        from .life_plan import PlannedEvent
+        from ..regulation.life_plan import PlannedEvent
 
         if not detected:
             return

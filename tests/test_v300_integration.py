@@ -99,7 +99,7 @@ class TestBotEmotionExtraction:
 
     def test_all_tones(self):
         """覆盖所有情绪类型。"""
-        from main import EmotionSpiritPlugin
+        from emotion_spirit.utils import extract_bot_emotion
         cases = [
             ("哈哈好的", "warm"),
             ("不好意思", "apologetic"),
@@ -109,7 +109,7 @@ class TestBotEmotionExtraction:
             ("", "neutral"),
         ]
         for text, expected_tone in cases:
-            tone, weight = EmotionSpiritPlugin._extract_bot_emotion(text)
+            tone, weight = extract_bot_emotion(text)
             assert tone == expected_tone, f"text={text!r} expected={expected_tone} got={tone}"
             assert 0.0 < weight <= 1.0
 

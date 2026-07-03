@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .event_bus import EventBus, AgentEvent
+from typing import Any
 
 __all__ = [
     "SKIP", "RULE", "LLM", "PRE", "POST", "RESPONSE_POST", "AUTONOMOUS",
@@ -33,8 +30,8 @@ class CognitiveAgent:
     name: str = "base"
     phases: tuple[str, ...] = (POST,)
 
-    def __init__(self, bus: "EventBus") -> None:
-        self._bus = bus
+    def __init__(self) -> None:
+        pass
 
     def perceive(self, surface: dict[str, Any]) -> dict[str, Any]:
         return {}
@@ -45,10 +42,6 @@ class CognitiveAgent:
     async def act(self, session_key: str, mode: str,
                   perceived: dict[str, Any], phase: str = POST) -> "AgentIntent | None":
         return None
-
-    def emit(self, event: "AgentEvent") -> None:
-        self._bus.publish(event)
-
 
 @dataclass(slots=True)
 class AgentIntent:

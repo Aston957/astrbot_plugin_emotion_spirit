@@ -24,7 +24,7 @@ from emotion_spirit.memory.meaning_reservoir import MeaningReservoir
 from emotion_spirit.output.buffer_signals import BufferSignals
 from emotion_spirit.memory.memory_pool import MemoryPool
 from emotion_spirit.memory.intimacy import IntimacyTracker
-from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
+from emotion_spirit.utils import labels_to_personality, _BASELINE
 
 from surface_generator import ScenarioProfile, SCENARIOS, generate_scenario_sequence, generate_bursty_scenario_sequence
 from drift_simulator import DriftSimulator, simulate_persona

@@ -1,7 +1,7 @@
 """SemanticSignals 扩展 + consume() 集成测试。"""
 
 import pytest
-from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.utils import KnowledgeBase
 from emotion_spirit.output.surface_consumer import SemanticSignals
 
 # Phase B: 数据走 KnowledgeBase (单一数据源)

@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .persona_profiles import get_intimacy_weights, get_intimacy_modulation
+from ..utils import get_intimacy_weights, get_intimacy_modulation
 from ..core.config import INTIMACY_THRESHOLDS
 from ..layer import per_user_only
 

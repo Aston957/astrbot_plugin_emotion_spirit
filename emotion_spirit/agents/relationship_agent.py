@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 from .base import CognitiveAgent, AgentIntent, PRE, POST, RULE, SKIP
-from .event_bus import RelationshipChanged
 
 __all__ = ["RelationshipAgent"]
 
@@ -20,8 +19,8 @@ class RelationshipAgent(CognitiveAgent):
     name = "relationship"
     phases = (PRE, POST)
 
-    def __init__(self, bus, intimacy_tracker=None, social_graph=None):
-        super().__init__(bus)
+    def __init__(self, intimacy_tracker=None, social_graph=None):
+        super().__init__()
         self._intimacy = intimacy_tracker
         self._social_graph = social_graph
 
@@ -101,13 +100,8 @@ class RelationshipAgent(CognitiveAgent):
 
         # Emit event if segment changed
         if old_segment != new_segment:
-            self.emit(RelationshipChanged(
-                source="relationship",
-                session_key=session_key,
-                user_id=user_id,
-                segment=new_segment,
-                delta=delta,
-            ))
+            # emit removed (v1.2.7 Q3: EventBus deleted)
+            pass
 
         return AgentIntent(
             source="relationship",

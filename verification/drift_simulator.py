@@ -25,8 +25,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Any
 
-from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
-from emotion_spirit.core.knowledge import KnowledgeBase
+from emotion_spirit.utils import labels_to_personality, _BASELINE
+from emotion_spirit.utils import KnowledgeBase
 from emotion_spirit.regulation.force_dynamics import ForceDynamics
 
 

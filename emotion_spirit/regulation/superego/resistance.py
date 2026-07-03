@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...core.config import SUPEREGO_CONFIG, SUPEREGO_THRESHOLDS
-from ...memory.persona_profiles import get_value_behaviors, get_narrative
+from ...utils import get_value_behaviors, get_narrative
 
 
 @dataclass
@@ -178,7 +178,7 @@ class ValueResistance:
         weights = self._values
 
         # 按权重累加每种 tension 的得分 (Phase B: 走 KnowledgeBase.TENSION_INCLINATION)
-        from ...core.knowledge import KnowledgeBase
+        from ...utils import KnowledgeBase
         tension_inclination = KnowledgeBase.TENSION_INCLINATION
         tension_scores: dict[str, float] = {}
         for dim in conflict_values:
@@ -307,7 +307,7 @@ class ValueResistance:
         直接用参数值作为权重，不做 S 曲线/Top-K/引力。
         """
         if not personality:
-            from ...core.label_mapper import _BASELINE
+            from ...utils import _BASELINE
             personality = _BASELINE
 
         values: dict[str, float] = {}

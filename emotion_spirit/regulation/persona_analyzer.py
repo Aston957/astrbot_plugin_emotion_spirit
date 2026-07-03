@@ -111,8 +111,8 @@ class LLMAnalyzer:
 
     async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
         """调用 LLM 解析 persona。LLM 失败抛异常 (caller 决定 fallback)。"""
-        from .persona_report_parser import parse_persona_report
-        from ..core.label_mapper import LABEL_OPTIONS
+        from ..utils import parse_persona_report
+        from ..utils.label_mapper import LABEL_OPTIONS
 
         if not system_prompt:
             logger.warning("LLMAnalyzer: system_prompt 为空")
@@ -203,7 +203,7 @@ class LLMAnalyzer:
     @staticmethod
     def _validate_labels(labels: dict[str, str]) -> dict[str, str]:
         """验证标签值是否在 LABEL_OPTIONS 范围内, 不在的用默认值。"""
-        from ..core.label_mapper import LABEL_OPTIONS
+        from ..utils.label_mapper import LABEL_OPTIONS
 
         defaults = {
             "mbti": "ISTJ",
@@ -227,7 +227,7 @@ class RuleBasedAnalyzer:
 
     async def analyze(self, persona_id: str, system_prompt: str) -> PersonaAnalysisResult:
         """基于 system_prompt 模式匹配提取 labels 和 drives。"""
-        from .persona_report_parser import parse_persona_report
+        from ..utils import parse_persona_report
 
         parsed = parse_persona_report(system_prompt)
         logger.info(

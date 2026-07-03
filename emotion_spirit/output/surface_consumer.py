@@ -8,13 +8,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..core.config import EMA_ALPHA, TRAJECTORY_WINDOW, VELOCITY_BURST_THRESHOLD
-from .emotion_classifier import (
+from ..utils import (
     classify_distribution,
     classify_primary_secondary,
     compute_ambiguity,  # v1.2
     compute_velocity,   # v1.2
 )
-from .trend_utils import EMASmoother
+from ..utils import EMASmoother
 
 
 

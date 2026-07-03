@@ -29,7 +29,7 @@ sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
 from emotion_spirit.memory.relationship_personality import RelationshipPersonality, ALL_DIMS
-from emotion_spirit.core.label_mapper import ALL_PERSONALITY_DIMS
+from emotion_spirit.utils import ALL_PERSONALITY_DIMS
 
 
 # ═══ 基础 API ═══

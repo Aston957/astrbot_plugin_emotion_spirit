@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from .base import CognitiveAgent, AgentIntent, PRE, AUTONOMOUS, RULE, SKIP
-from .event_bus import LifeEventReady
 
 if TYPE_CHECKING:
     from ..regulation.life_simulator import LifeSimulatorV2
@@ -26,9 +25,9 @@ class LifeAgent(CognitiveAgent):
     name = "life"
     phases = (PRE, AUTONOMOUS)
 
-    def __init__(self, bus, life_sim_v2: "LifeSimulatorV2 | None" = None,
+    def __init__(self, life_sim_v2: "LifeSimulatorV2 | None" = None,
                  personality: dict[str, float] | None = None):
-        super().__init__(bus)
+        super().__init__()
         self._life_sim = life_sim_v2
         # OCEAN-5 personality params (deep layer of _baseline_personality).
         # Defaults to a neutral OCEAN profile so the agent still produces
@@ -127,12 +126,7 @@ class LifeAgent(CognitiveAgent):
         if event is None:
             return None
 
-        self.emit(LifeEventReady(
-            source="life",
-            session_key=session_key,
-            text=event.text,
-            mood=event.mood,
-        ))
+        # emit removed (v1.2.7 Q3: EventBus deleted)
 
         return AgentIntent(
             source="life",

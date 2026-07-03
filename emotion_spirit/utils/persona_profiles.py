@@ -35,7 +35,7 @@ def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -
     基于 Singer (1995): 叙事是特定 Me-Self 的意识表达。
     每个维度只看最相关的 1~2 个参数来选择变体。
     """
-    from ..core.knowledge import KnowledgeBase
+    from ..utils.knowledge import KnowledgeBase
     if not personality:
         return "high"  # 默认
 
@@ -63,7 +63,7 @@ def get_narrative(
     Returns:
         人格化的中文叙事文本
     """
-    from ..core.knowledge import KnowledgeBase
+    from ..utils.knowledge import KnowledgeBase
     variant = _select_variant(dimension, personality)
     template = KnowledgeBase.NARRATIVE_TEMPLATES.get(dimension, {}).get(variant, {})
     return template.get(scene, DIMENSION_DISPLAY.get(dimension, dimension))
@@ -124,7 +124,7 @@ def get_personality_params(labels: dict[str, str] | str) -> dict[str, dict[str, 
     - dict: 直接使用标签字典
     - str: 视为 persona 名称，返回空字典 (已弃用预设)
     """
-    from ..core.label_mapper import labels_to_personality
+    from ..utils.label_mapper import labels_to_personality
 
     if isinstance(labels, str):
         # 兼容旧代码: 如果传入字符串，返回空字典
@@ -164,7 +164,7 @@ def get_value_behaviors() -> dict[str, dict[str, list[str]]]:
 
 def get_personality_from_labels(labels: dict[str, str]) -> dict[str, dict[str, float]]:
     """从标签组合推导 13 维参数。"""
-    from ..core.label_mapper import labels_to_personality
+    from ..utils.label_mapper import labels_to_personality
     return labels_to_personality(labels)
 
 
@@ -179,10 +179,3 @@ def get_labels_from_config(config: dict[str, Any]) -> dict[str, str]:
     }
 
 
-from ..core.registry import register
-
-
-@register(name="persona_profiles", provides=[], depends_on=[])
-class _ModuleMarker:
-    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
-    pass

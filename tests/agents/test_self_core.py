@@ -1,8 +1,7 @@
-"""Tests for SelfCore orchestrator."""
+"""Tests for SelfCore orchestrator (v1.2.7 Q3: EventBus removed)."""
 import asyncio
 import pytest
 from emotion_spirit.agents.base import CognitiveAgent, AgentIntent, PRE, POST, RULE, SKIP, LLM, VALID_FLAGS
-from emotion_spirit.agents.event_bus import EventBus, AgentEvent, BoundaryBreached, ShadowDetected, LifeEventReady, RelationshipChanged
 from emotion_spirit.agents.self_core import SelfCore, ComposedInputs
 
 
@@ -12,8 +11,8 @@ class DummyAgent(CognitiveAgent):
     name = "dummy"
     phases = (PRE,)
 
-    def __init__(self, bus, mode=RULE):
-        super().__init__(bus)
+    def __init__(self, mode=RULE):
+        super().__init__()
         self._mode = mode
 
     def gate(self, perceived):
@@ -27,22 +26,10 @@ class DummyAgent(CognitiveAgent):
 
 def test_cognitive_agent_defaults():
     """Base CognitiveAgent returns empty perceive, SKIP gate, None act."""
-    bus = EventBus()
-    agent = CognitiveAgent(bus)
+    agent = CognitiveAgent()
     assert agent.perceive({}) == {}
     assert agent.gate({}) == SKIP
     assert asyncio.run(agent.act("sk", RULE, {})) is None
-
-
-def test_cognitive_agent_emit():
-    """emit() delegates to bus.publish()."""
-    bus = EventBus()
-    received = []
-    bus.subscribe(AgentEvent, lambda e: received.append(e))
-    agent = CognitiveAgent(bus)
-    agent.emit(AgentEvent(source="test", session_key="sk"))
-    assert len(received) == 1
-    assert received[0].source == "test"
 
 
 def test_agent_intent_dataclass():
@@ -63,76 +50,18 @@ def test_agent_intent_slots():
     assert not hasattr(ai, "__dict__")
 
 
-# ── EventBus tests ───────────────────────────────────────────────────────────
-
-def test_event_bus_subscribe_publish():
-    """Events dispatched to correct handler."""
-    bus = EventBus()
-    received = []
-    bus.subscribe(AgentEvent, lambda e: received.append(e))
-    bus.publish(AgentEvent(source="a", session_key="sk"))
-    assert len(received) == 1
-
-
-def test_event_bus_no_cross_type():
-    """Handler for one type does not receive other types."""
-    bus = EventBus()
-    base_received = []
-    boundary_received = []
-    bus.subscribe(AgentEvent, lambda e: base_received.append(e))
-    bus.subscribe(BoundaryBreached, lambda e: boundary_received.append(e))
-    bus.publish(BoundaryBreached(source="a", session_key="sk", pressure=0.8))
-    # BoundaryBreached is a subclass of AgentEvent, so both should fire
-    assert len(boundary_received) == 1
-
-
-def test_event_bus_clear():
-    """clear() removes all subscriptions."""
-    bus = EventBus()
-    received = []
-    bus.subscribe(AgentEvent, lambda e: received.append(e))
-    bus.clear()
-    bus.publish(AgentEvent(source="a", session_key="sk"))
-    assert len(received) == 0
-
-
-def test_event_bus_handler_exception():
-    """Exception in handler does not propagate."""
-    bus = EventBus()
-    def bad_handler(e):
-        raise ValueError("boom")
-    bus.subscribe(AgentEvent, bad_handler)
-    # Should not raise
-    bus.publish(AgentEvent(source="a", session_key="sk"))
-
-
-def test_event_subclasses():
-    """Typed event subclasses have correct fields."""
-    be = BoundaryBreached(source="b", session_key="sk", pressure=0.9)
-    assert be.pressure == 0.9
-    se = ShadowDetected(source="s", session_key="sk", tags=["anger"])
-    assert se.tags == ["anger"]
-    le = LifeEventReady(source="l", session_key="sk", text="hi", mood="happy")
-    assert le.text == "hi"
-    assert le.mood == "happy"
-    re = RelationshipChanged(source="r", session_key="sk", user_id="u1", segment="close", delta=0.1)
-    assert re.user_id == "u1"
-    assert re.segment == "close"
-    assert re.delta == 0.1
-
-
 # ── SelfCore tests ───────────────────────────────────────────────────────────
 
 def test_self_core_register():
     sc = SelfCore()
-    agent = DummyAgent(sc.bus)
+    agent = DummyAgent()
     sc.register(agent)
     assert len(sc._agents) == 1
 
 
 def test_self_core_run_cycle():
     sc = SelfCore()
-    sc.register(DummyAgent(sc.bus))
+    sc.register(DummyAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -141,7 +70,7 @@ def test_self_core_run_cycle():
 
 def test_self_core_skip():
     sc = SelfCore()
-    sc.register(DummyAgent(sc.bus, mode=SKIP))
+    sc.register(DummyAgent(mode=SKIP))
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -151,7 +80,7 @@ def test_self_core_skip():
 def test_self_core_phase_filter():
     """Agents only run when their phase matches."""
     sc = SelfCore()
-    sc.register(DummyAgent(sc.bus))
+    sc.register(DummyAgent())
     # DummyAgent phases=(PRE,), request POST -> should produce empty
     result = asyncio.run(
         sc.run_cycle("test", {}, POST)
@@ -173,8 +102,8 @@ def test_llm_budget():
         def gate(self, p): return "llm"
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="life", flags=["idle"], payload={"src": "l"})
-    sc.register(LLM1(sc.bus))
-    sc.register(LLM2(sc.bus))
+    sc.register(LLM1())
+    sc.register(LLM2())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -203,7 +132,7 @@ def test_compose_flag_filtering():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="flagger", flags=["safe", "not_a_real_flag", "hurt"])
-    sc.register(FlagAgent(sc.bus))
+    sc.register(FlagAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -221,7 +150,7 @@ def test_compose_confidence_weighted():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="conf", confidence_hint=0.8, priority=0.6)
-    sc.register(ConfAgent(sc.bus))
+    sc.register(ConfAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -237,7 +166,7 @@ def test_compose_affect_weighted():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="aff", affect={"valence": 0.5}, priority=1.0)
-    sc.register(AffAgent(sc.bus))
+    sc.register(AffAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -260,8 +189,8 @@ def test_compose_group_heat_max():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="gh2", group_heat=0.7, payload={"gh": 2})
-    sc.register(GH1(sc.bus))
-    sc.register(GH2(sc.bus))
+    sc.register(GH1())
+    sc.register(GH2())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -277,7 +206,7 @@ def test_compose_carried_payloads():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="pay", payload={"key": "value"})
-    sc.register(PayAgent(sc.bus))
+    sc.register(PayAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -293,7 +222,7 @@ def test_agent_act_exception_is_caught():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             raise RuntimeError("oops")
-    sc.register(BadAgent(sc.bus))
+    sc.register(BadAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )
@@ -311,7 +240,7 @@ def test_agent_perceive_exception_is_caught():
         def gate(self, p): return RULE
         async def act(self, sk, m, p, phase=PRE):
             return AgentIntent(source="badp")
-    sc.register(BadPerceiveAgent(sc.bus))
+    sc.register(BadPerceiveAgent())
     result = asyncio.run(
         sc.run_cycle("test", {}, PRE)
     )

@@ -215,6 +215,79 @@ def test_compute_defense_states_without_force_state():
     assert "force_state" not in call_kwargs or call_kwargs.get("force_state") is None
 
 
+# === HP-2 + DO-4: conscience_pressure 参数 (v1.2.7) ===
+
+def test_compute_defense_states_accepts_conscience_pressure():
+    """conscience_pressure 参数应传给 suppression.compute (替代旧 hasattr 分支)"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator, SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.5)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.4, 0.6, 0.2))
+
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(score=0.0, reason="", components={}))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={}, force_state=None,
+        conscience_pressure=0.75,
+    )
+
+    # suppression.compute 应收到 conscience_pressure=0.75
+    dm._suppression.compute.assert_called_once()
+    call_kwargs = dm._suppression.compute.call_args.kwargs
+    assert call_kwargs.get("conscience_pressure") == 0.75
+
+
+def test_compute_defense_states_default_conscience_pressure():
+    """不传 conscience_pressure → 默认 0.0"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator, SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.0)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.0, 0.0, 0.0))
+
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(score=0.0, reason="", components={}))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={}, force_state=None,
+    )
+
+    dm._suppression.compute.assert_called_once()
+    call_kwargs = dm._suppression.compute.call_args.kwargs
+    # 默认应传 0.0 (不依赖 hasattr)
+    assert call_kwargs.get("conscience_pressure") == 0.0
+
+
+def test_compute_defense_states_no_hasattr_branch():
+    """DefenseModulator 不应有 _conscience 属性或 hasattr 分支"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    dm = DefenseModulator.__new__(DefenseModulator)
+    # 不应有 _conscience
+    assert not hasattr(dm, "_conscience"), "HP-2: DefenseModulator 不应有 _conscience 属性"
+
+
 # === Task 6: DefenseModulator.apply_event (L2) + force_dynamics.shift() ===
 
 def test_apply_event_silence_modifies_force_state():

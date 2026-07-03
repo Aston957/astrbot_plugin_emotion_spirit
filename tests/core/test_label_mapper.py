@@ -6,7 +6,7 @@ from pathlib import Path
 # 添加项目根目录到 sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from emotion_spirit.core.label_mapper import (
+from emotion_spirit.utils import (
     clamp,
     labels_to_personality,
     personality_to_labels,
@@ -87,7 +87,7 @@ def test_personality_to_labels():
 
 def test_all_personality_dims_is_13():
     """v1.7.2: label_mapper 必须暴露 13 维权威集合 (含 gossip_tendency)。"""
-    from emotion_spirit.core.label_mapper import (
+    from emotion_spirit.utils import (
         ALL_PERSONALITY_DIMS,
         PERSONALITY_DIMS_DEEP,
         PERSONALITY_DIMS_SURFACE,

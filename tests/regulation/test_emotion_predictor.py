@@ -1,7 +1,7 @@
 """Tests for emotion_predictor.py — mood trajectory prediction from DailyPlan."""
 from __future__ import annotations
 
-from emotion_spirit.regulation.emotion_predictor import EmotionPredictor
+from emotion_spirit.utils import EmotionPredictor
 from emotion_spirit.regulation.life_plan import DailyPlan, PlannedEvent
 
 

@@ -19,7 +19,7 @@ from astrbot.api import logger
 from ..core.config import BUFFER_POOL_CONFIG, MEMORY_POOL_CONFIG
 from ..core.utils import clamp
 from .unified_entry import UnifiedEntry
-from .decay_model import DecayModel
+from ..utils import DecayModel
 from .cascade_engine import CascadeEngine
 
 
@@ -686,6 +686,10 @@ class MemoryPool:
         return self._cascade_active
 
     # ═══ 序列化 ═══
+
+    def get_collapse_archetype(self) -> str | None:
+        """当前 collapse archetype (公开访问, 替代直接读 _collapse_archetype 私有, v1.2.8)."""
+        return self._collapse_archetype
 
     def to_dict(self) -> dict:
         return {

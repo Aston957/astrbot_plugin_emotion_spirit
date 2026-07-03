@@ -1,6 +1,6 @@
 """Tests for tools/check_registry_consistency.py (B6.x CI gate)。
 
-正向测试: 静态扫描应该 56 模块全 pass, exit 0。
+正向测试: 静态扫描应该 48 模块全 pass, exit 0。
 (dry_run 测试在 tests/test_registry_build_dryrun.py, 互补覆盖)
 
 Phase 3.0B Task 3: 29 → 30 (+body_state)
@@ -14,6 +14,7 @@ v1.2.1 DI cleanup: 48 → 56 (+engine_manager, +hotpool_forwarder, +personality_
                                  +life_simulator_v2, +command_router;
                                  LifeAgent 因 factory 无法表达 self_core.bus 依赖,
                                  仍手 new — 同 MemoryAgent/PersonalityAgent/RelationshipAgent 一组)
+v1.2.7 cleanup: 56 → 48 (-11 utils 工具取消 @register, -event_bus 已删, +segmented_reply_orchestrator)
 """
 from __future__ import annotations
 import sys
@@ -24,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_check_registry_consistency_passes():
-    """跑静态扫描 CI gate, 56 模块全 pass, exit 0。"""
+    """跑静态扫描 CI gate, 48 模块全 pass, exit 0。"""
     import emotion_spirit  # noqa: F401
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     tool_path = os.path.join(project_root, "tools", "check_registry_consistency.py")
@@ -35,11 +36,11 @@ def test_check_registry_consistency_passes():
     )
     assert result.returncode == 0, f"scan failed: stdout={result.stdout}, stderr={result.stderr}"
     assert "PASS" in result.stdout
-    assert "58 modules" in result.stdout
+    assert "48 modules" in result.stdout
 
 
-def test_check_registry_consistency_covers_all_58_specs():
-    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 58 个 specs。"""
+def test_check_registry_consistency_covers_all_48_specs():
+    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 48 个 specs。"""
     import emotion_spirit  # noqa: F401
     from emotion_spirit.core.registry import ModuleRegistry
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

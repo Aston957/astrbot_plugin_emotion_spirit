@@ -2,7 +2,7 @@ name: astrbot_plugin_emotion_spirit
 display_name: "Emotion Spirit"
 desc: "AstrBot 生态的情感计算插件，为 AI 构建自我+超我层。四层长期记忆，记忆崩溃检测，人格漂移引擎，三元力学引擎（自然/社会/个体）。"
 author: "Aston957"
-version: "1.2.5"
+version: "1.2.8"
 repo: "https://github.com/Aston957/astrbot_plugin_emotion_spirit"
 support_platforms:
   - aiocqhttp

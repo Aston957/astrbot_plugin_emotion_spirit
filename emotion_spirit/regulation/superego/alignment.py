@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import deque
 from typing import Any
 
-from ...memory.persona_profiles import get_value_behaviors
+from ...utils import get_value_behaviors
 
 
 class ValueAlignment:

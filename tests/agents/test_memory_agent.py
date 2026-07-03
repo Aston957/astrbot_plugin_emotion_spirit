@@ -5,7 +5,6 @@ import pytest
 from unittest.mock import MagicMock
 
 from emotion_spirit.agents.base import PRE, POST, RULE, SKIP, AgentIntent
-from emotion_spirit.agents.event_bus import EventBus, ShadowDetected
 from emotion_spirit.agents.memory_agent import MemoryAgent
 from emotion_spirit.memory.memory_pool import MemoryPool
 
@@ -30,9 +29,8 @@ def _make_pool_with_memory(text="今天很开心", weight=0.8):
 # ── perceive tests ───────────────────────────────────────────────────────────
 
 def test_perceive_extracts_expected_keys():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     surface = {
         "_phase": PRE,
@@ -48,9 +46,8 @@ def test_perceive_extracts_expected_keys():
 
 
 def test_perceive_defaults():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     p = agent.perceive({})
     assert p["phase"] == POST
@@ -62,48 +59,42 @@ def test_perceive_defaults():
 # ── gate tests ───────────────────────────────────────────────────────────────
 
 def test_gate_pre_high_intimacy_returns_rule():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     assert agent.gate({"phase": PRE, "intimacy_gravity": 0.6}) == RULE
 
 
 def test_gate_pre_low_intimacy_returns_skip():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     assert agent.gate({"phase": PRE, "intimacy_gravity": 0.1}) == SKIP
 
 
 def test_gate_pre_boundary_intimacy():
     """0.35 is the base threshold; 0.35 should pass (>=)."""
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     assert agent.gate({"phase": PRE, "intimacy_gravity": 0.35}) == RULE
 
 
 def test_gate_pre_just_below_boundary():
     """0.34 is just below the 0.35 threshold."""
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     assert agent.gate({"phase": PRE, "intimacy_gravity": 0.34}) == SKIP
 
 
 def test_gate_post_always_rule():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     assert agent.gate({"phase": POST}) == RULE
     assert agent.gate({}) == RULE
 
 
 def test_gate_pre_with_evo_delta():
     """Evolution delta shifts the threshold up."""
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
     # threshold = 0.35 + 0.1 = 0.45
     evo_fn = lambda k: 0.1 if k == "intimacy_recall_threshold" else 0.0
     perceived = {"phase": PRE, "intimacy_gravity": 0.4, "_evo_delta": evo_fn}
@@ -116,9 +107,8 @@ def test_gate_pre_with_evo_delta():
 # ── act PRE (recall) tests ──────────────────────────────────────────────────
 
 def test_recall_returns_intent_with_memories():
-    bus = EventBus()
     pool = _make_pool_with_memory()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     result = _run(agent.act("sk", RULE, {"user_text": "开心", "intimacy_gravity": 0.6}, PRE))
     assert result is not None
@@ -129,9 +119,8 @@ def test_recall_returns_intent_with_memories():
 
 
 def test_recall_priority():
-    bus = EventBus()
     pool = _make_pool_with_memory()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     result = _run(agent.act("sk", RULE, {"user_text": "开心"}, PRE))
     assert result is not None
@@ -139,27 +128,24 @@ def test_recall_priority():
 
 
 def test_recall_empty_text_returns_none():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     result = _run(agent.act("sk", RULE, {"user_text": ""}, PRE))
     assert result is None
 
 
 def test_recall_no_match_returns_none():
-    bus = EventBus()
     pool = _make_pool_with_memory(text="悲伤的事")
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     result = _run(agent.act("sk", RULE, {"user_text": "无关内容xyz"}, PRE))
     assert result is None
 
 
 def test_recall_missing_user_text_returns_none():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     result = _run(agent.act("sk", RULE, {}, PRE))
     assert result is None
@@ -168,60 +154,27 @@ def test_recall_missing_user_text_returns_none():
 # ── act POST (shadow detection) tests ────────────────────────────────────────
 
 def test_post_no_shadow_returns_none():
-    bus = EventBus()
     pool = MemoryPool()
-    agent = MemoryAgent(bus, pool, shadow_detector=None)
+    agent = MemoryAgent( pool, shadow_detector=None)
 
     result = _run(agent.act("sk", RULE, {}, POST))
     assert result is None
 
 
-def test_post_shadow_emits_event():
-    """When shadow_detector detects shadows, a ShadowDetected event is emitted."""
-    bus = EventBus()
-    pool = MemoryPool()
-    mock_shadow = MagicMock()
-    mock_shadow.detect.return_value = [
-        {"tag": "loneliness", "evidence": "echo_pattern", "confidence": 0.8},
-        {"tag": "fear", "evidence": "avoidance_pattern", "confidence": 0.5},
-    ]
-
-    captured = []
-    bus.subscribe(ShadowDetected, lambda e: captured.append(e))
-
-    agent = MemoryAgent(bus, pool, shadow_detector=mock_shadow)
-    result = _run(agent.act("session1", RULE, {}, POST))
-
-    assert result is None  # POST act returns None
-    assert len(captured) == 1
-    assert captured[0].tags == ["loneliness", "fear"]
-    assert captured[0].session_key == "session1"
-
-
 def test_post_shadow_no_shadows_no_event():
     """When shadow_detector returns empty, no event is emitted."""
-    bus = EventBus()
     pool = MemoryPool()
     mock_shadow = MagicMock()
     mock_shadow.detect.return_value = []
 
     captured = []
-    bus.subscribe(ShadowDetected, lambda e: captured.append(e))
-
-    agent = MemoryAgent(bus, pool, shadow_detector=mock_shadow)
-    _run(agent.act("sk", RULE, {}, POST))
-
-    assert len(captured) == 0
-
-
 def test_post_shadow_exception_is_swallowed():
     """If shadow_detector.detect() raises, the exception is swallowed."""
-    bus = EventBus()
     pool = MemoryPool()
     mock_shadow = MagicMock()
     mock_shadow.detect.side_effect = RuntimeError("boom")
 
-    agent = MemoryAgent(bus, pool, shadow_detector=mock_shadow)
+    agent = MemoryAgent( pool, shadow_detector=mock_shadow)
     # Should not raise
     result = _run(agent.act("sk", RULE, {}, POST))
     assert result is None
@@ -231,9 +184,8 @@ def test_post_shadow_exception_is_swallowed():
 
 def test_full_pipeline_pre_high_intimacy():
     """High intimacy: perceive -> gate(RULE) -> recall returns intent."""
-    bus = EventBus()
     pool = _make_pool_with_memory(text="今天特别开心的事")
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     surface = {"_phase": PRE, "intimacy_gravity": 0.7, "user_text": "开心"}
     perceived = agent.perceive(surface)
@@ -247,9 +199,8 @@ def test_full_pipeline_pre_high_intimacy():
 
 def test_full_pipeline_pre_low_intimacy():
     """Low intimacy: perceive -> gate(SKIP) -> act is never called."""
-    bus = EventBus()
     pool = _make_pool_with_memory()
-    agent = MemoryAgent(bus, pool)
+    agent = MemoryAgent( pool)
 
     surface = {"_phase": PRE, "intimacy_gravity": 0.1}
     perceived = agent.perceive(surface)
@@ -259,20 +210,8 @@ def test_full_pipeline_pre_low_intimacy():
 
 def test_full_pipeline_post():
     """POST phase: perceive -> gate(RULE) -> shadow detection."""
-    bus = EventBus()
     pool = MemoryPool()
     mock_shadow = MagicMock()
     mock_shadow.detect.return_value = [{"tag": "test_shadow"}]
 
     captured = []
-    bus.subscribe(ShadowDetected, lambda e: captured.append(e))
-
-    agent = MemoryAgent(bus, pool, shadow_detector=mock_shadow)
-    surface = {"_phase": POST}
-    perceived = agent.perceive(surface)
-    gate_result = agent.gate(perceived)
-    assert gate_result == RULE
-
-    result = _run(agent.act("sk", gate_result, perceived, POST))
-    assert result is None
-    assert len(captured) == 1

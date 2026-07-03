@@ -79,22 +79,67 @@
 
 **规约**: §1.2 规则 3(薄壳 50 行)+ §1.6 规则 5(输出编排 → @register 组件)
 
+**进度**: 步骤 1-2 ✅ 已完成(`utils/tone_extractor.py` 已建, main.py:1305 已调 `extract_bot_emotion`, `tests/test_tone_extractor.py` 已建)。剩余步骤 3-7 抽 SegmentedReplyOrchestrator。
+
 **步骤**:
-1. `_extract_bot_emotion`(main.py:1356-1383,28 行关键词匹配)→ 抽到 `utils/tone_extractor.py`(纯函数 `extract_bot_emotion(text) -> (tone, weight)`)
-2. `main.py`: `from emotion_spirit.utils import extract_bot_emotion` + 调用
-3. `_on_segmented_reply_v2`(main.py:1387-1508,121 行)→ 抽到 `emotion_spirit/output/segmented_reply_orchestrator.py`:
+1. ✅ `_extract_bot_emotion` → `utils/tone_extractor.py`(纯函数 `extract_bot_emotion(text) -> (tone, weight)`)
+2. ✅ `main.py`: `from emotion_spirit.utils import extract_bot_emotion` + 调用
+3. `_on_segmented_reply_v2`(main.py:1358-1480, ~123 行)→ 抽到 `emotion_spirit/output/segmented_reply_orchestrator.py`:
    ```python
    @register(name="segmented_reply_orchestrator", provides=["SegmentedReplyOrchestrator"],
              depends_on=["defense_modulator", "segmented_reply_coordinator", "force_dynamics", "body_state", "intimacy"])
    class SegmentedReplyOrchestrator:
-       async def handle(self, event, response, bot_text, user_id, seg_config, ...): ...
+       async def handle(self, event, response, bot_text, user_id, seg_config,
+                        signals, context, personality, labels, force_state): ...
    ```
-4. `main.py`: `self._segmented_orchestrator = self._modules["segmented_reply_orchestrator"]`(装配)
-5. `on_llm_response` 改薄壳: 取 bot_text + 调组件写 memory/intimacy/reflex + `await self._segmented_orchestrator.handle(...)` 委托
-6. 验证 `on_llm_response` < 50 行(test_main_py_no_long_orchestration)
-7. 跑 `pytest tests/` + on_llm_response 回归
 
-**注意**: SegmentedReplyOrchestrator 依赖 defense_modulator/coordinator/force_dynamics/body_state/intimacy,确认 depends_on 完整 + param_wire 映射。main.py 装配后,原 self._defense_modulator 等引用保留(其他地方可能用)。
+### 4.A 状态归属表(关键 — 决定薄壳能否成立)
+
+`_on_segmented_reply_v2` 读 6 类状态。抽组件后必须分清「组件 depends_on 自取」vs「main 薄壳取了传参」, 否则参数爆炸或违反 §1.3 分层(output/ 不能反向调 main 私有方法):
+
+| 状态 | 归属 | 理由 |
+|---|---|---|
+| `force_state` | **main 传参** | `get_current_force_state`(main.py:978) 是 main 私有方法, 依赖 `self._labels`。force_dynamics 虽 @register, 但 `force_state_from_labels` 需 labels 快照 → labels 走参数, force_state 由 main 算好传 |
+| `signals` | **main 传参** | `self._latest_signals.get(user_id)` 运行时快照, 非 @register |
+| `body_state` | **depends_on 自取** | @register 模块, 组件内 `self._body_state.default()` |
+| `intimacy` | **depends_on 自取** | @register 模块(需 user_id + persona 参数, 但模块本身注入) |
+| `context` | **main 传参** | `_build_context`(main.py:1482) 是 main 私有方法(8 行)。处置见 4.B: 下沉 utils 纯函数 |
+| `personality` | **main 传参** | `_get_current_personality_dict`(main.py:962) 是 main 私有方法 |
+
+`handle` 签名 10 参: `event, response, bot_text, user_id, seg_config, signals, context, personality, labels, force_state` — 全是「运行时上下文/当次快照」, 无 @register 模块混入(depends_on 5 个自取), 薄壳 on_llm_response 只负责「取这些 + 调 handle」, 不实现编排。
+
+### 4.B main.py 私有方法处置(三个被编排逻辑用的私有方法)
+
+- `get_current_force_state`(978): **保留 main**(依赖 self._labels + self._force_dynamics), main 算好 force_state 传参
+- `_build_context`(1482, 8 行 social_audience/authority_present): **下沉 `utils/context_builder.py`** 纯函数 `build_context(event) -> dict`, main + orchestrator 都从 utils import(避免 output/ 反向依赖 main)
+- `_get_current_personality_dict`(962): **保留 main**, main 取了传参(personality 是 per-user/per-persona 快照, 不该组件持有)
+
+### 4.C 死分支处置(§5 anti-pattern)
+
+`_on_segmented_reply_v2:1386-1390` 有:
+```python
+personality = (
+    self._get_personality_for_user(user_id)
+    if hasattr(self, "_get_personality_for_user")
+    else self._get_current_personality_dict()
+)
+```
+`_get_personality_for_user` **main.py 全文无定义**(grep 确认), hasattr 永远 False — 死分支(同 HP-2 conscience 死代码病, §5 明令禁止 hasattr 掩盖未注入依赖)。抽组件时**删 hasattr, 直接用 `self._get_current_personality_dict()`**, main 传 personality 参数。
+
+### 4.D event/response 副作用契约
+
+orchestrator.handle 内合法直接副作用(运行时对象, 非 @register 依赖, 由 main 薄壳传入):
+- `await event.send(MessageChain([Plain(...)]))` — 分段发送
+- `response.completion_text = ""` + `response.result_chain = None` — 清空(Bug 12b)
+
+§1.6 规则 3「薄壳」不禁止组件对传入对象副作用, 只禁止 main 自己实现编排逻辑。
+
+4. `main.py`: `self._segmented_orchestrator = self._modules["segmented_reply_orchestrator"]`(装配)
+5. `on_llm_response` 改薄壳: 取 bot_text/tone + 写 memory/intimacy/reflex(留 main) + 取 6 状态 + `await self._segmented_orchestrator.handle(...)` 委托
+6. 验证 `on_llm_response` < 50 行(test_main_py_no_long_orchestration: 当前 allowlist 标 64 行, 抽后应可移出 allowlist 压到 < 50; test_on_llm_response_bounded 当前 ≤70, 抽后收紧到 ≤50)
+7. 跑 `pytest tests/` + on_llm_response 回归(分段 send + 沉默 + 清 llm_resp 时序不破坏, R5)
+
+**注意**: depends_on 5 个(defense_modulator/coordinator/force_dynamics/body_state/intimacy)确认 param_wire 映射。main.py 装配后, 原 self._defense_modulator 等引用保留(其他地方可能用)。`_build_context` 下沉 utils 后, main.py:1482 改 `from emotion_spirit.utils import build_context`。
 
 ---
 
@@ -102,30 +147,69 @@
 
 **规约**: §1.2 规则 4(显式 depends_on)+ §1.5(生命周期持久化)
 
-**步骤**:
-1. 4 工具(adaptation/emotion_predictor/energy_model/user_activity_detector)已在任务 1 挪 utils/
-2. 4 组件保留 @register(已在 regulation/):
-   - `environment_context`: 已 @register(确认)
-   - `personality_feedback`: @register + 加 `config_keys` (feedback_rate)
-   - `project_manager`: @register + 加 `to_dict()/from_dict()`(持久化 _projects,§1.5)
-   - `recovery_tracker`: @register + 加 `to_dict()/from_dict()`(持久化恢复进度,§1.5)
-3. `life_simulator.py` @register 加 `depends_on=[..., "environment_context", "personality_feedback", "project_manager", "recovery_tracker"]` + param_wire
-4. `LifeSimulator.__init__` 加 4 组件参数注入
-5. `life_simulator.py` import 3 工具: `from ..utils import compute_social_tendency, predict_mood_trajectory, get_energy_level` 等(adaptation/emotion_predictor/energy_model)
-6. LifeSimulator 实现接通逻辑:
-   - adaptation: 算社交倾向 + 活动偏好
-   - emotion_predictor: 预测情绪轨迹
-   - energy_model: 算能量(昼夜)
-   - environment_context: 算环境偏置(季节/星期)
-   - personality_feedback: 算活动→人格反馈(输出给 compose,LLM 整合,不直接写 personality_drift)
-   - project_manager: 追踪多日项目
-   - recovery_tracker: 追踪崩溃后恢复
-7. `main.py` on_message_receive: 接 `user_activity_detector`(从 utils import,检测用户文本活动 → 写 memory 或传 LifeSimulator)
-8. `main.py` _persist_modules: 加 `project_manager` + `recovery_tracker` 持久化(`self._store.set("project_manager", self._project_manager.to_dict())` 等)
-9. `main.py` _load_state: 加恢复
-10. 跑 `pytest tests/` + 新测试(接通逻辑)
+**关键认知(2026-07-03 补足)**: 4 组件(environment_context/personality_feedback/project_manager/recovery_tracker)**已是完整实现, 不是空壳** — 缺的是「在 LifeSimulatorV2 正确方法里调用它们」(调用编排), 不是「实现接通逻辑」。adaptation 工具已在 `adapt_plan`(526)+`generate_plan_llm`(599)接通。所以本任务实际是接线, 非写算法。
 
-**注意**: 接通逻辑是 v1.2.7 最大工作量。参考 v1.1.0C 设计文档(adaptation docstring 写"used by LifeSimulatorV2 T3 + activity engine T4-T9")。若接通逻辑复杂,可分步: 先接 4 组件(depends_on + 注入 + 简单调用),再接 3 工具(import + 调用),最后完善逻辑。
+**步骤**:
+1. 4 工具(adaptation/emotion_predictor/energy_model/user_activity_detector)已在任务 1 挪 utils/。**adaptation 已接通**(见 5.A 表), 剩 emotion_predictor + energy_model + user_activity_detector 待接
+2. 4 组件保留 @register(已在 regulation/), **已是完整实现**:
+   - `environment_context`: ✅ `get_season_bias/get_weather_bias/get_day_bias` 已实现(无状态, 不需持久化, 每次从 datetime 重建)
+   - `personality_feedback`: ✅ `apply_activity_effect` 已实现。接法见 5.B(只读输出给 compose, 不直接改 dict)。加 `config_keys={"feedback_rate"}` 配置
+   - `project_manager`: ✅ `suggest_project`+`inject_into_plan`+`to_dict/from_dict` 已实现(持久化已有, §1.5 已满足)
+   - `recovery_tracker`: ✅ `start_recovery`+`advance_stage`+`adapt_plan_for_recovery`+`to_dict/from_dict` 已实现(持久化已有)
+3. `life_simulator.py` LifeSimulatorV2 @register 加 `depends_on=[..., "environment_context", "personality_feedback", "project_manager", "recovery_tracker"]` + param_wire
+4. `LifeSimulatorV2.__init__` 加 4 组件参数注入
+5. ~~import 3 工具~~ → **修正**: adaptation 已 import(adapt_plan:526, generate_plan_llm:599)。只补 `from ..utils.emotion_predictor import EmotionPredictor` + `from ..utils.energy_model import EnergyModel`
+6. **接通契约表(见 5.A)** — 替代原「实现接通逻辑」模糊指令
+7. `main.py` **on_llm_request**(非 on_message_receive — 该方法不存在, 见 5.C): 接 `user_activity_detector.detect_plan` 检测用户文本
+8. `main.py` _persist_modules(1645): 加 `project_manager` + `recovery_tracker` 持久化(environment_context/personality_feedback 无状态/配置态, **不持久化**)
+9. `main.py` _load_life_and_v2_data(1627): 加 project_manager + recovery_tracker 恢复
+10. 跑 `pytest tests/` + 新测试(接通逻辑) + test_registry_liveness(4 组件接通后不再是幽灵)
+
+### 5.A 接通契约表(7 幽灵逐个 — 替代原步骤 6 模糊指令)
+
+| 幽灵 | 接通点(LifeSimulatorV2 方法) | 调用 | 输出去向 |
+|---|---|---|---|
+| adaptation | ✅ 已接 `adapt_plan`(509)+`generate_plan_llm`(583) | `compute_social_tendency`/`select_adaptation_activity`/`derive_activity_preferences` | adapt_plan: cancel/keep 事件; generate_plan_llm: pref_text 进 prompt |
+| environment_context | `generate_plan_template`(253) 重排 | `get_season_bias()` + `get_day_bias()` 合并到 `PERSONALITY_ACTIVITY_BIAS` 的 weight 计算 | 影响模板活动选择排序 |
+| energy_model | `generate_plan_template`(253) 重排 | `get_energy_level(personality, slot)` → `apply_energy_bias(category_weights, energy)` | 能量高→physical/social, 低→rest/intellectual |
+| emotion_predictor | `generate_daily_plan`(350) 末尾 | `EmotionPredictor().predict_mood_trajectory(plan, current_mood)` + `suggest_adjustment(trajectory)` | adjustment 建议进 `build_schedule_context`(421) 输出, 给 compose prompt |
+| personality_feedback | `adapt_plan`(509) 末尾 | `compute_feedback`(只读版, 见 5.B): 算反馈值, 不改 dict | 反馈值进 `build_schedule_context` 输出给 compose, LLM 整合, **不写 personality_drift** |
+| project_manager | `generate_daily_plan`(350) 生成 plan 后 | `suggest_project`(每日首次, 若 active 项目 < N) + `inject_into_plan(plan)` | 多日项目事件进 plan.events(category="project") |
+| recovery_tracker | `adapt_plan`(509) 开头 + 触发链(见 5.D) | `adapt_plan_for_recovery(plan)`(若 active) | 替换当天事件为恢复阶段活动(category="recovery") |
+
+### 5.B personality_feedback 接法(只读输出给 compose — 避免 personality_drift 双写)
+
+**决策(2026-07-03 用户拍板)**: 只读, 不直接改 personality dict。
+
+`PersonalityFeedback.apply_activity_effect` 现实现是**直接改传入 dict**(`personality[trait] = clamp(...)`)。但 main.py 已有 `personality_drift` 模块专管人格漂移 → 直接接通 = 双轨人格(§5 反模式)。
+
+**接法**:
+- 新增只读方法 `compute_feedback(personality: dict, activity_category: str) -> dict[str, float]`: 返回各 trait 的 delta(不修改原 dict)
+- `adapt_plan` 末尾: 累加当天各活动 category 的反馈, 调 `compute_feedback` 收集 delta
+- delta 进 `build_schedule_context`(421) 输出: "今天活动让你倾向 {trait:+delta}" → 给 compose prompt, LLM 整合
+- **不调** `apply_activity_effect`(直接改 dict 的旧路径), **不写** personality_drift
+- 旧 `apply_activity_effect` 标 deprecated 或删(仅此一处用)
+
+### 5.C user_activity_detector 接 main.py(修正: on_message_receive 不存在)
+
+**事实修正**: plan 原写"main.py on_message_receive 接 user_activity_detector", 但 main.py **只有 `@filter.on_llm_request`(1215)+`@filter.on_llm_response`(1290)两个钩子, 无 on_message_receive**(grep 确认)。
+
+**接法**: 在 `on_llm_request`(1215)钩子内, 取 user text 调 `user_activity_detector.detect_plan`:
+- `on_llm_request` 已能拿 event + user message text
+- 检测结果(joint/busy/wish)存 `self._latest_user_activity[user_id]`(运行时快照)
+- `LifeSimulatorV2.adapt_plan` 或 `generate_daily_plan` 读取该快照, 调 `user_activity_detector.inject_into_plan(plan, detected)` 把用户活动塞进 plan
+- 不新增 AstrBot 钩子(用已存在的 on_llm_request)
+
+### 5.D recovery_tracker 触发链(原 plan 缺, 补足)
+
+collapse → recovery 的时序 plan 原未画, 补:
+1. **触发**: `memory_pool.py:410` 算 `_collapse_archetype` 时(current-truth §4 记的 collapse 触发点), 同步调 `recovery_tracker.start_recovery(archetype)`
+   - 实际实现(v1.2.7 落实): 通过 `surface_handler.py:283` 中转(非原 plan 设想的 main.py 中转) — surface_handler 持 recovery_tracker 引用, collapse 后调 `rc.start_recovery(pool._collapse_archetype)`。**v1.2.8 债 2**: 把 `_collapse_archetype` 私有访问改为 `memory_pool.get_collapse_archetype()` 公开方法
+2. **应用**: 下次 `LifeSimulatorV2.adapt_plan`(509) 开头, 若 `recovery_tracker._active_recovery` 非 None, 调 `adapt_plan_for_recovery(plan)` 替换当天事件
+3. **推进**: 每日 `generate_daily_plan`(350) 生成新 plan 时, 调 `recovery_tracker.advance_stage()`(一天一阶段, 对应 RECOVERY_TRAJECTORIES 的 2-7 天恢复期)
+4. **完成**: `advance_stage` 超过 trajectory 长度自动清 `_active_recovery`(已实现, recovery_tracker:84)
+
+**注意**: 接通是 v1.2.7 最大工作量但**非写算法**(组件已实现)。分步: (1) LifeSimulatorV2 depends_on 4 组件 + 注入(空调用); (2) 接通契约表逐个接(每接一个跑测试); (3) recovery 触发链最后接(跨 memory_pool/main/life_simulator 三方)。R3 风险: 接通后 life_simulator 输出可能退化, 跑回归。personality_feedback 只读方案已规避 R7(双写人格)。
 
 ---
 
@@ -199,15 +283,20 @@
 
 ## DoD
 
-- [ ] `pytest tests/` 全绿(1348 + 新测试,允许 Win 概率性 test_periodic_save_dirty_only flake)
-- [ ] utils/ 层建立,11 工具集中(取消 @register)
-- [ ] 8 幽灵接通(7 LifeSimulatorV2 + 1 main.py)
-- [ ] Q3 事件机制删除(agent 主循环仍运转)
-- [ ] Q1 main.py 薄壳(单方法 < 50 行)
-- [ ] HP-2/HP-4/DO-3/DO-4 清完
-- [ ] collapse_archetype 核实
-- [ ] 9 个可拦测试实现 + 全绿
-- [ ] module count 调整后确认(删事件不算模块,接通 4 组件已算)
+**已完成 (7.5/10)**:
+- [x] utils/ 层建立, 11 工具集中(取消 @register)
+- [x] Q3 事件机制删除(agent 主循环仍运转)
+- [x] HP-2/HP-4/DO-3/DO-4 清完
+- [x] DO-5 spec drift 标注
+- [x] collapse_archetype 核实(非幽灵, 6+ 消费者)
+- [x] 9 个可拦测试实现(test_kb_centralization / registry_liveness / main_py_no_long_orchestration / layer_dependencies / type_contracts / lifecycle_pairs / agent_no_impl / no_event_bus / agent_no_direct_call + tone_extractor)
+
+**待完成 (2.5/10)**:
+- [ ] Task 4 后半: SegmentedReplyOrchestrator 抽出(按 4.A 状态归属表 + 4.B 私有方法处置 + 4.C 死分支删 + 4.D event/response 契约)
+- [ ] Task 5: 8 幽灵接通(按 5.A 接通契约表逐个 + 5.B feedback 只读 + 5.C on_llm_request 入口 + 5.D recovery 触发链)
+- [ ] `pytest tests/` 全绿(当前 1350 passed, Task 4/5 完成后预期 +N 接通测试; 允许 Win 概率性 test_periodic_save_dirty_only flake)
+- [ ] on_llm_response < 50 行(test_main_py_no_long_orchestration allowlist 移出 + test_on_llm_response_bounded 收紧到 ≤50)
+- [ ] module count 调整后确认(58 → 47 @register, 删事件不算模块, 接通 4 组件已算)
 - [ ] handbook §6 更新"v1.2.7 已清的债"
 - [ ] `docs/CHANGELOG.md` v1.2.7 entry
 
@@ -217,12 +306,15 @@
 
 | # | 风险 | 处置 |
 |---|---|---|
-| R1 | 挪 11 工具改 import 路径多,回归 | 每挪一个跑测试,小步推进 |
-| R2 | 删事件机制改 agents/ 多文件 | 先删 event_bus + emit,跑测试确认主循环不破坏,再删 bus 参数 |
-| R3 | LifeSimulatorV2 接 7 幽灵(接通逻辑复杂) | 分步:先 depends_on + 注入(空调用),再逐个接通逻辑 |
-| R4 | DO-4 conscience 源变更,suppression 值变,life_simulator 退化 | 跑 life_simulator 回归,若退化停下报告(调公式权重) |
-| R5 | SegmentedReplyOrchestrator 抽出后,on_llm_response 时序变 | 跑 on_llm_response 回归(分段 send + 沉默 + 清 llm_resp) |
-| R6 | test_type_contracts 初期难写(类型契约刚引入) | 先写 conscience_pressure 一个样本,后续扩展 |
+| R1 | 挪 11 工具改 import 路径多, 回归 | ✅ 已完成: 每挪一个跑测试, 小步推进 |
+| R2 | 删事件机制改 agents/ 多文件 | ✅ 已完成: 先删 event_bus + emit, 跑测试确认主循环不破坏, 再删 bus 参数 |
+| R3 | LifeSimulatorV2 接 7 幽灵(接通逻辑复杂) | **修正认知**: 非写算法(组件已实现), 是接线。分步: (1) depends_on+注入(空调用); (2) 5.A 契约表逐个接; (3) 5.D recovery 触发链最后接 |
+| R4 | DO-4 conscience 源变更, suppression 值变, life_simulator 退化 | ✅ 已完成: 跑回归未退化(1350 passed) |
+| R5 | SegmentedReplyOrchestrator 抽出后, on_llm_response 时序变 | 跑 on_llm_response 回归(分段 send + 沉默 + 清 llm_resp); 按 4.A 状态归属表确保 6 状态全传入 |
+| R6 | test_type_contracts 初期难写(类型契约刚引入) | ✅ 已完成: conscience_pressure + force_state dict 两样本 |
+| R7 | personality_feedback 直接改 dict → 与 personality_drift 双写人格 | **已规避(5.B)**: 只读 compute_feedback 输出给 compose, 不改 dict 不写 drift |
+| R8 | _build_context 下沉 utils 改 main.py import | 纯函数化 build_context(event), main.py:1482 + orchestrator 都 import; 跑 _build_context 回归 |
+| R9 | recovery 触发链跨 memory_pool/main/life_simulator 三方 | 5.D 分步: 先 main 中转 start_recovery, 再 adapt_plan 调 adapt_plan_for_recovery, 最后 generate_daily_plan 调 advance_stage; 每步跑测试 |
 
 ---
 

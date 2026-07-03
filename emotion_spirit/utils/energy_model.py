@@ -1,6 +1,5 @@
 """Energy model with circadian rhythm and personality modulation."""
 from __future__ import annotations
-from ..core.registry import register
 from ..core.utils import clamp
 
 
@@ -11,7 +10,6 @@ ENERGY_CURVE = {
 }
 
 
-@register(name="energy_model", provides=["EnergyModel"], depends_on=[])
 class EnergyModel:
     """Circadian energy model with personality modulation."""
 

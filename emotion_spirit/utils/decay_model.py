@@ -10,17 +10,11 @@ from __future__ import annotations
 
 import math
 
-from ..core.registry import register
 from ..core.utils import clamp
 
 __all__ = ["DecayModel"]
 
 
-@register(
-    name="decay_model",
-    provides=["DecayModel"],
-    depends_on=[],
-)
 class DecayModel:
     """Dual-axis decay functions for the unified memory system."""
 

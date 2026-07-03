@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from emotion_spirit.output.trend_utils import EMASmoother, TrendDetector
+from emotion_spirit.utils import EMASmoother, TrendDetector
 
 
 def test_ema_smoother_convergence():

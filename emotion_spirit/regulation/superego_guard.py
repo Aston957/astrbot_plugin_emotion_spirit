@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
 from ..core.config import SAFETY_CONFIG
-from ..memory.persona_profiles import DIMENSION_DISPLAY, get_narrative
+from ..utils import DIMENSION_DISPLAY, get_narrative
 
 if TYPE_CHECKING:
     from .superego import ConscienceTracker, ValueAlignment, IdealSelf

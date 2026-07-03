@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from ..output.trend_utils import TrendDetector
+from ..utils import TrendDetector
 from ..layer import global_only
 
 if TYPE_CHECKING:

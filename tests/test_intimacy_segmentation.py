@@ -161,7 +161,7 @@ def test_segment_tones_uses_warmth_bias_not_narrative_coherence():
     权威) 且不含非 personality dim。
     """
     from emotion_spirit.memory.intimacy import IntimacyTracker
-    from emotion_spirit.core.label_mapper import ALL_PERSONALITY_DIMS
+    from emotion_spirit.utils import ALL_PERSONALITY_DIMS
 
     tracker = IntimacyTracker()
 

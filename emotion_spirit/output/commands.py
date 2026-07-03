@@ -36,8 +36,8 @@ class CommandImpl:
 
     async def setup_init(self, event: AstrMessageEvent) -> None:
         """初始化当前人格参数。仅 auto 模式需要手动调用。"""
-        from emotion_spirit.core.label_mapper import labels_to_personality
-        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.utils import labels_to_personality
+        from emotion_spirit.utils import parse_persona_report
         from emotion_spirit.regulation.persona_analyzer import PersonaAnalyzer, save_report
 
         if self._p._persona_mode == "disabled":
@@ -256,7 +256,7 @@ class CommandImpl:
             self._p._current_persona, new_labels,
         )
 
-        from emotion_spirit.core.label_mapper import labels_to_personality
+        from emotion_spirit.utils import labels_to_personality
         personality = labels_to_personality(new_labels)
         deep = personality.get("deep", {})
         sorted_dims = sorted(deep.items(), key=lambda x: x[1], reverse=True)
@@ -276,7 +276,7 @@ class CommandImpl:
         self, event: AstrMessageEvent, persona_id: str = ""
     ) -> None:
         """切换到指定人格。"""
-        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.utils import parse_persona_report
 
         if not persona_id:
             yield event.plain_result(
@@ -423,7 +423,7 @@ class CommandImpl:
 
     async def view_detail(self, event: AstrMessageEvent, persona_name: str = "") -> None:
         """查看人格的完整 13 维参数。"""
-        from emotion_spirit.core.label_mapper import labels_to_personality
+        from emotion_spirit.utils import labels_to_personality
 
         if persona_name:
             labels = None
@@ -708,7 +708,7 @@ class CommandImpl:
     async def view_force(self, event: AstrMessageEvent) -> None:
         """三元力学状态 + 13 维→力映射。"""
         from emotion_spirit.regulation.force_dynamics import ForceDynamics
-        from emotion_spirit.core.label_mapper import labels_to_personality
+        from emotion_spirit.utils import labels_to_personality
         from astrbot.api import logger
 
         # 获取当前人格 (从 labels 转换)
@@ -741,7 +741,7 @@ class CommandImpl:
         lines.append(f"\n主导力: {dominant} ({forces[dominant]:.3f})")
 
         # 13 维到力的映射
-        from emotion_spirit.core.knowledge import KnowledgeBase
+        from emotion_spirit.utils import KnowledgeBase
         lines.append(f"\n📊 13 维→力映射:")
         dim_groups = {"natural": [], "social": [], "individual": []}
         for dim, force_type in KnowledgeBase.DIM_FORCE.items():

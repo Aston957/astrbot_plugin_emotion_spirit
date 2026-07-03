@@ -90,7 +90,7 @@ class TestPersonaReportParser:
 
     def test_enfp_not_misjudged_as_intj(self):
         """'开朗+不分析' 组合不应被判为 INTJ。"""
-        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.utils import parse_persona_report
 
         enfp_prompt = (
             "广濑是一个性格开朗、善良、没有太多心机的普通高中男生。"
@@ -108,7 +108,7 @@ class TestPersonaReportParser:
 
     def test_introvert_not_misjudged_as_extrovert(self):
         """内向型描述不应被判为外向。"""
-        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.utils import parse_persona_report
 
         intj_prompt = (
             "他喜欢独处，一个人待着就很满足。"
@@ -121,7 +121,7 @@ class TestPersonaReportParser:
 
     def test_time_focus_not_judged_as_future_without_evidence(self):
         """没有明确"未来/计划"关键词时, time_focus 不应判为"活在未来"。"""
-        from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+        from emotion_spirit.utils import parse_persona_report
 
         prompt = "她喜欢活在当下，享受每一天。"
         result = parse_persona_report(prompt)
@@ -141,7 +141,7 @@ class TestModuleImports:
     """
 
     @pytest.mark.parametrize("rel_path", [
-        "emotion_spirit/regulation/persona_report_parser.py",
+        "emotion_spirit/utils/persona_report_parser.py",
         "emotion_spirit/core/plugin_factory.py",
         "emotion_spirit/output/command_router.py",
         "emotion_spirit/output/public_api.py",

@@ -5,7 +5,6 @@ import pytest
 from unittest.mock import MagicMock
 
 from emotion_spirit.agents.base import PRE, AUTONOMOUS, RULE, SKIP, AgentIntent
-from emotion_spirit.agents.event_bus import EventBus, LifeEventReady
 from emotion_spirit.agents.life_agent import LifeAgent
 
 
@@ -43,8 +42,7 @@ def _make_life_sim(adaptations=None, pending_event=None):
 # ── perceive tests ───────────────────────────────────────────────────────────
 
 def test_perceive_extracts_expected_keys():
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
 
     evo_fn = lambda k: 0.1
     surface = {
@@ -63,8 +61,7 @@ def test_perceive_extracts_expected_keys():
 
 
 def test_perceive_defaults():
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
 
     p = agent.perceive({})
     assert p["phase"] == PRE  # default for life agent
@@ -77,8 +74,7 @@ def test_perceive_defaults():
 
 
 def test_perceive_autonomous_phase():
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
 
     p = agent.perceive({"_phase": AUTONOMOUS})
     assert p["phase"] == AUTONOMOUS
@@ -88,50 +84,43 @@ def test_perceive_autonomous_phase():
 
 def test_gate_pre_high_delta_returns_rule():
     """PRE with |delta| >= 0.3 should return RULE."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": 0.4}) == RULE
 
 
 def test_gate_pre_negative_high_delta_returns_rule():
     """PRE with negative delta whose abs >= threshold should return RULE."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": -0.5}) == RULE
 
 
 def test_gate_pre_low_delta_returns_skip():
     """PRE with |delta| < 0.3 should return SKIP."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": 0.1}) == SKIP
 
 
 def test_gate_pre_zero_delta_returns_skip():
     """PRE with zero delta should return SKIP."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": 0.0}) == SKIP
 
 
 def test_gate_pre_boundary_delta_returns_rule():
     """PRE with |delta| exactly 0.3 should return RULE (>= threshold)."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": 0.3}) == RULE
 
 
 def test_gate_pre_just_below_boundary_returns_skip():
     """PRE with |delta| just below 0.3 should return SKIP."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": PRE, "emotion_delta": 0.29}) == SKIP
 
 
 def test_gate_pre_with_evo_delta_positive():
     """evo_delta raises threshold -- delta that would pass without it now fails."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     evo_fn = lambda k: 0.15 if k == "life_sim_adapt_threshold" else 0.0
     # threshold = 0.3 + 0.15 = 0.45; delta=0.4 < 0.45
     assert agent.gate({"phase": PRE, "emotion_delta": 0.4, "_evo_delta": evo_fn}) == SKIP
@@ -139,8 +128,7 @@ def test_gate_pre_with_evo_delta_positive():
 
 def test_gate_pre_with_evo_delta_positive_still_passes():
     """With evo_delta, higher delta still passes."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     evo_fn = lambda k: 0.15 if k == "life_sim_adapt_threshold" else 0.0
     # threshold = 0.3 + 0.15 = 0.45; delta=0.5 >= 0.45
     assert agent.gate({"phase": PRE, "emotion_delta": 0.5, "_evo_delta": evo_fn}) == RULE
@@ -148,8 +136,7 @@ def test_gate_pre_with_evo_delta_positive_still_passes():
 
 def test_gate_pre_with_evo_delta_negative():
     """evo_delta can lower the threshold."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     evo_fn = lambda k: -0.1 if k == "life_sim_adapt_threshold" else 0.0
     # threshold = 0.3 + (-0.1) = 0.2; delta=0.25 >= 0.2
     assert agent.gate({"phase": PRE, "emotion_delta": 0.25, "_evo_delta": evo_fn}) == RULE
@@ -157,22 +144,19 @@ def test_gate_pre_with_evo_delta_negative():
 
 def test_gate_autonomous_always_returns_rule():
     """AUTONOMOUS phase always returns RULE regardless of other values."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": AUTONOMOUS}) == RULE
 
 
 def test_gate_autonomous_with_zero_delta_returns_rule():
     """AUTONOMOUS even with zero delta returns RULE."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     assert agent.gate({"phase": AUTONOMOUS, "emotion_delta": 0.0}) == RULE
 
 
 def test_gate_defaults_returns_skip():
     """Default (no phase, defaults to PRE) with zero delta returns SKIP."""
-    bus = EventBus()
-    agent = LifeAgent(bus)
+    agent = LifeAgent()
     # Missing phase defaults to PRE in perceive, but gate gets called with whatever
     # is passed. If called with {}, phase defaults via .get() to None, which != PRE,
     # so falls through to AUTONOMOUS path -> RULE.
@@ -184,11 +168,10 @@ def test_gate_defaults_returns_skip():
 
 def test_act_pre_with_adaptations_returns_intent():
     """PRE with adaptations returns AgentIntent with plan_adaptations."""
-    bus = EventBus()
     adaptations = [{"action": "cancel", "event_id": "evt1", "reason": "too sad"}]
     mock_sim = _make_life_sim(adaptations=adaptations)
     agent = LifeAgent(
-        bus, life_sim_v2=mock_sim,
+        life_sim_v2=mock_sim,
         personality={"openness": 0.6, "extraversion": 0.4},
     )
 
@@ -213,9 +196,8 @@ def test_act_pre_with_adaptations_returns_intent():
 
 def test_act_pre_no_adaptations_returns_none():
     """PRE with empty adaptations returns None."""
-    bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[])
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     result = _run(agent.act("sk", RULE, {
         "emotion_delta": -0.5,
@@ -226,8 +208,7 @@ def test_act_pre_no_adaptations_returns_none():
 
 def test_act_pre_no_life_sim_returns_none():
     """PRE without LifeSimulatorV2 returns None."""
-    bus = EventBus()
-    agent = LifeAgent(bus, life_sim_v2=None)
+    agent = LifeAgent( life_sim_v2=None)
 
     result = _run(agent.act("sk", RULE, {"emotion_delta": -0.5}, PRE))
     assert result is None
@@ -235,10 +216,9 @@ def test_act_pre_no_life_sim_returns_none():
 
 def test_act_pre_adapt_exception_returns_none():
     """If adapt_plan raises, returns None."""
-    bus = EventBus()
     mock_sim = MagicMock()
     mock_sim.adapt_plan.side_effect = RuntimeError("boom")
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     result = _run(agent.act("sk", RULE, {"emotion_delta": -0.5}, PRE))
     assert result is None
@@ -246,13 +226,12 @@ def test_act_pre_adapt_exception_returns_none():
 
 def test_act_pre_passes_all_params():
     """PRE maps perceived + personality into the v2 adapt_plan signature."""
-    bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[{"action": "cancel"}])
     personality = {
         "openness": 0.7, "conscientiousness": 0.4,
         "extraversion": 0.6, "agreeableness": 0.5, "neuroticism": 0.3,
     }
-    agent = LifeAgent(bus, life_sim_v2=mock_sim, personality=personality)
+    agent = LifeAgent( life_sim_v2=mock_sim, personality=personality)
 
     _run(agent.act("sk", RULE, {
         "emotion_delta": -0.4,
@@ -270,9 +249,8 @@ def test_act_pre_passes_all_params():
 
 def test_act_pre_default_perceived_params():
     """PRE with minimal perceived dict uses defaults for emotion_state."""
-    bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[{"action": "cancel"}])
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     _run(agent.act("sk", RULE, {}, PRE))
 
@@ -291,13 +269,12 @@ def test_act_pre_default_perceived_params():
 
 def test_act_autonomous_with_pending_event_returns_intent():
     """AUTONOMOUS with pending LifeEvent returns intent with life_event payload."""
-    bus = EventBus()
     life_event = _make_life_event(
         text="cooking dinner", mood="happy", urgency=0.3,
         event_type="cooking", wants_to_share=True,
     )
     mock_sim = _make_life_sim(pending_event=life_event)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     result = _run(agent.act("sk", RULE, {}, AUTONOMOUS))
 
@@ -315,9 +292,8 @@ def test_act_autonomous_with_pending_event_returns_intent():
 
 def test_act_autonomous_no_pending_event_returns_none():
     """AUTONOMOUS with no pending event returns None."""
-    bus = EventBus()
     mock_sim = _make_life_sim(pending_event=None)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     result = _run(agent.act("sk", RULE, {}, AUTONOMOUS))
 
@@ -327,8 +303,7 @@ def test_act_autonomous_no_pending_event_returns_none():
 
 def test_act_autonomous_no_life_sim_returns_none():
     """AUTONOMOUS without LifeSimulatorV2 returns None."""
-    bus = EventBus()
-    agent = LifeAgent(bus, life_sim_v2=None)
+    agent = LifeAgent( life_sim_v2=None)
 
     result = _run(agent.act("sk", RULE, {}, AUTONOMOUS))
     assert result is None
@@ -336,71 +311,19 @@ def test_act_autonomous_no_life_sim_returns_none():
 
 def test_act_autonomous_consume_exception_returns_none():
     """If consume_life_event raises, returns None."""
-    bus = EventBus()
     mock_sim = MagicMock()
     mock_sim.consume_life_event.side_effect = RuntimeError("boom")
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     result = _run(agent.act("sk", RULE, {}, AUTONOMOUS))
     assert result is None
 
 
-def test_act_autonomous_emits_life_event_ready():
-    """AUTONOMOUS with pending event emits LifeEventReady."""
-    bus = EventBus()
-    life_event = _make_life_event(text="reading", mood="calm")
-    mock_sim = _make_life_sim(pending_event=life_event)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
-
-    captured = []
-    bus.subscribe(LifeEventReady, lambda e: captured.append(e))
-
-    _run(agent.act("sk", RULE, {}, AUTONOMOUS))
-
-    assert len(captured) == 1
-    assert captured[0].source == "life"
-    assert captured[0].session_key == "sk"
-    assert captured[0].text == "reading"
-    assert captured[0].mood == "calm"
-
-
-def test_act_autonomous_no_event_no_emit():
-    """AUTONOMOUS with no pending event does NOT emit LifeEventReady."""
-    bus = EventBus()
-    mock_sim = _make_life_sim(pending_event=None)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
-
-    captured = []
-    bus.subscribe(LifeEventReady, lambda e: captured.append(e))
-
-    _run(agent.act("sk", RULE, {}, AUTONOMOUS))
-
-    assert len(captured) == 0
-
-
-def test_act_autonomous_consume_exception_no_emit():
-    """If consume_life_event raises, no event is emitted."""
-    bus = EventBus()
-    mock_sim = MagicMock()
-    mock_sim.consume_life_event.side_effect = RuntimeError("boom")
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
-
-    captured = []
-    bus.subscribe(LifeEventReady, lambda e: captured.append(e))
-
-    _run(agent.act("sk", RULE, {}, AUTONOMOUS))
-
-    assert len(captured) == 0
-
-
-# ── integration: perceive -> gate -> act ─────────────────────────────────────
-
 def test_full_pipeline_pre_high_delta():
     """PRE with high delta: perceive -> gate(RULE) -> act returns adaptations."""
-    bus = EventBus()
     adaptations = [{"action": "cancel", "event_id": "evt1", "reason": "sad"}]
     mock_sim = _make_life_sim(adaptations=adaptations)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     surface = {"_phase": PRE, "emotion_delta": -0.6, "cascade_active": True}
     perceived = agent.perceive(surface)
@@ -414,9 +337,8 @@ def test_full_pipeline_pre_high_delta():
 
 def test_full_pipeline_pre_low_delta():
     """PRE with low delta: perceive -> gate(SKIP)."""
-    bus = EventBus()
     mock_sim = _make_life_sim(adaptations=[])
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     surface = {"_phase": PRE, "emotion_delta": 0.05}
     perceived = agent.perceive(surface)
@@ -427,50 +349,21 @@ def test_full_pipeline_pre_low_delta():
 
 def test_full_pipeline_autonomous_with_event():
     """AUTONOMOUS: perceive -> gate(RULE) -> act emits and returns intent."""
-    bus = EventBus()
     life_event = _make_life_event(text="walking in park", mood="peaceful",
                                   event_type="walking", wants_to_share=True)
     mock_sim = _make_life_sim(pending_event=life_event)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     captured = []
-    bus.subscribe(LifeEventReady, lambda e: captured.append(e))
-
-    surface = {"_phase": AUTONOMOUS}
-    perceived = agent.perceive(surface)
-    gate_result = agent.gate(perceived)
-    assert gate_result == RULE
-
-    result = _run(agent.act("sk", gate_result, perceived, AUTONOMOUS))
-    assert result is not None
-    assert result.payload["life_event"]["text"] == "walking in park"
-    assert len(captured) == 1
-    assert captured[0].text == "walking in park"
-
-
 def test_full_pipeline_autonomous_no_event():
     """AUTONOMOUS with no pending event: perceive -> gate(RULE) -> act returns None."""
-    bus = EventBus()
     mock_sim = _make_life_sim(pending_event=None)
-    agent = LifeAgent(bus, life_sim_v2=mock_sim)
+    agent = LifeAgent( life_sim_v2=mock_sim)
 
     captured = []
-    bus.subscribe(LifeEventReady, lambda e: captured.append(e))
-
-    surface = {"_phase": AUTONOMOUS}
-    perceived = agent.perceive(surface)
-    gate_result = agent.gate(perceived)
-    assert gate_result == RULE
-
-    result = _run(agent.act("sk", gate_result, perceived, AUTONOMOUS))
-    assert result is None
-    assert len(captured) == 0
-
-
 def test_full_pipeline_no_life_sim():
     """Without LifeSimulatorV2, all act calls return None."""
-    bus = EventBus()
-    agent = LifeAgent(bus, life_sim_v2=None)
+    agent = LifeAgent( life_sim_v2=None)
 
     # PRE
     surface_pre = {"_phase": PRE, "emotion_delta": 0.8}

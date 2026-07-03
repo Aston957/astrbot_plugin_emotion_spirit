@@ -131,7 +131,7 @@ def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
 
     Returns: {"joy": 0.6, "neutral": 0.3, "anger": 0.1}
     """
-    from ..core.knowledge import KnowledgeBase
+    from ..utils.knowledge import KnowledgeBase
     valence, arousal, dominance = pad
     pad_values = {"valence": valence, "arousal": arousal, "dominance": dominance}
 
@@ -174,7 +174,7 @@ def classify_distribution(pad: tuple[float, float, float]) -> dict[str, float]:
 
 def _in_compound_region(pad: tuple[float, float, float]) -> dict[str, Any] | None:
     """检查 PAD 是否落在某个复合区域。返回 compound dict 或 None。"""
-    from ..core.knowledge import KnowledgeBase
+    from ..utils.knowledge import KnowledgeBase
     valence, arousal, dominance = pad
     for compound in KnowledgeBase.COMPOUND_REGIONS.values():
         v_ok = compound["valence"][0] <= valence <= compound["valence"][1]
@@ -249,7 +249,7 @@ def render_description(distribution: dict[str, float], intensity: float) -> str:
     5 种分布形态 × 4 种强度词 = 20 种组合。
     ⚠️ LLM 消费者不应使用此函数（直接读 distribution 更精确）。
     """
-    from ..core.knowledge import KnowledgeBase
+    from ..utils.knowledge import KnowledgeBase
     emotion_zh = KnowledgeBase.EMOTION_ZH
     # 1. 平静基调
     if distribution.get("neutral", 0) > 0.4:
@@ -284,10 +284,3 @@ def render_description(distribution: dict[str, float], intensity: float) -> str:
     return f"你现在的情绪{intensity_w}，混合了多种色彩（{p1_zh}略占优势）"
 
 
-from ..core.registry import register
-
-
-@register(name="emotion_classifier", provides=[], depends_on=[])
-class _ModuleMarker:
-    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
-    pass

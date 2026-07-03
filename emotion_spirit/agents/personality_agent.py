@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 from .base import CognitiveAgent, AgentIntent, PRE, POST, RULE, SKIP, LLM
-from .event_bus import BoundaryBreached
 
 __all__ = ["PersonalityAgent"]
 
@@ -20,8 +19,8 @@ class PersonalityAgent(CognitiveAgent):
     name = "personality"
     phases = (PRE, POST)
 
-    def __init__(self, bus, superego_guard=None, personality_drift=None):
-        super().__init__(bus)
+    def __init__(self, superego_guard=None, personality_drift=None):
+        super().__init__()
         self._superego = superego_guard
         self._drift = personality_drift
 
@@ -80,14 +79,7 @@ class PersonalityAgent(CognitiveAgent):
 
         flags = ["safe"] if safety == "normal" else ["hurt"]
 
-        # Emit BoundaryBreached event for non-normal safety levels
-        if safety in ("warning", "critical"):
-            pressure_map = {"warning": 0.5, "critical": 0.9}
-            self.emit(BoundaryBreached(
-                source="personality",
-                session_key=perceived.get("session_key", ""),
-                pressure=pressure_map.get(safety, 0.5),
-            ))
+        # emit removed (v1.2.7 Q3: EventBus deleted)
 
         return AgentIntent(
             source="personality",

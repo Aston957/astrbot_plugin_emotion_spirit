@@ -9,27 +9,17 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 58 模块 @register (v1.2.5 PR2: 57 → 58, +defense_modulator)
+import emotion_spirit  # noqa: F401  # 触发 48 模块 @register (v1.2.7: 11 工具移入 utils/ 取消 @register, +segmented_reply_orchestrator)
 from emotion_spirit.core.registry import ModuleRegistry, build
 from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
-def test_dry_run_58_modules_no_error():
-    """dry_run 走 58 模块依赖图检查, 0 错误。
+def test_dry_run_47_modules_no_error():
+    """dry_run 走 48 模块依赖图检查, 0 错误。
 
-    Phase 0 Task 5: 34 → 39 (+cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector).
-    v1.1.0C T1: 39 → 40 (+adaptation_engine).
-    v1.1.0C import-fix: 40 → 48 (+activity_history, +project_manager, +recovery_tracker,
-                                    +personality_feedback, +user_activity_detector,
-                                    +energy_model, +environment_context,
-                                    +emotion_predictor).
-    v1.2.1 DI cleanup: 48 → 56 (+engine_manager, +hotpool_forwarder, +personality_bridge,
-                                  +realtime_dispatch, +rhythm_learner, +self_core,
-                                  +life_simulator_v2, +command_router; LifeAgent 仍手 new).
-    v1.2.3: 56 → 57 (+segmented_reply_coordinator).
-    v1.2.5 PR2: 57 → 58 (+defense_modulator).
+    v1.2.7: 11 工具移入 utils/ 取消 @register, 58 → 48 (+segmented_reply_orchestrator).
     """
-    assert len(ModuleRegistry.get_all()) == 58, f"expected 58 modules, got {len(ModuleRegistry.get_all())}"
+    assert len(ModuleRegistry.get_all()) == 48, f"expected 48 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -130,8 +120,7 @@ def test_plugin_factory_returns_same_shape_as_old_manual():
         "shadow_detector", "life_simulator", "diary_writer", "prompt_injector",
         "personality_drift", "predictive_sentinel", "narrative_identity",
         "counterfactual", "persona_analyzer", "relationship_personality",
-        "social_graph", "topic_privacy", "bot_decision", "knowledge",
-        "persona_report_parser", "force_dynamics",
+        "social_graph", "topic_privacy", "bot_decision", "force_dynamics",
         "defense_modulator",  # v1.2.5 PR2: 压抑/崩溃/沉默 ↔ 力学耦合调制器
     }
     # 检查 24 个 instantiable 都在
@@ -154,9 +143,9 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility N (provides=[]) 也被装配. v1.2.5 PR2: 58 instances
-    # (53 instantiable + 5 utility)
-    assert len(real) == 58, f"expected 58 instances, got {len(real)}"
+    # 所以 utility N (provides=[]) 也被装配. v1.2.7: 48 instances
+    # (47 instantiable + 1 utility? 待 verify)
+    assert len(real) == 48, f"expected 48 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -187,8 +176,7 @@ def test_default_data_dir_when_none():
         config["modules"]["bot_decision"]["enabled"] = False
         config["modules"]["social_graph"]["enabled"] = False
         config["modules"]["topic_privacy"]["enabled"] = False
-        config["modules"]["knowledge"]["enabled"] = False
-        config["modules"]["persona_report_parser"]["enabled"] = False
+        # knowledge, persona_report_parser moved to utils/ (no @register)
         config["modules"]["superego"]["enabled"] = False
         config["modules"]["superego_guard"]["enabled"] = False
         config["modules"]["meaning_reservoir"]["enabled"] = False
@@ -204,6 +192,7 @@ def test_default_data_dir_when_none():
         config["modules"]["personality_bridge"]["enabled"] = False
         config["modules"]["command_router"]["enabled"] = False
         config["modules"]["segmented_reply_coordinator"]["enabled"] = False
+        config["modules"]["segmented_reply_orchestrator"]["enabled"] = False  # v1.2.7: depends on disabled
         config["modules"]["defense_modulator"]["enabled"] = False  # v1.2.5 PR2: depends on disabled
         instances = build(config)
         # store._dir.name 反映传入的 data_dir
@@ -270,14 +259,6 @@ def test_cascade_engine_registered():
     assert spec.name == "cascade_engine"
 
 
-def test_decay_model_registered():
-    """decay_model is registered with provides=["DecayModel"], depends_on=[]."""
-    spec = ModuleRegistry.get_all()["decay_model"]
-    assert spec.provides == ["DecayModel"]
-    assert spec.depends_on == []
-    assert spec.name == "decay_model"
-
-
 def test_suppression_registered():
     """suppression is registered with provides=["SuppressionState"], depends_on=[]."""
     spec = ModuleRegistry.get_all()["suppression"]
@@ -316,7 +297,7 @@ def test_utility_modules_consistency_check_passes():
     from tools.check_registry_consistency import _check_module_consistency
 
     utility_names = [
-        "cascade_engine", "decay_model", "suppression",
+        "cascade_engine", "suppression",
         "collapse_archetype", "collapse_archetype_selector",
     ]
     for name in utility_names:

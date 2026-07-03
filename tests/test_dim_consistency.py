@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_label_mapper_returns_13_dims():
     """v1.7.2: 5 deep + 8 surface (含 gossip_tendency) = 13。"""
-    from emotion_spirit.core.label_mapper import (
+    from emotion_spirit.utils import (
         ALL_PERSONALITY_DIMS,
         PERSONALITY_DIMS_DEEP,
         PERSONALITY_DIMS_SURFACE,
@@ -30,7 +30,7 @@ def test_relationship_personality_all_dims_match_label_mapper():
     防止 RelationshipPersonality 内部重复定义维度集合 (历史上曾有 11/12 维错位)。
     """
     from emotion_spirit.memory.relationship_personality import ALL_DIMS
-    from emotion_spirit.core.label_mapper import ALL_PERSONALITY_DIMS
+    from emotion_spirit.utils import ALL_PERSONALITY_DIMS
     assert set(ALL_DIMS) == ALL_PERSONALITY_DIMS, (
         f"差集: {set(ALL_DIMS) ^ ALL_PERSONALITY_DIMS}"
     )
@@ -43,7 +43,7 @@ def test_intimacy_segment_tones_no_unknown_personality_dims():
     narrative_coherence (不是 personality dim) 等错位。
     """
     from emotion_spirit.memory.intimacy import IntimacyTracker
-    from emotion_spirit.core.label_mapper import ALL_PERSONALITY_DIMS
+    from emotion_spirit.utils import ALL_PERSONALITY_DIMS
 
     tracker = IntimacyTracker()
     for user_id in ["test1", "test2", "test3", "test4"]:

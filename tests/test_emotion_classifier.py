@@ -3,8 +3,8 @@
 import time
 
 import pytest
-from emotion_spirit.core.knowledge import KnowledgeBase
-from emotion_spirit.output.emotion_classifier import (
+from emotion_spirit.utils import KnowledgeBase
+from emotion_spirit.utils import (
     build_emotion_payload,
     classify_distribution,
     classify_primary_secondary,

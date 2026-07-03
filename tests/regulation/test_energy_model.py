@@ -1,7 +1,7 @@
 """Tests for energy_model.py — circadian rhythm + personality modulation."""
 from __future__ import annotations
 
-from emotion_spirit.regulation.energy_model import get_energy_level, apply_energy_bias
+from emotion_spirit.utils import get_energy_level, apply_energy_bias
 
 
 def test_morning_high_energy():

@@ -274,6 +274,12 @@ class SurfaceHandler:
         )
 
         # 记忆崩溃检测 (Phase D+ CollapseArchetype 集成)
-        self._p._pool.check_collapse(personality=current_personality.get("deep", {}))
+        was_collapse = self._p._pool.check_collapse(personality=current_personality.get("deep", {}))
+        # v1.2.8: collapse → recovery 触发 (走公开接口, 不伸手 _collapse_archetype/_recovery 私有)
+        archetype = self._p._pool.get_collapse_archetype()
+        if was_collapse and archetype:
+            lsv2 = getattr(self._p, '_life_sim_v2', None)
+            if lsv2 and hasattr(lsv2, 'trigger_recovery'):
+                lsv2.trigger_recovery(archetype)
 
         self._p._save_if_dirty()

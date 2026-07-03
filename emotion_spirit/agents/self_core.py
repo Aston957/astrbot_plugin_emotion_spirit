@@ -7,7 +7,6 @@ from typing import Any, TYPE_CHECKING
 
 from ..core.registry import register
 from .base import SKIP, LLM, VALID_FLAGS, CognitiveAgent, AgentIntent
-from .event_bus import EventBus
 
 if TYPE_CHECKING:
     from ..memory.reflex_learner import ReflexLearnerStore
@@ -36,7 +35,6 @@ class SelfCore:
     """Agent orchestrator (global singleton per session)."""
 
     def __init__(self, llm_budget: int = 2) -> None:
-        self.bus = EventBus()
         self._agents: list[CognitiveAgent] = []
         self._llm_budget = llm_budget
         self._llm_priority = ["personality", "life", "memory", "relationship"]

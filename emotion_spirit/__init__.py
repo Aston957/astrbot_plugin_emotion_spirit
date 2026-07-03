@@ -28,29 +28,30 @@ import importlib.abc
 import importlib.util
 
 from . import store  # root helper (stays at root, not migrated)
-from .core import knowledge, label_mapper, persona_labels_db, plugin_factory
+from . import utils  # v1.2.7: 11 stateless tools集中到utils/
+from .core import persona_labels_db, plugin_factory
 from .memory import (
     memory_pool, intimacy, relationship_personality,
-    persona_profiles, social_graph, topic_privacy, meaning_reservoir,
-    cascade_engine, decay_model, suppression,
+    social_graph, topic_privacy, meaning_reservoir,
+    cascade_engine, suppression,
     memory_sampler, reflex_learner,
     activity_history,
 )
 from .regulation import (
     superego, superego_guard, pattern_extractor, shadow_detector,
     life_simulator, personality_drift, counterfactual, persona_analyzer,
-    persona_report_parser, force_dynamics, body_state, dream_generator,
+    force_dynamics, body_state, dream_generator,
     collapse_archetype,
-    adaptation, project_manager, recovery_tracker,
-    personality_feedback, user_activity_detector,
-    energy_model, environment_context, emotion_predictor,
+    project_manager, recovery_tracker,
+    personality_feedback, environment_context,
     defense_modulator,  # v1.2.5 PR2: 压抑/崩溃/沉默 ↔ 力学耦合调制器
 )
 from .output import (
-    emotion_classifier, surface_consumer, diary_writer, prompt_injector,
-    predictive_sentinel, narrative_identity, bot_decision, trend_utils,
+    surface_consumer, diary_writer, prompt_injector,
+    predictive_sentinel, narrative_identity, bot_decision,
     buffer_signals, realtime_dispatch, rhythm_learner,
     command_router, segmented_reply_coordinator,
+    segmented_reply_orchestrator,  # v1.2.7: 编排器 (从 main.py 抽出)
 )
 from .bridge import (
     engine_manager, hotpool_forwarder, personality_bridge,
@@ -79,12 +80,12 @@ class _DeprecatedImportFinder(importlib.abc.MetaPathFinder):
         # L0 core
         "emotion_spirit.registry": "emotion_spirit.core.registry",
         "emotion_spirit.config": "emotion_spirit.core.config",
-        "emotion_spirit.knowledge": "emotion_spirit.core.knowledge",
+        "emotion_spirit.knowledge": "emotion_spirit.utils.knowledge",
         "emotion_spirit.persona_labels_db": "emotion_spirit.core.persona_labels_db",
-        "emotion_spirit.label_mapper": "emotion_spirit.core.label_mapper",
+        "emotion_spirit.label_mapper": "emotion_spirit.utils.label_mapper",
         "emotion_spirit.plugin_factory": "emotion_spirit.core.plugin_factory",
         # L1 memory
-        "emotion_spirit.persona_profiles": "emotion_spirit.memory.persona_profiles",
+        "emotion_spirit.persona_profiles": "emotion_spirit.utils.persona_profiles",
         "emotion_spirit.memory_pool": "emotion_spirit.memory.memory_pool",
         "emotion_spirit.intimacy": "emotion_spirit.memory.intimacy",
         "emotion_spirit.relationship_personality": "emotion_spirit.memory.relationship_personality",
@@ -101,11 +102,11 @@ class _DeprecatedImportFinder(importlib.abc.MetaPathFinder):
         "emotion_spirit.pattern_extractor": "emotion_spirit.regulation.pattern_extractor",
         "emotion_spirit.life_simulator": "emotion_spirit.regulation.life_simulator",
         "emotion_spirit.persona_analyzer": "emotion_spirit.regulation.persona_analyzer",
-        "emotion_spirit.persona_report_parser": "emotion_spirit.regulation.persona_report_parser",
+        "emotion_spirit.persona_report_parser": "emotion_spirit.utils.persona_report_parser",
         "emotion_spirit.counterfactual": "emotion_spirit.regulation.counterfactual",
         # L3 output
         "emotion_spirit.bot_decision": "emotion_spirit.output.bot_decision",
-        "emotion_spirit.emotion_classifier": "emotion_spirit.output.emotion_classifier",
+        "emotion_spirit.emotion_classifier": "emotion_spirit.utils.emotion_classifier",
         "emotion_spirit.prompt_injector": "emotion_spirit.output.prompt_injector",
         "emotion_spirit.surface_consumer": "emotion_spirit.output.surface_consumer",
         "emotion_spirit.surface_handler": "emotion_spirit.output.surface_handler",
@@ -116,7 +117,7 @@ class _DeprecatedImportFinder(importlib.abc.MetaPathFinder):
         "emotion_spirit.predictive_sentinel": "emotion_spirit.output.predictive_sentinel",
         "emotion_spirit.public_api": "emotion_spirit.output.public_api",
         "emotion_spirit.buffer_signals": "emotion_spirit.output.buffer_signals",
-        "emotion_spirit.trend_utils": "emotion_spirit.output.trend_utils",
+        "emotion_spirit.trend_utils": "emotion_spirit.utils.trend_utils",
     }
 
     def find_spec(self, name, path, target=None):

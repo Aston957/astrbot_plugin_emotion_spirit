@@ -15,7 +15,7 @@ sys.modules["astrbot"] = astrbot_mock
 sys.modules["astrbot.api"] = astrbot_api_mock
 astrbot_mock.api = astrbot_api_mock
 
-from emotion_spirit.memory.decay_model import DecayModel
+from emotion_spirit.utils import DecayModel
 
 
 def test_power_law_decay_basic():

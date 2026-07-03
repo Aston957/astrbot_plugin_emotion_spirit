@@ -13,10 +13,10 @@ EMOTION_SPIRIT_DIR = REPO_ROOT / "emotion_spirit"
 V2_PATHS = [
     # L0 core
     "emotion_spirit.core.registry", "emotion_spirit.core.config",
-    "emotion_spirit.core.knowledge", "emotion_spirit.core.persona_labels_db",
-    "emotion_spirit.core.label_mapper", "emotion_spirit.core.plugin_factory",
+    "emotion_spirit.utils.knowledge", "emotion_spirit.core.persona_labels_db",
+    "emotion_spirit.utils.label_mapper", "emotion_spirit.core.plugin_factory",
     # L1 memory
-    "emotion_spirit.memory.persona_profiles", "emotion_spirit.memory.memory_pool",
+    "emotion_spirit.utils.persona_profiles", "emotion_spirit.memory.memory_pool",
     "emotion_spirit.memory.intimacy", "emotion_spirit.memory.relationship_personality",
     "emotion_spirit.memory.social_graph", "emotion_spirit.memory.topic_privacy",
     "emotion_spirit.memory.meaning_reservoir",
@@ -25,22 +25,25 @@ V2_PATHS = [
     "emotion_spirit.regulation.body_state", "emotion_spirit.regulation.force_dynamics",
     "emotion_spirit.regulation.personality_drift", "emotion_spirit.regulation.shadow_detector",
     "emotion_spirit.regulation.pattern_extractor", "emotion_spirit.regulation.life_simulator",
-    "emotion_spirit.regulation.persona_analyzer", "emotion_spirit.regulation.persona_report_parser",
+    "emotion_spirit.regulation.persona_analyzer", "emotion_spirit.utils.persona_report_parser",
     "emotion_spirit.regulation.counterfactual",
     # L3 output
-    "emotion_spirit.output.bot_decision", "emotion_spirit.output.emotion_classifier",
+    "emotion_spirit.output.bot_decision", "emotion_spirit.utils.emotion_classifier",
     "emotion_spirit.output.prompt_injector", "emotion_spirit.output.surface_consumer",
     "emotion_spirit.output.surface_handler", "emotion_spirit.output.diary_writer",
     "emotion_spirit.output.command_router", "emotion_spirit.output.commands",
     "emotion_spirit.output.narrative_identity", "emotion_spirit.output.predictive_sentinel",
     "emotion_spirit.output.public_api", "emotion_spirit.output.buffer_signals",
-    "emotion_spirit.output.trend_utils",
+    "emotion_spirit.utils.trend_utils",
+    # utils 层 (v1.2.7: 11 工具集中)
+    "emotion_spirit.utils.adaptation", "emotion_spirit.utils.decay_model",
+    "emotion_spirit.utils.emotion_classifier", "emotion_spirit.utils.emotion_predictor",
+    "emotion_spirit.utils.energy_model", "emotion_spirit.utils.user_activity_detector",
     # bridge 层
     "emotion_spirit.bridge.engine_manager", "emotion_spirit.bridge.hotpool_forwarder",
     "emotion_spirit.bridge.personality_bridge",
     # agents 层
-    "emotion_spirit.agents.base", "emotion_spirit.agents.event_bus",
-    "emotion_spirit.agents.self_core",
+    "emotion_spirit.agents.base", "emotion_spirit.agents.self_core",
     # sylanne (内嵌引擎)
     "emotion_spirit.sylanne",
     # 根层 (留根)
@@ -71,7 +74,8 @@ def test_no_v1_import_paths_remain():
     v2_layer_prefixes = ("emotion_spirit.core.", "emotion_spirit.memory.",
                          "emotion_spirit.regulation.", "emotion_spirit.output.",
                          "emotion_spirit.bridge.", "emotion_spirit.sylanne.",
-                         "emotion_spirit.migrations.", "emotion_spirit.agents.")
+                         "emotion_spirit.migrations.", "emotion_spirit.agents.",
+                         "emotion_spirit.utils.")
     v2_root_modules = {"emotion_spirit", "emotion_spirit.layer",
                        "emotion_spirit._version", "emotion_spirit._v1_compat",
                        "emotion_spirit.store",
@@ -79,7 +83,8 @@ def test_no_v1_import_paths_remain():
                        "emotion_spirit.core", "emotion_spirit.memory",
                        "emotion_spirit.regulation", "emotion_spirit.output",
                        "emotion_spirit.bridge", "emotion_spirit.sylanne",
-                       "emotion_spirit.migrations", "emotion_spirit.agents"}
+                       "emotion_spirit.migrations", "emotion_spirit.agents",
+                       "emotion_spirit.utils"}
 
     def is_v2_path(s: str) -> bool:
         if s in v2_root_modules:

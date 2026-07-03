@@ -9,8 +9,8 @@ import time
 from typing import Any, TYPE_CHECKING
 
 from ..core.config import DIARY_CONFIG
-from .emotion_classifier import build_emotion_payload  # v1.1.2
-from ..memory.persona_profiles import DIMENSION_DISPLAY, get_narrative
+from ..utils import build_emotion_payload  # v1.1.2
+from ..utils import DIMENSION_DISPLAY, get_narrative
 
 if TYPE_CHECKING:
     from ..memory.memory_pool import MemoryPool

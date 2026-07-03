@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: **v1.2.5** (正式 release, PR1+PR2+PR3 已 ship) | schema version: v4 | 状态: v1.2.5 正式 release 完成 (PR1 tag → `v1.2.5-rc.1`, PR2 tag → `v1.2.5-rc.2`, PR3 tag → `v1.2.5`). v1.2.6 backlog / v1.3 力学叙事层待规划。
+> 当前版本: **v1.2.8** (正式 release, v1.2.7 过渡版未 release) | schema version: v4 | 状态: v1.2.8 正式 release (v1.2.5 → 1.2.8, 跳过 1.2.6 文档版 / 1.2.7 过渡版, 均未 tag). v1.2.6 审计 + v1.2.7 清债 + v1.2.8 清 5 项债完成. v1.3 力学叙事层待规划。
 
 ---
 
@@ -403,15 +403,20 @@ pytest -x 2>&1 | tail -5         # 测试基线
 
 ---
 
-## 6. 现存清债清单（2026-07-03 快照, v1.2.5 PR1 后）
+## 6. 现存清债清单（2026-07-03 快照, v1.2.7 清债后）
 
 | 债 | 类型 | 影响 | 何时清 |
 |---|---|---|---|
-| CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) | 框架债务 | 当前 0 用户无影响；清爽度 | **v1.2.6 backlog** |
-| factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达 `self_core.bus` 属性提取 | 框架底层限制 | 阻断上面 4 个 Agent 进 DI | **v1.2.6 backlog** |
-| `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入) | 设计债 | 0 用户无影响 | **v1.2.6 backlog** |
+| CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) | 框架债务 | 当前 0 用户无影响；清爽度 | **v1.3+** |
+| factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达属性提取 | 框架底层限制 | 阻断 Agent 进 DI | **v1.3+** |
+| `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入) | 设计债 | 0 用户无影响 | **v1.3+** |
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
-| 硬编码映射表是否该进 KB（无 lint） | 框架债务 | 潜在 | 有空回扫 |
+| ~~硬编码映射表是否该进 KB（无 lint）~~ | ✅ **v1.2.7 已清** | test_kb_centralization 已覆盖 | 见 v1.2.7 |
+| ~~CognitiveAgent emit/bus~~ | ✅ **v1.2.7 已清** | 事件机制已删 (LLM 整合替代) | 见 v1.2.7 |
+| ~~main.py 编排写 main.py (on_llm_response + _on_segmented_reply_v2)~~ | ✅ **v1.2.7 已清** | 抽出 SegmentedReplyOrchestrator | 见 v1.2.7 |
+| ~~8 utils 误注册/幽灵~~ | ✅ **v1.2.7 已清** | 11 工具集中 utils/ 取消 @register | 见 v1.2.7 |
+| ~~4 幽灵组件未接入~~ | ✅ **v1.2.7 已清** | environment_context/personality_feedback/project_manager/recovery_tracker 已接 | 见 v1.2.7 |
+| ~~HP-4 force_dynamics offset 不持久化~~ | ✅ **v1.2.7 已清** | restore_offset + persist/load | 见 v1.2.7 |
 | `_reset_superego_modules` 手 new 5 个 superego sub-classes | 设计债 | ✅ **v1.2.5 PR3 已清** | 见 PR3 提交 `be3afa5` / `d2fa561` |
 | `merge_life_sim_config` 漏搬 `enable_life_fragment` | 迁移静默回归 | ✅ **v1.2.5 PR3 已清** | 见 PR3 提交 `55dc010` |
 | `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 | ✅ **v1.2.5 PR1 已清** (commit `3dd9c7d`) | 已 ship | 见 §4.5.2 — 产品代码 fallback 比 mock time 更 robust |
@@ -474,14 +479,43 @@ pytest -x 2>&1 | tail -5         # 测试基线
 - PR3 tag: `v1.2.5` (正式 release, PR1+PR2 用 `-rc.X` 试水完成)
 - 首次正式 release 自 v1.2.4, 一次过无 force retag (PR1 4 ship 阻塞 fix 全部 cover)
 
-### v1.2.5 PR3 仍未清的债 (v1.2.6 backlog)
+### v1.2.5 PR3 仍未清的债 (v1.2.6 backlog → v1.2.7 已清 8/10 项)
 
 - (同 §6 主表) CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) — 需 factory `param_wire` 扩展
-- (同 §6 主表) factory `param_wire` 1:1 限制 (self/属性提取)
+- (同 §6 主表) factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达 `self_core.bus` 属性提取
 - (同 §6 主表) `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入)
 - (同 §6 主表) `test_periodic_save_dirty_only` Win 概率性 fail
 - ~~(同 §6 主表) `test_v2_full_lifecycle` wall clock 偶发不对齐~~ — **v1.2.5 PR1 已清 (3dd9c7d)**
-- (同 §6 主表) 硬编码映射表是否进 KB
+- ~~(同 §6 主表) 硬编码映射表是否进 KB~~ — **v1.2.7 已清 (test_kb_centralization 已覆盖)**
+
+### v1.2.7 已清的债 (2026-07-03, ✅ v1.2.7 cleanup)
+
+**框架/架构清债 (10 项中已清 7.5)**:
+
+| 任务 | 内容 | 测试 |
+|------|------|------|
+| 1 | `emotion_spirit/utils/` 层建立, 11 工具从原层集中, 删 `@register` | 全仓 import 回归 (35 文件) |
+| 2 | HP-2 + DO-4: `compute_defense_states` 加 `conscience_pressure` 参数, main.py caller 改用 `self._conscience.get_pressure()` | test_defense_modulator 回归 |
+| 3 | Q3: 删 `event_bus.py` + `AgentEvent` + 4 事件类型 + `base.py emit` | test_no_event_bus 守护 |
+| 4 | `_extract_bot_emotion` → `utils/tone_extractor.py` (纯函数); `_on_segmented_reply_v2` → `output/segmented_reply_orchestrator.py` (@register); `_build_context` → `utils/context_builder.py` (纯函数); main.py 薄壳化 | test_main_py_no_long_orchestration 收紧 |
+| 5 | 4 组件接入 LifeSimulatorV2 (environment_context/personality_feedback/project_manager/recovery_tracker) + user_activity_detector 接 main.py on_llm_request | 回归 1357 passed |
+| 6 | HP-4: `force_dynamics.restore_offset()` + main.py persist/load | test_force_dynamics 回归 |
+| 7 | DO-3: `defense_modulator.py` 方法内 import 移到顶部 | 回归 |
+| 8 | DO-5: spec drift 注记加到 segmented-reply-fix-design.md | - |
+
+**新增可拦测试 (9 文件, 26 用例)**:
+- `test_kb_centralization.py` (§1.1)
+- `test_registry_liveness.py` (§1.2 规则 1+2+4)
+- `test_main_py_no_long_orchestration.py` (§1.2 规则 3)
+- `test_layer_dependencies.py` (§1.3)
+- `test_type_contracts.py` (§1.4)
+- `test_lifecycle_pairs.py` (§1.5)
+- `test_agent_no_impl.py` (§1.6 规则 1)
+- `test_no_event_bus.py` (§1.6 规则 3)
+- `test_agent_no_direct_call.py` (§1.6 规则 2)
+
+**模块数**: 58 → 48 @register (-11 工具取消 @register, -event_bus 已删, +segmented_reply_orchestrator)
+**全测**: **1357 passed**, 1 pre-existing fail (test_v300_integration AstrBot import, 非 CI 阻塞)
 
 ### v1.2.1 已清的债 (供下次 session 验证不在 regression)
 

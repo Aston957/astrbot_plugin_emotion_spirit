@@ -11,7 +11,7 @@ import time
 from typing import Any, TYPE_CHECKING
 
 from ..core.config import SENTINEL_CONFIG, SAFETY_CONFIG
-from .trend_utils import TrendDetector
+from ..utils import TrendDetector
 
 if TYPE_CHECKING:
     from .surface_consumer import SurfaceConsumer, SemanticSignals

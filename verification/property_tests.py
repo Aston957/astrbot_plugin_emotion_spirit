@@ -18,9 +18,9 @@ from emotion_spirit.regulation.superego import (
 from emotion_spirit.regulation.superego_guard import SuperegoGuard
 from emotion_spirit.output.surface_consumer import SurfaceConsumer, SemanticSignals
 from emotion_spirit.regulation.personality_drift import PersonalityDrift
-from emotion_spirit.output.trend_utils import TrendDetector, EMASmoother
+from emotion_spirit.utils import TrendDetector, EMASmoother
 from emotion_spirit.core.config import SUPEREGO_CONFIG, SAFETY_CONFIG
-from emotion_spirit.core.label_mapper import labels_to_personality, _BASELINE
+from emotion_spirit.utils import labels_to_personality, _BASELINE
 
 
 # ═══ Hypothesis Strategies ═══

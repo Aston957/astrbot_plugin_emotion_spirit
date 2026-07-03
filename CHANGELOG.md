@@ -5,6 +5,54 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.8] - 2026-07-03 (清 5 项债 + 正式 release, 1358 tests, 48 modules)
+
+> v1.2.8 是 v1.2.7 清债后的干净版, 正式 release。v1.2.7 为过渡版未 release (5 项债未清)。版本号 1.2.5 → 1.2.8 (跳过 1.2.6 文档版 / 1.2.7 过渡版, 均未 tag)。
+
+### 清债 (5 项, v1.2.7 遗留)
+- ✅ **债 4**: 删 `personality_feedback.apply_activity_effect` 多余双 docstring
+- ✅ **债 3**: 删 `segmented_reply_orchestrator` 3 处多余 `hasattr` 守卫 (depends_on 必注入, §5 风格瑕疵)
+- ✅ **债 5**: plan §5.D `start_recovery` 触发点描述对齐代码 (实际在 surface_handler:283, 非 main.py 中转; 文档对齐代码不动代码)
+- ✅ **债 2**: 封跨层私有访问 — LifeSimulatorV2 加 `persist_extensions`/`restore_extensions`/`trigger_recovery` 公开方法; memory_pool 加 `get_collapse_archetype`; main/surface_handler 改调公开接口 (不再伸手 `_project_mgr`/`_recovery`/`_collapse_archetype` 私有, §1.3 分层)
+- ✅ **债 1**: on_llm_response 薄壳化 — 抽 `_apply_bot_reply_effects` + `_collect_segmented_state` helper, 88→43 行; `test_on_llm_response_bounded` 收紧 ≤90→≤55; on_llm_response 移出 allowlist 真正受 50 行约束 (§1.2 规则 3 兑现)
+
+### 全测
+- **1358 passed**, 0 failed
+
+## [1.2.7] - 2026-07-03 (10 项清债 10/10, 1358 tests, 48 modules, 过渡版未 release)
+
+> v1.2.7 是执行 v1.2.6 审计报告的清债版本。10 项清债任务完成 10/10，模块数 58 → 48。
+
+### 清债 (10 项)
+- ✅ **Task 1**: utils/ 层建立, 11 工具从原层 `git mv` 集中, 删 `@register` (全仓 import 路径更新 35 文件)
+- ✅ **Task 2**: HP-2 + DO-4: `compute_defense_states` 加 `conscience_pressure` 参数, main.py caller 改用 `self._conscience.get_pressure()`
+- ✅ **Task 3**: Q3: 删 `event_bus.py` + `AgentEvent` + 4 事件类型 + `base.py emit` + 4 agent emit/bus 参数
+- ✅ **Task 4**: 编排抽取: `_extract_bot_emotion` → `utils/tone_extractor.py`; `_on_segmented_reply_v2` → `output/segmented_reply_orchestrator.py` (@register, depends_on 5); `_build_context` → `utils/context_builder.py`; main.py 薄壳化
+- ✅ **Task 5**: 8 幽灵接通: environment_context / personality_feedback / project_manager / recovery_tracker 接入 LifeSimulatorV2; user_activity_detector 接 main.py on_llm_request; collapse → recovery 触发链
+- ✅ **Task 6**: HP-4: `force_dynamics.restore_offset()` + main.py persist/load
+- ✅ **Task 7**: DO-3: `defense_modulator.py` 方法内 import 移到顶部
+- ✅ **Task 8**: DO-5: spec drift 注记加到 segmented-reply-fix-design.md
+- ✅ **Task 9**: collapse_archetype 核验 (非幽灵, 6+ 消费者)
+- ✅ **Task 10**: 9 个可拦测试 (26 用例) 全绿
+
+### 新增可拦测试 (9 文件, 实现 §1.1-§1.6 全可拦)
+- `test_kb_centralization.py` (§1.1): AST 扫 .py 单 dict/list 字面量 > 10 项 → CI 红
+- `test_registry_liveness.py` (§1.2): @register 活性 + 隐式 import new
+- `test_main_py_no_long_orchestration.py` (§1.2 规则 3): main.py 单方法 > 50 行 → CI 红
+- `test_layer_dependencies.py` (§1.3): AST 扫 import, core 不依赖业务层
+- `test_type_contracts.py` (§1.4): 扫跨子系统参数裸 float + 易错配
+- `test_lifecycle_pairs.py` (§1.5): 有状态 @register 模块必须有 to_dict/from_dict 配对
+- `test_agent_no_impl.py` (§1.6 规则 1): AST 扫 agent 方法体无算法实现
+- `test_no_event_bus.py` (§1.6 规则 3): agents/ 内无 EventBus/AgentEvent/emit
+- `test_agent_no_direct_call.py` (§1.6 规则 2): agent 不互相 import/调
+
+### 模块数
+- 58 → 48 @register (-11 工具取消 @register, -event_bus 已删, +segmented_reply_orchestrator)
+
+### 全测
+- **1358 passed**, 0 failed (test_v300_integration 回归已修: Task 4 抽 `_extract_bot_emotion` → `utils/tone_extractor.py` 后, 测试改调 `extract_bot_emotion`)
+- ⚠️ 遗留 5 项债 (on_llm_response 88行 / 跨层私有访问 / 多余 hasattr / 双 docstring / start_recovery drift), 推 v1.2.8 清完。**v1.2.7 未 release** (版本号未 bump, 未 tag)。
+
 ## [1.2.6] - 2026-07-03 (架构审计 + handbook 六件套规约, 不改代码, 未 release)
 
 > v1.2.6 是只读审计 + 规约文档, 版本号仍 1.2.5 (未 tag/未 release)。v1.2.7 才改代码。

@@ -29,8 +29,8 @@ def test_plugin_factory_build_returns_requested_modules():
     config["modules"]["bot_decision"]["enabled"] = False
     config["modules"]["social_graph"]["enabled"] = False
     config["modules"]["topic_privacy"]["enabled"] = False
-    config["modules"]["knowledge"]["enabled"] = False
-    config["modules"]["persona_report_parser"]["enabled"] = False
+    # knowledge, persona_report_parser 等已移入 utils/ (不再 @register)
+    # 不从 factory 配置中启用/禁用
     config["modules"]["superego"]["enabled"] = False
     config["modules"]["superego_guard"]["enabled"] = False
     config["modules"]["meaning_reservoir"]["enabled"] = False
@@ -46,6 +46,7 @@ def test_plugin_factory_build_returns_requested_modules():
     config["modules"]["personality_bridge"]["enabled"] = False
     config["modules"]["command_router"]["enabled"] = False
     config["modules"]["segmented_reply_coordinator"]["enabled"] = False
+    config["modules"]["segmented_reply_orchestrator"]["enabled"] = False  # v1.2.7: depends on disabled
     config["modules"]["defense_modulator"]["enabled"] = False  # v1.2.5 PR2: depends on disabled
     modules = build(config)
     assert "store" in modules
@@ -98,6 +99,13 @@ def test_plugin_factory_default_config_lists_all_35():
     assert "label_mapper" not in enabled
     assert "persona_profiles" not in enabled
     assert "trend_utils" not in enabled
+    assert "knowledge" not in enabled
+    assert "decay_model" not in enabled
+    assert "persona_report_parser" not in enabled
+    assert "adaptation_engine" not in enabled
+    assert "emotion_predictor" not in enabled
+    assert "energy_model" not in enabled
+    assert "user_activity_detector" not in enabled
     assert "collapse_archetype" not in enabled
 
 

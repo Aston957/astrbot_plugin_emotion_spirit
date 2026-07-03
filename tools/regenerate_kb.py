@@ -44,7 +44,7 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PLUGIN_ROOT))
 
-from emotion_spirit.core.knowledge import KnowledgeBase  # noqa: E402
+from emotion_spirit.utils import KnowledgeBase  # noqa: E402
 
 
 # ════════════════════════════════════════════════════════════════════════════

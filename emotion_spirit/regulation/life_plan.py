@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .adaptation import EMOTION_ACTIVITY_BIAS
+from ..utils.adaptation import EMOTION_ACTIVITY_BIAS
 
 __all__ = [
     "PlannedEvent", "DailyPlan",

@@ -1,6 +1,6 @@
-"""Tests for emotion_spirit.regulation.user_activity_detector — Task 5.5 UserActivityDetector."""
+"""Tests for emotion_spirit.utils.user_activity_detector — Task 5.5 UserActivityDetector."""
 
-from emotion_spirit.regulation.user_activity_detector import UserActivityDetector
+from emotion_spirit.utils import UserActivityDetector
 from emotion_spirit.regulation.life_plan import DailyPlan, PlannedEvent
 
 

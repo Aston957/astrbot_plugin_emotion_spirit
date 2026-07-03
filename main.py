@@ -32,7 +32,7 @@ from emotion_spirit.output.commands import CommandImpl
 from emotion_spirit.output.surface_handler import SurfaceHandler
 
 # parse_persona_report: 在 _setup_persona_state() 用 (line 507)
-from emotion_spirit.regulation.persona_report_parser import parse_persona_report
+from emotion_spirit.utils import parse_persona_report, extract_bot_emotion, build_context
 # 注意: save_report/load_report 不在 main.py 导入 — commands.py 内部直接
 #       from emotion_spirit.regulation.persona_analyzer import save_report (line 41, 241)
 
@@ -319,15 +319,17 @@ class EmotionSpiritPlugin(Star):
         # L1: compute_defense_states 统一三子读 force_state
         # L2: apply_event 防御事件触发后回写 force_state
         self._defense_modulator = self._modules["defense_modulator"]
+        # v1.2.7: 分段回复编排器 (从 _on_segmented_reply_v2 抽出, §1.2 规则 3)
+        self._segmented_orchestrator = self._modules["segmented_reply_orchestrator"]
 
         from emotion_spirit.agents.memory_agent import MemoryAgent
         from emotion_spirit.agents.personality_agent import PersonalityAgent
         from emotion_spirit.agents.relationship_agent import RelationshipAgent
 
         self._self_core = self._modules["self_core"]
-        self._self_core.register(MemoryAgent(self._self_core.bus, self._pool, self._shadow))
-        self._self_core.register(PersonalityAgent(self._self_core.bus, self._superego_guard, self._drift))
-        self._self_core.register(RelationshipAgent(self._self_core.bus, self._intimacy, self._social_graph))
+        self._self_core.register(MemoryAgent(self._pool, self._shadow))
+        self._self_core.register(PersonalityAgent(self._superego_guard, self._drift))
+        self._self_core.register(RelationshipAgent(self._intimacy, self._social_graph))
         self._setup_v110c_agents()
         self._last_bot_reply_time: dict[str, float] = {}
 
@@ -367,7 +369,7 @@ class EmotionSpiritPlugin(Star):
         """
         from emotion_spirit.agents.life_agent import LifeAgent
 
-        self._life_agent = LifeAgent(self._self_core.bus, self._life_sim_v2)
+        self._life_agent = LifeAgent(self._life_sim_v2)
         self._self_core.register(self._life_agent)
 
     def _get_v110c_adaptation_context(self, user_id: str) -> dict[str, Any]:
@@ -396,7 +398,7 @@ class EmotionSpiritPlugin(Star):
                 suppression_level = sup_mod.compute(
                     personality=self._baseline_personality.get("deep", {}),
                     context=ctx,
-                    conscience_pressure=getattr(signals, "body_criticality", 0.0),
+                    conscience_pressure=self._conscience.get_pressure() if hasattr(self, "_conscience") else 0.0,
                     relationship_intimacy=self._intimacy.get_intimacy(
                         user_id, self._current_persona,
                     ),
@@ -448,7 +450,7 @@ class EmotionSpiritPlugin(Star):
         }
 
     def _update_baseline(self) -> None:
-        from emotion_spirit.memory.persona_profiles import get_personality_params
+        from emotion_spirit.utils import get_personality_params
         self._baseline_personality = get_personality_params(self._labels)
         self._interaction_count = 0
         logger.info("emotion_spirit: baseline personality updated from labels")
@@ -458,7 +460,7 @@ class EmotionSpiritPlugin(Star):
         if len(labels) != 5:
             return None
         mbti, attachment, emotion_style, conflict_style, time_focus = labels
-        from emotion_spirit.core.label_mapper import LABEL_OPTIONS
+        from emotion_spirit.utils import LABEL_OPTIONS
         if mbti not in LABEL_OPTIONS["mbti"]:
             return None
         if attachment not in LABEL_OPTIONS["attachment"]:
@@ -857,6 +859,10 @@ class EmotionSpiritPlugin(Star):
                     personality=personality,
                     recent_memories=recent_memories,
                     yesterday_events=yesterday_events,
+                    user_activity=(
+                        self._latest_user_activity
+                        if hasattr(self, '_latest_user_activity') else None
+                    ),
                 )
                 self._last_plan_date = today_str
                 logger.info(
@@ -968,7 +974,7 @@ class EmotionSpiritPlugin(Star):
         所有消费方必须先用 _flatten_personality() 拍平或按 layer 访问.
         """
         try:
-            from emotion_spirit.memory.persona_profiles import get_personality_params
+            from emotion_spirit.utils import get_personality_params
             return get_personality_params(self._labels)
         except Exception:
             # fallback 保持 flat shape (历史兼容性), v1.2.6 再全局统一
@@ -1227,6 +1233,17 @@ class EmotionSpiritPlugin(Star):
         # 3. 生活片段
         life_event = await self._inject_life_event(user_id)
 
+        # 3b. v1.2.7: user_activity_detector — 检测用户文本中的活动/计划
+        if hasattr(self, '_latest_signals'):
+            if not hasattr(self, '_latest_user_activity'):
+                self._latest_user_activity: dict[str, Any] = {}
+            try:
+                from emotion_spirit.utils import UserActivityDetector
+                detector = UserActivityDetector()
+                self._latest_user_activity[user_id] = detector.detect_plan(text)
+            except Exception:
+                pass
+
         if self._persona_mode == "disabled":
             return
         if self._persona_mode == "auto" and not self._persona_initialized:
@@ -1289,56 +1306,35 @@ class EmotionSpiritPlugin(Star):
 
     @filter.on_llm_response(desc="处理 LLM 回复，更新记忆和亲密度")
     async def on_llm_response(self, event: AstrMessageEvent, response: Any) -> None:
-        """Bot 回复后: 写入 MemoryPool + 更新 IntimacyTracker。
+        """Bot 回复后: 写入 MemoryPool + 更新 IntimacyTracker + 委托编排器.
 
-        v1.2.3: 若 segmented_reply.enable=true, 通过 SegmentedReplyCoordinator
-        生成分段发送计划, 逐段 yield 带打字延迟。
+        v1.2.7: 分段回复编排委托 SegmentedReplyOrchestrator (输出编排 → @register 组件).
+        v1.2.8: 副作用 + 状态收集抽 helper, on_llm_response 薄壳化 (< 55 行).
         """
         try:
             bot_text = getattr(response, "completion_text", "") or ""
             if not bot_text:
                 return
-
             user_id = event.get_sender_id()
+            tone, weight = extract_bot_emotion(bot_text)
 
-            # 1. 规则提取情绪
-            tone, weight = self._extract_bot_emotion(bot_text)
+            # 1. 写 memory + 更新 intimacy + reflex learn (v1.2.8: 抽 _apply_bot_reply_effects)
+            self._apply_bot_reply_effects(user_id, bot_text, tone, weight)
 
-            # 2. 写入 MemoryPool (source_user="bot", tags=["bot_reply", tone])
-            self._pool.add_for_user(
-                user_id=user_id,
-                text=bot_text[:500],  # 截断避免过长
-                raw_weight=weight,
-                phi=0.4,  # bot 回复 phi 中等
-                tags=["bot_reply", tone],
-                source_user="bot",
-            )
-
-            # 3. 更新 IntimacyTracker (interaction_freq)
-            self._intimacy.update(
-                user_id,
-                interval_seconds=0,  # bot 回复不改变间隔
-                vulnerability_delta=0.05 if tone == "warm" else 0.0,
-            )
-
-            # v1.1.0B: Compute behavior signal and learn
-            import time as _time_mod
-            gap = _time_mod.time() - self._last_bot_reply_time.get(user_id, 0.0)
-            from emotion_spirit.memory.reflex_learner import compute_behavior
-            behavior = compute_behavior(gap)
-            self._reflex_learner.learn(behavior)
-            self._last_bot_reply_time[user_id] = _time_mod.time()
-
-            # ═══ v1.2.5 PR1: 分段回复 (修复 Bug 12) ═══
+            # 2. 分段回复 (v1.2.7: 委托 SegmentedReplyOrchestrator; v1.2.8: 状态收集抽 helper)
             seg_config = self._config.get("segmented_reply", {})
-            if seg_config.get("enable", False) and hasattr(self, '_segmented_coordinator'):
-                # 流式模式跳过
+            if seg_config.get("enable", False) and hasattr(self, '_segmented_orchestrator'):
                 if self._config.get("provider_settings", {}).get("streaming_response", False):
                     logger.debug("emotion_spirit: streaming_response=True, skipping segmented_reply")
                 else:
+                    state = self._collect_segmented_state(user_id, event)
                     try:
-                        await self._on_segmented_reply_v2(
-                            bot_text, user_id, seg_config, event, response
+                        await self._segmented_orchestrator.handle(
+                            event=event, response=response, bot_text=bot_text, user_id=user_id,
+                            seg_config=seg_config, signals=state["signals"], context=state["context"],
+                            personality=state["personality"], current_persona=self._current_persona,
+                            labels=self._labels, force_state=state["force_state"],
+                            conscience_pressure=state["conscience_pressure"],
                         )
                     except Exception:
                         logger.warning(
@@ -1353,169 +1349,44 @@ class EmotionSpiritPlugin(Star):
         except Exception:
             logger.debug("emotion_spirit: on_llm_response error", exc_info=True)
 
-    @staticmethod
-    def _extract_bot_emotion(text: str) -> tuple[str, float]:
-        """从 bot 回复文本规则提取情绪标签和权重。
+    def _apply_bot_reply_effects(self, user_id: str, bot_text: str, tone: str, weight: float) -> None:
+        """Bot 回复副作用: 写 memory + 更新 intimacy + reflex learn (v1.2.8: 从 on_llm_response 抽出)."""
+        self._pool.add_for_user(
+            user_id=user_id, text=bot_text[:500], raw_weight=weight,
+            phi=0.4, tags=["bot_reply", tone], source_user="bot",
+        )
+        self._intimacy.update(
+            user_id, interval_seconds=0,
+            vulnerability_delta=0.05 if tone == "warm" else 0.0,
+        )
+        import time as _time_mod
+        gap = _time_mod.time() - self._last_bot_reply_time.get(user_id, 0.0)
+        from emotion_spirit.memory.reflex_learner import compute_behavior
+        self._reflex_learner.learn(compute_behavior(gap))
+        self._last_bot_reply_time[user_id] = _time_mod.time()
 
-        Returns:
-            (tone, weight) 元组。
+    def _collect_segmented_state(self, user_id: str, event) -> dict:
+        """收集分段回复编排所需运行时状态 (v1.2.8: 从 on_llm_response 抽出, 薄壳化).
+
+        返回 force_state/signals/context/personality/conscience_pressure 快照。
+        body_state/intimacy 由 orchestrator depends_on 自取, 不在此收集 (§4.A 状态归属)。
         """
-        text_lower = text.lower()
-
-        # 温暖类
-        warm_words = ["哈哈", "笑", "开心", "高兴", "❤", "🥰", "😊", "喜欢", "棒", "好的呀"]
-        if any(w in text_lower for w in warm_words):
-            return "warm", 0.5
-
-        # 抱歉类
-        apologetic_words = ["抱歉", "不好意思", "对不起", "sorry", "遗憾"]
-        if any(w in text_lower for w in apologetic_words):
-            return "apologetic", 0.3
-
-        # 好奇类
-        if "？" in text or "?" in text:
-            return "curious", 0.3
-
-        # 详细回复
-        if len(text) > 200:
-            return "detailed", 0.5
-
-        return "neutral", 0.3
-
-    # ═══ v1.2.5 PR1: 分段投递机制 ═══
-
-    async def _on_segmented_reply_v2(
-        self,
-        bot_text: str,
-        user_id: str,
-        seg_config: dict,
-        event,
-        response,
-    ) -> None:
-        """v1.2.5 PR1: 分段投递主体 (修复 Bug 12a + 12b)"""
-        try:
-            # 1. 读上游状态
-            force_state = (
+        return {
+            "force_state": (
                 self.get_current_force_state(self._labels)
                 if hasattr(self, "_force_dynamics") else None
-            )
-            signals = (
+            ),
+            "signals": (
                 self._latest_signals.get(user_id)
                 if hasattr(self, "_latest_signals") else None
-            )
-            body_state = (
-                self._body_state.default()
-                if hasattr(self, "_body_state") else None
-            )
-            intimacy = (
-                self._intimacy.get_intimacy(user_id, self._current_persona)
-                if hasattr(self, "_intimacy") else 0.5
-            )
-            context = self._build_context(event)
-            personality = (
-                self._get_personality_for_user(user_id)
-                if hasattr(self, "_get_personality_for_user")
-                else self._get_current_personality_dict()
-            )
-
-            # 2. 沉默判定 (v1.2.5 PR2 §4: 走 DefenseModulator 统一 L1 入口)
-            from emotion_spirit.output.segmented_reply_coordinator import SilenceTendency
-            defense_states = self._defense_modulator.compute_defense_states(
-                personality=personality,
-                signals=signals,
-                body_state=body_state,
-                intimacy_level=intimacy,
-                context=context,
-                force_state=force_state,
-            )
-            silence_tendency_obj = SilenceTendency(
-                score=defense_states.silence_tendency,
-                reason=defense_states.silence_reason,
-                components=defense_states.silence_components,
-            )
-            should_silent, reason, _ = self._segmented_coordinator.should_be_silent(
-                user_id, silence_tendency_obj, seg_config
-            )
-
-            # 3. 沉默触发 (S1)
-            if should_silent and seg_config.get("enable_deliberate_silence", False):
-                self._segmented_coordinator.record_silence_event(
-                    user_id, tendency=silence_tendency_obj,
-                    full_text=bot_text, force_state=force_state,
-                )
-                # v1.2.5 PR2 §4.2 L2: 防御事件回写 force_state
-                self._defense_modulator.apply_event("silence", intensity=silence_tendency_obj.score)
-                response.completion_text = ""
-                response.result_chain = None
-                logger.debug(
-                    "emotion_spirit: deliberate silence triggered reason=%s score=%.2f",
-                    reason, silence_tendency_obj.score,
-                )
-                return
-
-            # 4. 生成分段计划
-            plan = self._segmented_coordinator.plan(
-                full_text=bot_text,
-                session_key=user_id,
-                expression_drive=getattr(signals, "affect_expression_drive", 0.5) if signals else 0.5,
-                rhythm_strain=getattr(signals, "rhythm_strain", 0.5) if signals else 0.5,
-                pad_valence=getattr(signals, "pad_valence", 0.5) if signals else 0.5,
-                hot_pool_pressure=getattr(signals, "hot_pool_pressure", 0.0) if signals else 0.0,
-                config=seg_config,
-            )
-
-            if not plan:
-                return
-
-            # 5. 逐段 send (F4: 先发首段无延迟)
-            try:
-                from astrbot.core.message.components import Plain
-                from astrbot.core.message.message_event_result import MessageChain
-
-                await event.send(MessageChain([Plain(plan[0]["text"])]))
-                for part in plan[1:]:
-                    delay = part.get("delay_before_seconds", 0.0)
-                    if delay > 0:
-                        await asyncio.sleep(delay)
-                    await event.send(MessageChain([Plain(part["text"])]))
-            except Exception:
-                # F3: 单段失败继续
-                logger.warning(
-                    "emotion_spirit: segmented_reply send failed, some segments may be missing",
-                    exc_info=True,
-                )
-
-            # 6. 清空 llm_resp (Bug 12b 修复)
-            response.completion_text = ""
-            response.result_chain = None
-
-            # 7. 推进冷却计数
-            self._segmented_coordinator.record_response_event(user_id)
-
-            # 8. 记录分段历史 (v1.2.5 PR1 Task 10)
-            total_delay = sum(
-                p.get("delay_before_seconds", 0.0) for p in plan
-            )
-            self._segmented_coordinator.record_segment_event(
-                user_id, num_segments=len(plan), total_delay=total_delay,
-            )
-
-        except Exception:
-            # F1: 整体失败 → 让 AstrBot 正常发
-            logger.warning(
-                "emotion_spirit: _on_segmented_reply_v2 failed, falling back to AstrBot default",
-                exc_info=True,
-            )
-
-    def _build_context(self, event) -> dict:
-        """v1.2.5 PR1: 上下文构建"""
-        context = {}
-        if hasattr(event, "get_group_id") and event.get_group_id():
-            context["social_audience"] = 0.5
-        else:
-            context["social_audience"] = 0.0
-        context["authority_present"] = 0.0  # v1.3 真实解析
-        return context
+            ),
+            "context": build_context(event),
+            "personality": self._get_current_personality_dict(),
+            "conscience_pressure": (
+                self._conscience.get_pressure()
+                if hasattr(self, "_conscience") else 0.0
+            ),
+        }
 
     async def _flush_inject_queue(self) -> None:
         if not self._inject_queue:
@@ -1565,6 +1436,11 @@ class EmotionSpiritPlugin(Star):
         self._load_core_data()
         self._load_phase2_data()
         self._load_life_and_v2_data()
+        # v1.2.7 HP-4: force_dynamics offset 恢复
+        if hasattr(self, '_force_dynamics') and self._force_dynamics:
+            fd_offset = self._store.get("force_dynamics_offset", None)
+            if fd_offset:
+                self._force_dynamics.restore_offset(fd_offset)
 
     def _load_core_data(self) -> None:
         """核心模块恢复: pool/intimacy/superego (L1458-1479)。"""
@@ -1664,6 +1540,13 @@ class EmotionSpiritPlugin(Star):
         coord_data = self._store.get("segmented_coordinator")
         if coord_data and hasattr(self, '_segmented_coordinator'):
             self._segmented_coordinator.from_dict(coord_data)
+        # v1.2.8: project_manager + recovery_tracker 恢复 (走 LifeSimulatorV2 公开接口, 不伸手私有)
+        lsv2 = getattr(self, '_life_sim_v2', None)
+        if lsv2 and hasattr(lsv2, 'restore_extensions'):
+            lsv2.restore_extensions({
+                "project_manager": self._store.get("project_manager"),
+                "recovery_tracker": self._store.get("recovery_tracker"),
+            })
 
     def _persist_modules(self) -> None:
         """统一所有模块持久化 (v1.2.2 B7-fix: 合并 _save_if_dirty/_save_all 两路径)。
@@ -1693,6 +1576,9 @@ class EmotionSpiritPlugin(Star):
         if self._narrative:
             self._store.set("narrative", self._narrative.to_dict())
         self._store.set("counterfactual", self._counterfactual.to_dict())
+        # v1.2.7 HP-4: force_dynamics offset 持久化
+        if hasattr(self, '_force_dynamics'):
+            self._store.set("force_dynamics_offset", self._force_dynamics.get_cumulative_offset())
         # v1.1.0A: LifeSimulator v2 (adapt_plan 会修改 plan 状态)
         if hasattr(self, '_life_sim_v2'):
             self._store.set("life_sim_v2", self._life_sim_v2.to_dict())
@@ -1705,6 +1591,12 @@ class EmotionSpiritPlugin(Star):
         # v1.2.3: SegmentedReplyCoordinator 状态 (ignored_rate deque)
         if hasattr(self, '_segmented_coordinator'):
             self._store.set("segmented_coordinator", self._segmented_coordinator.to_dict())
+        # v1.2.8: project_manager + recovery_tracker 持久化 (走 LifeSimulatorV2 公开接口)
+        lsv2 = getattr(self, '_life_sim_v2', None)
+        if lsv2 and hasattr(lsv2, 'persist_extensions'):
+            for key, data in lsv2.persist_extensions().items():
+                if data is not None:
+                    self._store.set(key, data)
 
     def _save_if_dirty(self) -> None:
         self._persist_modules()
@@ -1722,7 +1614,7 @@ class EmotionSpiritPlugin(Star):
         self, session_key: str, include_trajectory: bool = False,
     ) -> dict | None:
         """统一情绪状态 API (v1.1.1 9 字段 + v1.2 +ambiguity +velocity = 11 字段)。"""
-        from emotion_spirit.output.emotion_classifier import render_description
+        from emotion_spirit.utils import render_description
 
         signals = self._latest_signals.get(session_key)
         if signals is None:

@@ -10,15 +10,12 @@ Step 3: 删旧字段 (后续 task)
 from __future__ import annotations
 from typing import Any
 
-from .registry import register
-
 
 
 __all__ = [
     "KnowledgeBase",
 ]
 
-@register(name="knowledge", provides=["KnowledgeBase"], depends_on=[])
 class KnowledgeBase:
     """统一知识库 — 声明性数据 + 查询 API。"""
 

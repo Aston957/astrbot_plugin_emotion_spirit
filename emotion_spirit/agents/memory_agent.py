@@ -15,8 +15,8 @@ class MemoryAgent(CognitiveAgent):
     name = "memory"
     phases = (PRE, POST)
 
-    def __init__(self, bus, memory_pool, shadow_detector=None):
-        super().__init__(bus)
+    def __init__(self, memory_pool, shadow_detector=None):
+        super().__init__()
         self._pool = memory_pool
         self._shadow = shadow_detector
 
@@ -70,12 +70,8 @@ class MemoryAgent(CognitiveAgent):
             try:
                 shadows = self._shadow.detect()
                 if shadows:
-                    from .event_bus import ShadowDetected
-                    self.emit(ShadowDetected(
-                        source="memory",
-                        session_key=session_key,
-                        tags=[s.get("tag", "") for s in shadows],
-                    ))
+                    # emit removed (v1.2.7 Q3: EventBus deleted)
+                    pass
             except Exception:
                 pass
         # Decay is handled by MemoryPool.tick() in main loop, not here

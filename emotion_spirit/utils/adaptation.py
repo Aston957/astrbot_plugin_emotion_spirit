@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..core.registry import register
-
 
 __all__ = [
     "EMOTION_ACTIVITY_BIAS",
@@ -51,16 +49,6 @@ COLLAPSE_SOCIAL_MOD = {
     "drift":     0.0,   # neutral
     "cold":     -0.3,   # intellectualizes alone
 }
-
-
-@register(
-    name="adaptation_engine",
-    provides=["AdaptationEngine", "compute_social_tendency", "select_adaptation_activity", "derive_activity_preferences"],
-    depends_on=[],
-)
-class _AdaptationMarker:
-    """Marker class for adaptation engine module."""
-    pass
 
 
 def _classify_emotion(valence: float) -> str:

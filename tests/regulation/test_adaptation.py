@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from emotion_spirit.regulation.adaptation import (
+from emotion_spirit.utils import (
     compute_social_tendency,
     select_adaptation_activity,
     derive_activity_preferences,
@@ -250,7 +250,13 @@ class TestConstants:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestRegistration:
-    def test_adaptation_engine_registered(self):
-        from emotion_spirit.core.registry import ModuleRegistry
-        specs = ModuleRegistry.get_all()
-        assert "adaptation_engine" in specs
+    def test_adaptation_utils_importable(self):
+        """v1.2.7: adaptation moved to utils/ (no @register). Verify importable."""
+        from emotion_spirit.utils import (
+            compute_social_tendency,
+            select_adaptation_activity,
+            derive_activity_preferences,
+        )
+        assert callable(compute_social_tendency)
+        assert callable(select_adaptation_activity)
+        assert callable(derive_activity_preferences)

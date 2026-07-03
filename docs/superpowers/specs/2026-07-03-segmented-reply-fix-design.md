@@ -8,6 +8,20 @@
 
 ---
 
+## Drift 注记 (v1.2.6 回扫)
+
+> v1.2.5 实现后 vs 本 spec 设计意图的偏差 (v1.2.6 审计 + v1.2.7 收敛):
+
+| Drift | 方向 | 当前状态 |
+|---|---|---|
+| `config_keys={"segmented_reply"}` | 无(无所谓) | ✅ 无修正需求 |
+| `self._conscience.pressure` → hasattr fallback | ❌ 更差 (见 DO-4) | ✅ **v1.2.7 已修** (HP-2) |
+| `force_dynamics.apply_defense_delta` 硬编码 → KB deltas | ✅ 更好 | ✅ 维持 |
+| `silence_components: dict = None` → `field(default_factory=dict)` | ✅ 更好 | ✅ v1.2.5 PR3 已修 |
+| 三子 L2 全接 → 实际只接 silence | 范围收缩 | Q3 删事件 + v1.2.8 L2 脚手架 |
+
+**结论**: spec 反映设计意图, 实现以代码为准; 主要 drift 已在 v1.2.6/v1.2.7 收敛。
+
 ## §0 范围与非目标
 
 ### v1.2.5 范围（10 项, 全部必修）

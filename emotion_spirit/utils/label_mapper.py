@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .utils import clamp
+from ..core.utils import clamp
 
 
 # ═══ 基线 (Default ISTJ 安全型) ═══
@@ -231,10 +231,3 @@ def get_label_options() -> dict[str, list[str]]:
     return {k: list(v) for k, v in LABEL_OPTIONS.items()}
 
 
-from .registry import register
-
-
-@register(name="label_mapper", provides=[], depends_on=[])
-class _ModuleMarker:
-    """纯函数模块标记 (供 ModuleRegistry 元数据用)。"""
-    pass
