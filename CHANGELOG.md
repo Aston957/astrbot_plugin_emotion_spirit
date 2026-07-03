@@ -5,6 +5,32 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.5] - 2026-07-03 (PR2: 力学系统耦合 — DefenseModulator L1+L2)
+
+### 新增 (Features)
+- **`DefenseModulator` 模块** (`@register`, depends_on 4 个): 统一管理压抑/崩溃/沉默与力学的耦合
+  - L1 输入调制: `SuppressionState.compute()` / `CollapseArchetypeSelector.compute_bas_bis()` / `SegmentedReplyCoordinator.compute_silence_tendency()` 都接受 `force_state` 可选参数 (向后兼容 100%)
+  - L2 输出回写: `apply_event("silence" | "collapse" | "suppression", intensity)` 从 KB `defense_deltas.json` 读 delta, 调 `force_dynamics.shift()`
+  - 模块数 57 → 58 (+DefenseModulator)
+- **`ForceDynamics.shift()`** 新增: 累积偏移状态 (v1.3 L3 fixpoint 复用)
+- **`CollapseArchetypeSelector.compute_bas_bis()` 3-tuple 化**: 返回 `(BAS, BIS, collapse_tendency)` + 同步修 `select()` 解构
+- **KB `defense_deltas.json`** 新增 (handbook §1.1: 系数全从 KB 读)
+- **main.py 集成**: `_init_life_and_agents` 加 `self._defense_modulator`, `_on_segmented_reply_v2` 用 DefenseModulator 统一入口 + 沉默触发后 `apply_event("silence")`
+
+### 新增测试
+- `test_defense_modulator.py`: 18 个测试 (DefenseStates dataclass + KB + compute_defense_states + apply_event + main.py 集成)
+- `test_suppression.py`: 4 个 L1 force_state 测试
+- `test_collapse_archetype.py`: 5 个 L1 + 连续化测试
+- `tests/regulation/test_collapse_archetype.py`: 3 处解构修复 (2-tuple → 3-tuple)
+
+### 向后兼容 (handbook §1.2 关键)
+- `force_dynamics.compute()` 签名不变
+- `SuppressionState.compute()` force_state=None → 跟 v1.2.4 一致
+- `CollapseArchetypeSelector.compute_bas_bis()` 不传 → 返回 (BAS, BIS, collapse_tendency=0.0)
+- `SegmentedReplyCoordinator.compute_silence_tendency()` force_state=None → 跟 PR1 一致
+
+---
+
 ## [1.2.5] - 2026-07-03 (PR1: 分段修复 + 沉默语义)
 
 ### 修复 (Bug Fixes)

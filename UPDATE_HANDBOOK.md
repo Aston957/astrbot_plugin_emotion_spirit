@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: v1.2.5-rc.1 (PR1 已 ship, PR2+PR3 待) | schema version: v4 | 状态: PR1 已 ship (tag → `v1.2.5-rc.1`, HEAD `99ef2fa`), PR2 (DefenseModulator) + PR3 (清债 + Bug 13/14) 待执行。
+> 当前版本: v1.2.5-rc.2 (PR1+PR2 已 ship, PR3 待) | schema version: v4 | 状态: PR1+PR2 已 ship (PR1 tag → `v1.2.5-rc.1`, PR2 tag → `v1.2.5-rc.2`), PR3 (清债 + Bug 13/14) 待执行。
 
 ---
 
@@ -319,6 +319,25 @@ pytest -x 2>&1 | tail -5         # 测试基线
 - ✅ release.yml rc/beta/alpha suffix 支持 (commit `830b600`, 见 §4.5.1)
 - ✅ `build_schedule_context` fallback (commit `3dd9c7d`, 见 §4.5.2) — **提前 PR3 T7 产品侧 fix**, 测试侧 mock time 不再需要
 - ✅ release.yml cleanup step (commit `e717aef` + `99ef2fa`, 见 §4.5.3 + §4.5.4) — 用 curl REST API 而非 gh CLI, force retag 不再撞 softprops
+
+### v1.2.5 PR2 已清的债 (2026-07-03, PR2 READY → SHIP as v1.2.5-rc.2)
+
+**主要功能 (DefenseModulator L1+L2 完整耦合)**:
+- ✅ 新增 `DefenseModulator` 模块 (`@register`, 4 depends_on): 统一管理压抑/崩溃/沉默与力学的耦合
+- ✅ L1 输入调制: `SuppressionState.compute()` / `CollapseArchetypeSelector.compute_bas_bis()` / `SegmentedReplyCoordinator.compute_silence_tendency()` 都接受 `force_state` 可选参数 (向后兼容 100%)
+- ✅ L2 输出回写: `DefenseModulator.apply_event("silence" | "collapse" | "suppression", intensity)` 从 KB `defense_deltas.json` 读 delta, 调 `force_dynamics.shift()`
+- ✅ `ForceDynamics.shift()` 新增 (累积偏移状态, v1.3 L3 fixpoint 复用)
+- ✅ `CollapseArchetypeSelector.compute_bas_bis()` 3-tuple 化: 返回 `(BAS, BIS, collapse_tendency)` + 同步修 `select()` 解构
+- ✅ KB `defense_deltas.json` 新增 (handbook §1.1: 系数全从 KB 读)
+- ✅ main.py 集成: `_init_life_and_agents` 加 `self._defense_modulator`, `_on_segmented_reply_v2` 用 DefenseModulator 统一入口 + 沉默触发后 `apply_event("silence")`
+- ✅ 模块数 57 → 58 (+DefenseModulator), `force_dynamics.compute()` 签名不变 (向后兼容 100%, handbook §1.2)
+
+**测试**:
+- `test_defense_modulator.py`: 18 个测试 (DefenseStates dataclass 5 + KB 3 + compute_defense_states 4 + apply_event 4 + main.py 集成 2)
+- `test_suppression.py`: 4 个 L1 测试
+- `test_collapse_archetype.py`: 5 个 L1 + 连续化测试
+- `tests/regulation/test_collapse_archetype.py`: 3 处解构修复 (2-tuple → 3-tuple)
+- 全测: **1326 passed**, 0 regression
 
 ### v1.2.5 PR1 仍未清的债 (继承自 v1.2.4)
 
