@@ -31,7 +31,7 @@ class SilenceTendency:
             raise ValueError(f"score must be in [0, 1], got {self.score}")
 import time
 from collections import deque
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from emotion_spirit.core.registry import register
 
@@ -47,6 +47,41 @@ _DEFAULT_IGNORED_WINDOW_TURNS: int = 10
 _DEFAULT_BLEND: float = 0.6
 _DEFAULT_INTIMACY_GATE: float = 0.6
 _DEFAULT_IGNORED_SECONDS: float = 7200.0
+
+
+class DelayStrategy(Protocol):
+    """延迟策略协议 (v1.2.5 PR1 §5).
+
+    分段回复的段间延迟可以由不同策略实现, 例如:
+    - 纯打字模拟 (TypingDelayStrategy)
+    - 情绪调制延迟 (未来)
+    - 固定延迟 (未来)
+    """
+    def compute_delay(self, text: str, config: dict) -> float: ...
+
+
+class TypingDelayStrategy:
+    """打字模拟延迟策略 (v1.2.5 PR1 §5).
+
+    延迟 = min(len(text) / chars_per_second, max_delay_seconds).
+    """
+
+    def compute_delay(self, text: str, config: dict) -> float:
+        """计算基于打字速度的段间延迟。
+
+        Args:
+            text: 分段文本。
+            config: 配置字典 (从 _conf_schema.json 传入).
+                    keys: default_chars_per_second, max_delay_seconds.
+
+        Returns:
+            延迟秒数 (float).
+        """
+        cps: float = float(config.get("default_chars_per_second", _DEFAULT_CHARS_PER_SECOND))
+        max_delay: float = float(config.get("max_delay_seconds", _DEFAULT_MAX_DELAY_SECONDS))
+        if cps <= 0:
+            return max_delay
+        return min(len(text) / cps, max_delay)
 
 
 @register(
@@ -87,6 +122,9 @@ class SegmentedReplyCoordinator:
         # per-session silence tracking (v1.2.5 PR1 §4)
         self._turns_since_last_silence: dict[str, int] = {}
         self._consecutive_silence_count: dict[str, int] = {}
+
+        # 延迟策略 (v1.2.5 PR1 §5)
+        self._delay_strategy: DelayStrategy = TypingDelayStrategy()
 
     # ═══ 主入口 ═══
 
@@ -159,15 +197,23 @@ class SegmentedReplyCoordinator:
         # 5. 生成分段发送计划
         plan = self._dispatch.build_segmented_parts(full_text, max_part, cps)
 
-        # D7: 段间延迟上限兜底
-        max_delay = cfg.get("max_delay_seconds", _DEFAULT_MAX_DELAY_SECONDS)
+        # D7: 段间延迟 (via DelayStrategy, v1.2.5 PR1 §5)
         for part in plan:
-            part["delay_before_seconds"] = min(
-                part.get("delay_before_seconds", 0.0),
-                max_delay,
+            part["delay_before_seconds"] = self._delay_strategy.compute_delay(
+                part["text"], cfg
             )
 
         return plan
+
+    # ═══ 延迟策略 (v1.2.5 PR1 §5) ═══
+
+    def set_delay_strategy(self, strategy: DelayStrategy) -> None:
+        """替换延迟策略 (用于测试或自定义实现).
+
+        Args:
+            strategy: DelayStrategy 协议实现.
+        """
+        self._delay_strategy = strategy
 
     # ═══ silence tendency 计算 (v1.2.5 PR1 §3.2) ═══
 
