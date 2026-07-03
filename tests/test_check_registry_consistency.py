@@ -35,11 +35,11 @@ def test_check_registry_consistency_passes():
     )
     assert result.returncode == 0, f"scan failed: stdout={result.stdout}, stderr={result.stderr}"
     assert "PASS" in result.stdout
-    assert "57 modules" in result.stdout
+    assert "58 modules" in result.stdout
 
 
-def test_check_registry_consistency_covers_all_57_specs():
-    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 57 个 specs。"""
+def test_check_registry_consistency_covers_all_58_specs():
+    """静态扫描内部遍历 ModuleRegistry.get_all(), 应有 58 个 specs。"""
     import emotion_spirit  # noqa: F401
     from emotion_spirit.core.registry import ModuleRegistry
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

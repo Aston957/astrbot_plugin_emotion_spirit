@@ -9,13 +9,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import emotion_spirit  # noqa: F401  # 触发 56 模块 @register (v1.2.1 DI cleanup: 48 → 56)
+import emotion_spirit  # noqa: F401  # 触发 58 模块 @register (v1.2.5 PR2: 57 → 58, +defense_modulator)
 from emotion_spirit.core.registry import ModuleRegistry, build
 from emotion_spirit.core.plugin_factory import default_config, build as factory_build
 
 
-def test_dry_run_57_modules_no_error():
-    """dry_run 走 57 模块依赖图检查, 0 错误。
+def test_dry_run_58_modules_no_error():
+    """dry_run 走 58 模块依赖图检查, 0 错误。
 
     Phase 0 Task 5: 34 → 39 (+cascade_engine, +decay_model, +suppression, +collapse_archetype, +collapse_archetype_selector).
     v1.1.0C T1: 39 → 40 (+adaptation_engine).
@@ -27,8 +27,9 @@ def test_dry_run_57_modules_no_error():
                                   +realtime_dispatch, +rhythm_learner, +self_core,
                                   +life_simulator_v2, +command_router; LifeAgent 仍手 new).
     v1.2.3: 56 → 57 (+segmented_reply_coordinator).
+    v1.2.5 PR2: 57 → 58 (+defense_modulator).
     """
-    assert len(ModuleRegistry.get_all()) == 57, f"expected 57 modules, got {len(ModuleRegistry.get_all())}"
+    assert len(ModuleRegistry.get_all()) == 58, f"expected 58 modules, got {len(ModuleRegistry.get_all())}"
     config = default_config(
         data_dir="/tmp/test_dryrun",
         persona_id="INFP-A",
@@ -122,7 +123,7 @@ def test_plugin_factory_returns_same_shape_as_old_manual():
         labels={"EI": "I", "SN": "N", "TF": "F", "JP": "P"},
     )
     instances = factory_build(config)
-    # 24 个 instantiable modules 都该在 dict 里 + 4 utility (marker)
+    # 25 个 instantiable modules 都该在 dict 里 + 4 utility (marker)
     expected_instantiable = {
         "store", "surface_consumer", "memory_pool", "buffer_signals", "intimacy",
         "superego", "superego_guard", "meaning_reservoir", "pattern_extractor",
@@ -131,6 +132,7 @@ def test_plugin_factory_returns_same_shape_as_old_manual():
         "counterfactual", "persona_analyzer", "relationship_personality",
         "social_graph", "topic_privacy", "bot_decision", "knowledge",
         "persona_report_parser", "force_dynamics",
+        "defense_modulator",  # v1.2.5 PR2: 压抑/崩溃/沉默 ↔ 力学耦合调制器
     }
     # 检查 24 个 instantiable 都在
     for name in expected_instantiable:
@@ -152,9 +154,9 @@ def test_dry_run_then_real_build_consistent():
     )
     real = build(config)
     # build() 默认 enabled=True for registry modules not in config,
-    # 所以 utility N (provides=[]) 也被装配. v1.2.3: 57 instances
-    # (52 instantiable + 5 utility)
-    assert len(real) == 57, f"expected 57 instances, got {len(real)}"
+    # 所以 utility N (provides=[]) 也被装配. v1.2.5 PR2: 58 instances
+    # (53 instantiable + 5 utility)
+    assert len(real) == 58, f"expected 58 instances, got {len(real)}"
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -202,6 +204,7 @@ def test_default_data_dir_when_none():
         config["modules"]["personality_bridge"]["enabled"] = False
         config["modules"]["command_router"]["enabled"] = False
         config["modules"]["segmented_reply_coordinator"]["enabled"] = False
+        config["modules"]["defense_modulator"]["enabled"] = False  # v1.2.5 PR2: depends on disabled
         instances = build(config)
         # store._dir.name 反映传入的 data_dir
         assert instances["store"]._dir.name == os.path.basename(tmp)

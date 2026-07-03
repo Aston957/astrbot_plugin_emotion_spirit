@@ -44,6 +44,7 @@ from .regulation import (
     adaptation, project_manager, recovery_tracker,
     personality_feedback, user_activity_detector,
     energy_model, environment_context, emotion_predictor,
+    defense_modulator,  # v1.2.5 PR2: 压抑/崩溃/沉默 ↔ 力学耦合调制器
 )
 from .output import (
     emotion_classifier, surface_consumer, diary_writer, prompt_injector,

@@ -46,6 +46,7 @@ def test_plugin_factory_build_returns_requested_modules():
     config["modules"]["personality_bridge"]["enabled"] = False
     config["modules"]["command_router"]["enabled"] = False
     config["modules"]["segmented_reply_coordinator"]["enabled"] = False
+    config["modules"]["defense_modulator"]["enabled"] = False  # v1.2.5 PR2: depends on disabled
     modules = build(config)
     assert "store" in modules
     assert "memory_pool" in modules

@@ -1,5 +1,6 @@
 """Tests for DefenseModulator (v1.2.5 PR2 §4)"""
 import pytest
+from unittest.mock import MagicMock
 from emotion_spirit.regulation.defense_modulator import DefenseStates
 
 
@@ -75,3 +76,140 @@ def test_defense_deltas_have_source_doc():
     deltas = get_defense_deltas()
     for event in ["silence", "collapse", "suppression"]:
         assert "_doc" in deltas[event], f"{event} 缺 _doc 字段"
+
+
+# === Task 5: DefenseModulator.compute_defense_states (L1) ===
+
+def test_compute_defense_states_combines_three_defenses():
+    """DefenseModulator.compute_defense_states 应合并三子"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.5)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.4, 0.6, 0.2))
+
+    # 真 Coordinator 实例 (避免 mock silence_tendency 整个逻辑)
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+
+    # 需要 mock coordinator 的 compute_silence_tendency
+    from emotion_spirit.output.segmented_reply_coordinator import SilenceTendency
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(
+        score=0.4, reason="test", components={}
+    ))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    states = dm.compute_defense_states(
+        personality=personality,
+        signals=signals,
+        body_state=None,
+        intimacy_level=0.5,
+        context={"social_audience": 0.0, "authority_present": 0.0},
+        force_state={"natural": 0.5, "social": 0.5, "individual": 0.5},
+    )
+
+    assert states.suppression_level == 0.5
+    assert states.collapse_tendency == 0.2
+    assert states.silence_tendency == 0.4
+
+
+def test_compute_defense_states_passes_force_state_to_all():
+    """三子都应收到 force_state (L1)"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator, SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.5)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.5, 0.5, 0.0))
+
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(score=0.0, reason="test", components={}))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+    test_force_state = {"natural": 0.7, "social": 0.3, "individual": 0.9}
+
+    dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={}, force_state=test_force_state,
+    )
+
+    # 三子都应被调, 且收到 force_state
+    dm._suppression.compute.assert_called_once()
+    call_kwargs = dm._suppression.compute.call_args.kwargs
+    assert call_kwargs.get("force_state") == test_force_state
+
+    dm._collapse_selector.compute_bas_bis.assert_called_once()
+    assert dm._collapse_selector.compute_bas_bis.call_args.kwargs.get("force_state") == test_force_state
+
+    coordinator.compute_silence_tendency.assert_called_once()
+    assert coordinator.compute_silence_tendency.call_args.kwargs.get("force_state") == test_force_state
+
+
+def test_compute_defense_states_returns_defense_states_instance():
+    """返回值必须是 DefenseStates 实例"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator, DefenseStates
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator, SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.0)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.0, 0.0, 0.0))
+
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(score=0.0, reason="", components={}))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    states = dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={}, force_state=None,
+    )
+    assert isinstance(states, DefenseStates)
+
+
+def test_compute_defense_states_without_force_state():
+    """不传 force_state → 三子都不应传 force_state (向后兼容)"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator, SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.0)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.0, 0.0, 0.0))
+
+    coordinator = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    coordinator._consecutive_silence_count = {}
+    coordinator._turns_since_last_silence = {}
+    coordinator.compute_silence_tendency = MagicMock(return_value=SilenceTendency(score=0.0, reason="", components={}))
+    dm._segmented_coordinator = coordinator
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={}, force_state=None,
+    )
+
+    # 不传 force_state 时, kwargs 应不含 force_state
+    call_kwargs = dm._suppression.compute.call_args.kwargs
+    assert "force_state" not in call_kwargs or call_kwargs.get("force_state") is None
