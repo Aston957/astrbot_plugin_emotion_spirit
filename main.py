@@ -696,19 +696,45 @@ class EmotionSpiritPlugin(Star):
             self._migrate_old_spirit_data()
 
     def _reset_superego_modules(self) -> None:
-        from emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
-        from emotion_spirit.regulation.superego_guard import SuperegoGuard
+        """v1.2.5 PR3 T2: 重置超我层 (走 _modules["superego"] 子字典, 避免双轨).
 
-        self._conscience = ConscienceTracker()
-        self._alignment = ValueAlignment(self._current_persona)
-        self._value_resistance = ValueResistance(self._current_persona)
-        self._ideal = IdealSelf(self._current_persona, self._labels)
-        self._superego_guard = SuperegoGuard(
-            self._conscience, self._alignment, self._ideal, self._current_persona,
+        修法: 重建 _modules["superego"] 子字典, 同步更新 self._conscience 等引用.
+        这样 self._conscience is self._modules["superego"]["conscience"] 永远成立.
+        """
+        from emotion_spirit.regulation.superego import (
+            ValueAlignment, IdealSelf, ValueResistance,
+        )
+        from emotion_spirit.regulation.superego_guard import SuperegoGuard
+        from emotion_spirit.regulation.superego.conscience import ConscienceTracker
+
+        # 重建 superego 子字典 (单一来源)
+        new_conscience = ConscienceTracker()
+        new_alignment = ValueAlignment(self._current_persona)
+        new_ideal = IdealSelf(self._current_persona, self._labels)
+        new_value_resistance = ValueResistance(self._current_persona)
+        new_guard = SuperegoGuard(
+            new_conscience, new_alignment, new_ideal, self._current_persona,
         )
 
-        for key in ("conscience", "alignment", "ideal_self", "value_resistance", "superego_guard", "persona_report"):
+        self._modules["superego"] = {
+            "conscience": new_conscience,
+            "alignment": new_alignment,
+            "ideal_self": new_ideal,
+            "value_resistance": new_value_resistance,
+            "superego_guard": new_guard,
+        }
+
+        # 同步更新 self._xxx 引用 (跟 _modules["superego"][...] 同对象)
+        self._conscience = new_conscience
+        self._alignment = new_alignment
+        self._ideal = new_ideal
+        self._value_resistance = new_value_resistance
+        self._superego_guard = new_guard
+
+        # 清持久化 (保留原行为)
+        for key in self._modules["superego"].keys():
             self._store.set(key, None)
+        self._store.set("persona_report", None)
 
         report_path = self._store._dir / "persona_report.json"
         if report_path.exists():
