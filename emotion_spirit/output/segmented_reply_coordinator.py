@@ -31,7 +31,7 @@ class SilenceTendency:
             raise ValueError(f"score must be in [0, 1], got {self.score}")
 import time
 from collections import deque
-from typing import Any
+from typing import Any, Optional
 
 from emotion_spirit.core.registry import register
 
@@ -162,6 +162,193 @@ class SegmentedReplyCoordinator:
             )
 
         return plan
+
+    # ═══ silence tendency 计算 (v1.2.5 PR1 §3.2) ═══
+
+    def compute_silence_tendency(
+        self,
+        session_key: str,
+        personality: dict,
+        force_state: Optional[Any] = None,
+        body_state: Optional[Any] = None,
+        signals: Optional[Any] = None,
+        intimacy_level: float = 0.5,
+        context: Optional[dict] = None,
+    ) -> SilenceTendency:
+        """计算沉默倾向分数 (6 factor 人格加权算法, 系数全部从 KB 读取).
+
+        Args:
+            session_key: 会话标识 (预留, 未来可用于 per-session 缓存).
+            personality: Big Five 人格 dict {extraversion, neuroticism,
+                        agreeableness, openness, conscientiousness}.
+            force_state: ForceState 或 dict {natural, social, individual}.
+            body_state: BodyState 或 dict {energy, arousal}.
+            signals: SemanticSignals 对象或 dict, 提供 rhythm_strain,
+                     hot_pool_pressure, pad_valence, pad_arousal.
+            intimacy_level: 亲密度 [0, 1], 0=陌生人, 1=最亲密.
+            context: dict {social_audience, authority_present}.
+
+        Returns:
+            SilenceTendency(score, reason, components).
+        """
+        from ..core.persona_labels_db import get_silence_tendency_weights
+
+        weights = get_silence_tendency_weights()
+        factors_cfg = weights["factors"]
+        intimacy_cfg = weights["intimacy_modifier"]
+        context_cfg = weights["context_modifier"]
+        force_cfg = weights["force_modifier"]
+
+        # --- Helper: extract value from obj/dict/None ---
+        def _get_val(obj, key, default=0.5):
+            if obj is None:
+                return default
+            if hasattr(obj, key):
+                return float(getattr(obj, key))
+            if isinstance(obj, dict):
+                return float(obj.get(key, default))
+            return default
+
+        # --- Extract personality (Big Five) with defaults ---
+        E = float(personality.get("extraversion", 0.5))
+        N = float(personality.get("neuroticism", 0.5))
+        A_val = float(personality.get("agreeableness", 0.5))
+        O = float(personality.get("openness", 0.5))
+        C = float(personality.get("conscientiousness", 0.5))
+
+        # --- Extract signal values ---
+        rhythm_strain = _get_val(signals, "rhythm_strain", 0.5)
+        hot_pool_pressure = _get_val(signals, "hot_pool_pressure", 0.0)
+        pad_valence = _get_val(signals, "pad_valence", 0.5)
+        sig_arousal = _get_val(signals, "pad_arousal", 0.5)
+
+        ctx = context or {}
+        social_audience_val = float(ctx.get("social_audience", 0.0))
+        authority_present = float(ctx.get("authority_present", 0.0))
+
+        # --- Extract body state ---
+        energy = _get_val(body_state, "energy", 0.5)
+        body_arousal_val = _get_val(body_state, "arousal", 0.5)
+        # Prefer signals arousal if available, else fall back to body arousal
+        arousal = sig_arousal if signals is not None else body_arousal_val
+
+        # --- Extract force state ---
+        def _get_force(key):
+            if force_state is None:
+                return 0.33
+            if hasattr(force_state, key):
+                return float(getattr(force_state, key))
+            if isinstance(force_state, dict):
+                return float(force_state.get(key, 0.33))
+            return 0.33
+
+        f_natural = _get_force("natural")
+        f_social = _get_force("social")
+        f_individual = _get_force("individual")
+
+        # --- Compute 6 factor raw scores ---
+        pm = {}  # personality_modifiers index
+        for name in factors_cfg:
+            pm[name] = factors_cfg[name]["personality_modifiers"]
+
+        tension_stress = rhythm_strain * (1 + pm["tension_stress"]["neuroticism"] * N)
+
+        hurt_void = (
+            hot_pool_pressure
+            * (1 - pad_valence)
+            * (1 + pm["hurt_void"]["extraversion_reverse"] * (1 - E))
+            * (1 + pm["hurt_void"]["neuroticism"] * N)
+            * (1 + pm["hurt_void"]["agreeableness_reverse"] * (1 - A_val))
+        )
+
+        satisfaction_quiet = (
+            hot_pool_pressure
+            * pad_valence
+            * (1 + pm["satisfaction_quiet"]["extraversion_reverse"] * (1 - E))
+        )
+
+        exhaustion_val = (1 - energy) * (1 + pm["exhaustion"]["conscientiousness"] * C)
+
+        overload = arousal * (1 + pm["overload"]["neuroticism"] * N)
+
+        social_audience_factor = social_audience_val * (
+            1 + pm["social_audience"]["extraversion_reverse"] * (1 - E)
+        )
+
+        # --- Weighted base score ---
+        w_ten = factors_cfg["tension_stress"]["weight_in_sum"]
+        w_hurt = factors_cfg["hurt_void"]["weight_in_sum"]
+        w_sat = factors_cfg["satisfaction_quiet"]["weight_in_sum"]
+        w_exh = factors_cfg["exhaustion"]["weight_in_sum"]
+        w_ovr = factors_cfg["overload"]["weight_in_sum"]
+        w_soc = factors_cfg["social_audience"]["weight_in_sum"]
+
+        weighted_factors = {
+            "tension_stress": w_ten * tension_stress,
+            "hurt_void": w_hurt * hurt_void,
+            "satisfaction_quiet": w_sat * satisfaction_quiet,
+            "exhaustion": w_exh * exhaustion_val,
+            "overload": w_ovr * overload,
+            "social_audience": w_soc * social_audience_factor,
+        }
+
+        base_score = sum(weighted_factors.values())
+
+        # --- Modifiers ---
+        im_cfg = intimacy_cfg["personality_modifiers"]
+        intimacy_mod = (
+            (1 + intimacy_cfg["base_coefficient"] * intimacy_level)
+            * (1 + im_cfg["agreeableness"] * A_val)
+            * (1 + im_cfg["neuroticism"] * N)
+            * (1 + im_cfg["openness_reverse"] * O)
+        )
+
+        context_mod = 1 + context_cfg["authority_present_coefficient"] * authority_present
+
+        force_mod_raw = (
+            1
+            + force_cfg["social_coefficient"] * f_social
+            + force_cfg["natural_coefficient"] * f_natural
+            + force_cfg["individual_coefficient"] * f_individual
+        )
+        fr = force_cfg.get("range", [0.5, 1.5])
+        force_mod = max(fr[0], min(fr[1], force_mod_raw))
+
+        # --- Final score ---
+        score = base_score * intimacy_mod * context_mod * force_mod
+        score = max(0.0, min(1.0, score))
+
+        # --- Dominant factor ---
+        dominant = max(weighted_factors, key=weighted_factors.get)
+        reason_map = {
+            "tension_stress": "节奏张力引发沉默倾向",
+            "hurt_void": "受伤/空洞引发沉默倾向",
+            "satisfaction_quiet": "满足性静默",
+            "exhaustion": "能量耗尽引发沉默倾向",
+            "overload": "过载引发沉默倾向",
+            "social_audience": "社交场合引发沉默倾向",
+        }
+        reason = reason_map.get(dominant, f"{dominant} 引发沉默倾向")
+
+        # --- Components dict ---
+        components = {
+            "tension_stress": round(tension_stress, 4),
+            "hurt_void": round(hurt_void, 4),
+            "satisfaction_quiet": round(satisfaction_quiet, 4),
+            "exhaustion": round(exhaustion_val, 4),
+            "overload": round(overload, 4),
+            "social_audience": round(social_audience_factor, 4),
+            "intimacy_modifier": round(intimacy_mod, 4),
+            "context_modifier": round(context_mod, 4),
+            "force_modifier": round(force_mod, 4),
+            "dominant_factor": dominant,
+        }
+
+        return SilenceTendency(
+            score=round(score, 4),
+            reason=reason,
+            components=components,
+        )
 
     # ═══ per-session ignored_rate 计算 (D8) ═══
 

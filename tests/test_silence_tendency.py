@@ -69,3 +69,176 @@ def test_silence_tendency_weights_factor_weights_sum_to_one():
     weights = get_silence_tendency_weights()
     total = sum(f["weight_in_sum"] for f in weights["factors"].values())
     assert abs(total - 1.0) < 0.001, f"factor 权重总和 = {total}, 应为 1.0"
+
+
+# ═══ Task 3: compute_silence_tendency 测试 ═══
+
+
+def test_compute_silence_tendency_default_personality_neutral():
+    """默认人格 + 中性信号 → 得分应在 [0.2, 0.5] 区间"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator()
+    personality = {
+        "extraversion": 0.5,
+        "neuroticism": 0.5,
+        "agreeableness": 0.5,
+        "openness": 0.5,
+        "conscientiousness": 0.5,
+    }
+
+    result = coord.compute_silence_tendency(
+        session_key="test_session",
+        personality=personality,
+        force_state=None,
+        body_state=None,
+        signals=None,
+        intimacy_level=0.3,
+        context={"social_audience": 0.5, "authority_present": 0.0},
+    )
+
+    assert 0.2 <= result.score <= 0.5, (
+        f"默认人格得分 {result.score} 不在 [0.2, 0.5] 区间"
+    )
+    assert isinstance(result.reason, str) and len(result.reason) > 0
+    assert isinstance(result.components, dict) and len(result.components) > 0
+
+
+def test_compute_silence_tendency_introvert_anxious_high_intimacy_silences():
+    """内向 + 焦虑 + 高亲密 → 受伤/空洞得分 > 0.7"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator()
+    personality = {
+        "extraversion": 0.1,
+        "neuroticism": 0.9,
+        "agreeableness": 0.3,
+        "openness": 0.3,
+        "conscientiousness": 0.5,
+    }
+
+    result = coord.compute_silence_tendency(
+        session_key="test_introvert",
+        personality=personality,
+        force_state={"natural": 0.3, "social": 0.2, "individual": 0.5},
+        body_state={"energy": 0.3, "arousal": 0.7},
+        signals={
+            "rhythm_strain": 0.8,
+            "hot_pool_pressure": 0.9,
+            "pad_valence": 0.1,
+            "pad_arousal": 0.7,
+        },
+        intimacy_level=0.9,
+        context={"social_audience": 0.8, "authority_present": 0.0},
+    )
+
+    assert result.score > 0.7, (
+        f"内向+焦虑+高亲密得分 {result.score} 应 > 0.7"
+    )
+    assert result.components["hurt_void"] > 0.5, (
+        f"hurt_void {result.components['hurt_void']} 应 > 0.5"
+    )
+
+
+def test_compute_silence_tendency_extrovert_open_low_intimacy_speaks():
+    """外向 + 开放 + 低亲密 → 得分 < 0.3"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator()
+    personality = {
+        "extraversion": 0.9,
+        "neuroticism": 0.1,
+        "agreeableness": 0.3,
+        "openness": 0.9,
+        "conscientiousness": 0.5,
+    }
+
+    result = coord.compute_silence_tendency(
+        session_key="test_extrovert",
+        personality=personality,
+        force_state={"natural": 0.3, "social": 0.5, "individual": 0.2},
+        body_state={"energy": 0.8, "arousal": 0.3},
+        signals={
+            "rhythm_strain": 0.2,
+            "hot_pool_pressure": 0.1,
+            "pad_valence": 0.8,
+            "pad_arousal": 0.3,
+        },
+        intimacy_level=0.1,
+        context={"social_audience": 0.2, "authority_present": 0.0},
+    )
+
+    assert result.score < 0.3, (
+        f"外向+开放+低亲密得分 {result.score} 应 < 0.3"
+    )
+
+
+def test_compute_silence_tendency_returns_correct_reason():
+    """reason 应反映 dominant factor"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator()
+    personality = {
+        "extraversion": 0.5,
+        "neuroticism": 0.5,
+        "agreeableness": 0.5,
+        "openness": 0.5,
+        "conscientiousness": 0.5,
+    }
+
+    result = coord.compute_silence_tendency(
+        session_key="test_reason",
+        personality=personality,
+        force_state=None,
+        body_state=None,
+        signals={"rhythm_strain": 0.3, "hot_pool_pressure": 0.1, "pad_valence": 0.5, "pad_arousal": 0.5},
+        intimacy_level=0.5,
+        context={"social_audience": 0.5, "authority_present": 0.0},
+    )
+
+    dominant = result.components.get("dominant_factor")
+    assert dominant is not None, "components 缺少 dominant_factor"
+    assert len(result.reason) > 0, "reason 不应为空"
+
+
+def test_compute_silence_tendency_components_dict_present():
+    """components 应包含所有因子 + 修饰符信息"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator()
+    personality = {
+        "extraversion": 0.5,
+        "neuroticism": 0.5,
+        "agreeableness": 0.5,
+        "openness": 0.5,
+        "conscientiousness": 0.5,
+    }
+
+    result = coord.compute_silence_tendency(
+        session_key="test_components",
+        personality=personality,
+        force_state=None,
+        body_state=None,
+        signals=None,
+        intimacy_level=0.5,
+        context={"social_audience": 0.5, "authority_present": 0.0},
+    )
+
+    expected_keys = {
+        "tension_stress",
+        "hurt_void",
+        "satisfaction_quiet",
+        "exhaustion",
+        "overload",
+        "social_audience",
+        "intimacy_modifier",
+        "context_modifier",
+        "force_modifier",
+        "dominant_factor",
+    }
+    missing = expected_keys - set(result.components.keys())
+    assert not missing, f"components 缺 key: {missing}"
+    # 所有数值字段应在合理范围
+    for key in expected_keys - {"dominant_factor"}:
+        val = result.components[key]
+        assert isinstance(val, (int, float)), f"{key} = {val} 不是数值"
