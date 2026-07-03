@@ -138,10 +138,13 @@ def test_combined_old_config_full_migration(tmp_path):
     assert "proactive_chat" not in new_config
     # enable_proactive_prompt from old proactive_chat.enable_proactive_prompt=False
     assert new_config["life_sim_v2"]["enable_proactive_prompt"] is False
-    # merge_life_sim_config 注入 5 个默认参数 (idempotent, 已存在则不覆盖)
+    # merge_life_sim_config 注入 6 个默认参数 (idempotent, 已存在则不覆盖)
+    # v1.2.5 PR3: 加 enable_life_fragment (T1 修, 旧 schema 漏搬)
+    # 注: enable_life_fragment=False 是从 feature_toggles.enable_life_simulator=False 拆过来的 (语义等价)
     for k, v in [("plan_generate_hour", 2), ("events_per_day_min", 3),
                   ("events_per_day_max", 5), ("adaptation_threshold", 0.3),
-                  ("sleep_start_hour", 23), ("sleep_end_hour", 7)]:
+                  ("sleep_start_hour", 23), ("sleep_end_hour", 7),
+                  ("enable_life_fragment", False)]:
         assert new_config["life_sim_v2"][k] == v, f"{k} 期望 {v}, got {new_config['life_sim_v2'].get(k)}"
 
     # split_llm_tier (3→4) 兜底注入 diary 段 (idempotent 默认值)
@@ -178,6 +181,9 @@ def test_idempotent_no_op_when_already_migrated(tmp_path):
             "adaptation_threshold": 0.3,
             "sleep_start_hour": 23,
             "sleep_end_hour": 7,
+            # v1.2.5 PR3: enable_life_fragment 必须在 idempotent 预期里
+            # (迁移会注入 default=True, 真实 v4 完成状态应含此字段)
+            "enable_life_fragment": True,
         },
     }
     state = MigrationState(tmp_path).load_or_init()

@@ -33,8 +33,9 @@ def merge_life_sim_config(config: dict) -> dict:
           sleep_start_hour: 23
           sleep_end_hour: 7
     """
+    # v1.2.5 PR3 (handbook §3.3): 先取旧段, 再 pop
     old_proactive = config.pop("proactive_chat", {})
-    config.pop("life_simulator", None)
+    old_life_sim = config.pop("life_simulator", {})  # ← 改为 setdefault 前取
 
     v2 = config.setdefault("life_sim_v2", {})
 
@@ -43,6 +44,9 @@ def merge_life_sim_config(config: dict) -> dict:
         v2.setdefault("enable_proactive_prompt", old_proactive["enable_proactive_prompt"])
     else:
         v2.setdefault("enable_proactive_prompt", True)
+
+    # v1.2.5 PR3 修: 补搬 enable_life_fragment (旧 schema 字段, handbook §3.3 漏搬)
+    v2.setdefault("enable_life_fragment", old_life_sim.get("enable_life_fragment", True))
 
     # Set defaults for new keys (don't overwrite if already set)
     v2.setdefault("plan_generate_hour", 2)

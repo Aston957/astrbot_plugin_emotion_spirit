@@ -80,3 +80,45 @@ def test_merge_preserves_existing_v2(tmp_path):
     assert v2["plan_generate_hour"] == 5  # preserved
     assert v2["sleep_start_hour"] == 22  # preserved
     assert v2["enable_proactive_prompt"] is False  # migrated
+
+
+# === v1.2.5 PR3 T1: enable_life_fragment 漏搬修复 ===
+
+def test_merge_life_sim_config_preserves_enable_life_fragment_false(tmp_path):
+    """v3.1→v4 迁移应保留 enable_life_fragment=false (用户显式设)"""
+    from emotion_spirit.migrations.rules import v3_1_to_v4  # noqa: F401
+    importlib.reload(v3_1_to_v4)
+
+    old_config = {
+        "life_simulator": {
+            "enable_life_fragment": False,  # ← 用户显式设 false
+            "mode_a_idle_seconds": 100,
+        },
+        "proactive_chat": {
+            "enable_proactive_prompt": True,
+        },
+    }
+    state = MigrationState(tmp_path)
+    state.current_version = 3
+    new_config, _ = run_migrations(old_config, state)
+
+    # v1.0.0 老用户升级后, 字段应保留
+    v2 = new_config["life_sim_v2"]
+    assert v2.get("enable_life_fragment", True) is False
+
+
+def test_merge_life_sim_config_enable_life_fragment_default_true(tmp_path):
+    """旧 config 不含 enable_life_fragment → 迁后默认 True (跟 main.py .get 一致)"""
+    from emotion_spirit.migrations.rules import v3_1_to_v4  # noqa: F401
+    importlib.reload(v3_1_to_v4)
+
+    old_config = {
+        "life_simulator": {"mode_a_idle_seconds": 100},  # 没 enable_life_fragment
+        "proactive_chat": {"enable_proactive_prompt": True},
+    }
+    state = MigrationState(tmp_path)
+    state.current_version = 3
+    new_config, _ = run_migrations(old_config, state)
+
+    v2 = new_config["life_sim_v2"]
+    assert v2.get("enable_life_fragment", True) is True
