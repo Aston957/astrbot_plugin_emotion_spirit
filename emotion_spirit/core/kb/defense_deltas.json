@@ -1,0 +1,23 @@
+{
+  "_doc": "防御事件触发后回写 force_state 的偏移量 (v1.2.5 PR2 §4.2). 修改前读 spec §4.2.",
+  "_version": 1,
+
+  "silence": {
+    "_doc": "沉默事件后: 个体力↓ (退缩), 自然力↑ (消化)",
+    "individual": -0.05,
+    "natural": 0.03,
+    "social": 0.0
+  },
+  "collapse": {
+    "_doc": "崩溃事件后: 大幅改写, 视 archetype 方向",
+    "individual": 0.05,
+    "natural": -0.08,
+    "social": 0.03
+  },
+  "suppression": {
+    "_doc": "压抑事件后: 个体力↑ (内省压制), 社会力↓ (不表达)",
+    "individual": 0.04,
+    "social": -0.02,
+    "natural": 0.0
+  }
+}

@@ -463,6 +463,11 @@ def get_silence_tendency_weights() -> dict:
     return _cached_load("silence_tendency_weights.json")
 
 
+def get_defense_deltas() -> dict:
+    """v1.2.5 PR2: 加载防御事件回写 delta (KB)"""
+    return _cached_load("defense_deltas.json")
+
+
 __all__ = [
     "REQUIRED_DIMS",
     "DB_PATH",
@@ -484,4 +489,5 @@ __all__ = [
     "force_state_from_persona_id",
     "force_state_from_persona_id_with_conscience",
     "get_silence_tendency_weights",
+    "get_defense_deltas",
 ]
