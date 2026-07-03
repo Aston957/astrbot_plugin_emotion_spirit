@@ -400,8 +400,13 @@ class LifeSimulatorV2:
         - 已取消事件 (含原因)
         - 已完成事件 (最近 2 个)
         无计划时返回空字符串。
+
+        Fallback: 如果当前时段没有 planned 事件（CI 时段错配 / 用户查不在活动时段的计划），
+        自动 fallback 到展示今日全部 planned 事件（按 time_slot 排序），避免返回空字符串。
         """
         from .life_plan import _time_to_slot
+        # 时段顺序常量（避免依赖 life_plan 的内部 _SLOT_ORDER，未来统一）
+        _SLOT_ORDER = {"morning": 0, "afternoon": 1, "evening": 2, "night": 3}
         if not self._current_plan:
             return ""
         if now is None:
@@ -421,6 +426,13 @@ class LifeSimulatorV2:
         if current_events:
             activities = ", ".join(e.activity for e in current_events)
             parts.append(f"你现在计划做: {activities}")
+        else:
+            # Fallback: 当前时段无 planned 事件 → 展示今日全部 planned (按时段顺序)
+            all_planned = [e for e in self._current_plan.events if e.status == "planned"]
+            if all_planned:
+                all_planned.sort(key=lambda e: _SLOT_ORDER.get(e.time_slot, 99))
+                activities = ", ".join(f"{e.time_slot}{e.activity}" for e in all_planned)
+                parts.append(f"今天计划: {activities}")
         if cancelled_events:
             reasons = ", ".join(
                 f"{e.activity}(因为{e.cancellation_reason})" for e in cancelled_events

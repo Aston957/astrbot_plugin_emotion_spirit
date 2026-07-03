@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import asyncio
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1026,6 +1027,52 @@ def test_v2_full_lifecycle():
     sim2.from_dict(data)
     assert sim2._current_plan.date == plan.date
     assert len(sim2._current_plan.events) == len(plan.events)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Task 11 (v1.2.5 PR1): build_schedule_context fallback when time_slot mismatch
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_v2_build_context_fallback_when_current_slot_empty():
+    """时段错配 (CI flake): 当前时段无 planned → fallback 到今日全部 planned.
+
+    修复 test_v2_full_lifecycle 在 CI Python 3.11 × AstrBot 4.14.6 红的问题:
+    当时段查询 (now=time.time()) 跟 plan 生成时段不同时, 原代码返回空字符串。
+    现 fallback: 当 current_events 为空但 all_planned 不空时, 展示今日全部计划。
+    """
+    from emotion_spirit.regulation.life_plan import _time_to_slot
+
+    sim = _make_sim_v2()
+
+    async def mock_llm(system_prompt, user_prompt):
+        return '[{"time": "morning", "activity": "看日出", "mood": "平静"}]'
+
+    sim.configure(llm_caller=mock_llm)
+
+    personality = {
+        "openness": 0.8, "extraversion": 0.3, "conscientiousness": 0.5,
+        "agreeableness": 0.5, "neuroticism": 0.5,
+    }
+
+    plan = _run_async(
+        sim.generate_daily_plan(personality, recent_memories=["今天很开心"])
+    )
+    assert len(plan.events) >= 3
+
+    # 强制把 plan 改成只 morning 时段, 然后用 night 时段时间查 → 触发 fallback
+    for e in plan.events:
+        e.time_slot = "morning"
+
+    # 用 night 时段时间 (深夜 23:00) 查询
+    night_ts = datetime(2026, 7, 3, 23, 0, 0).timestamp()
+    context = sim.build_schedule_context(now=night_ts)
+
+    # 验证 fallback: 不应为空字符串
+    assert context, "build_schedule_context 在时段错配时应 fallback, 不应返回空"
+    assert "今天计划" in context or "morning" in context, (
+        f"Fallback context 应包含今日计划, 实际: {context!r}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
