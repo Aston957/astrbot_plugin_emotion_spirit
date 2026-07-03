@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta  # Bug 13 注意: datetime 是类, 不是模块. 用 date.today() / date.fromtimestamp(), 不要写 datetime.date.X
 from pathlib import Path
 from typing import Any
 
@@ -843,7 +843,7 @@ class EmotionSpiritPlugin(Star):
                 await asyncio.sleep(wait_seconds)
 
                 # 检查今天是否已经生成过
-                today_str = datetime.date.today().isoformat()
+                today_str = date.today().isoformat()  # Bug 13 修: datetime.date.today() -> date.today()
                 if self._last_plan_date == today_str:
                     logger.info("emotion_spirit: 今天已生成日程，跳过")
                     continue
@@ -1001,7 +1001,7 @@ class EmotionSpiritPlugin(Star):
             events = []
             for entry in self._pool.buffer + self._pool.warm:
                 if "life_event" in entry.tags:
-                    entry_date = datetime.date.fromtimestamp(entry.created_at)
+                    entry_date = date.fromtimestamp(entry.created_at)  # Bug 13 同类错模式: datetime.date.fromtimestamp -> date.fromtimestamp
                     if entry_date == yesterday:
                         events.append(entry.text[:100])
             return events[:3]
