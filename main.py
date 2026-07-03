@@ -1336,6 +1336,117 @@ class EmotionSpiritPlugin(Star):
 
         return "neutral", 0.3
 
+    # ═══ v1.2.5 PR1: 分段投递机制 ═══
+
+    async def _on_segmented_reply_v2(
+        self,
+        bot_text: str,
+        user_id: str,
+        seg_config: dict,
+        event,
+        response,
+    ) -> None:
+        """v1.2.5 PR1: 分段投递主体 (修复 Bug 12a + 12b)"""
+        try:
+            # 1. 读上游状态
+            force_state = (
+                self.get_current_force_state(self._labels)
+                if hasattr(self, "_force_dynamics") else None
+            )
+            signals = (
+                self._latest_signals.get(user_id)
+                if hasattr(self, "_latest_signals") else None
+            )
+            body_state = (
+                self._body_state.default()
+                if hasattr(self, "_body_state") else None
+            )
+            intimacy = (
+                self._intimacy.get_intimacy(user_id, self._current_persona)
+                if hasattr(self, "_intimacy") else 0.5
+            )
+            context = self._build_context(event)
+            personality = (
+                self._get_personality_for_user(user_id)
+                if hasattr(self, "_get_personality_for_user")
+                else self._get_current_personality_dict()
+            )
+
+            # 2. 沉默判定
+            silence_tendency_obj = self._segmented_coordinator.compute_silence_tendency(
+                user_id, personality, force_state, body_state, signals, intimacy, context
+            )
+            should_silent, reason, _ = self._segmented_coordinator.should_be_silent(
+                user_id, silence_tendency_obj, seg_config
+            )
+
+            # 3. 沉默触发 (S1)
+            if should_silent and seg_config.get("enable_deliberate_silence", False):
+                self._segmented_coordinator.record_silence_event(user_id)
+                response.completion_text = ""
+                response.result_chain = None
+                logger.debug(
+                    "emotion_spirit: deliberate silence triggered reason=%s score=%.2f",
+                    reason, silence_tendency_obj.score,
+                )
+                return
+
+            # 4. 生成分段计划
+            plan = self._segmented_coordinator.plan(
+                full_text=bot_text,
+                session_key=user_id,
+                expression_drive=getattr(signals, "affect_expression_drive", 0.5) if signals else 0.5,
+                rhythm_strain=getattr(signals, "rhythm_strain", 0.5) if signals else 0.5,
+                pad_valence=getattr(signals, "pad_valence", 0.5) if signals else 0.5,
+                hot_pool_pressure=getattr(signals, "hot_pool_pressure", 0.0) if signals else 0.0,
+                config=seg_config,
+            )
+
+            if not plan:
+                return
+
+            # 5. 逐段 send (F4: 先发首段无延迟)
+            try:
+                from astrbot.core.message.components import Plain
+                from astrbot.core.message.message_event_result import MessageChain
+
+                await event.send(MessageChain([Plain(plan[0]["text"])]))
+                for part in plan[1:]:
+                    delay = part.get("delay_before_seconds", 0.0)
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+                    await event.send(MessageChain([Plain(part["text"])]))
+            except Exception:
+                # F3: 单段失败继续
+                logger.warning(
+                    "emotion_spirit: segmented_reply send failed, some segments may be missing",
+                    exc_info=True,
+                )
+
+            # 6. 清空 llm_resp (Bug 12b 修复)
+            response.completion_text = ""
+            response.result_chain = None
+
+            # 7. 推进冷却计数
+            self._segmented_coordinator.record_response_event(user_id)
+
+        except Exception:
+            # F1: 整体失败 → 让 AstrBot 正常发
+            logger.warning(
+                "emotion_spirit: _on_segmented_reply_v2 failed, falling back to AstrBot default",
+                exc_info=True,
+            )
+
+    def _build_context(self, event) -> dict:
+        """v1.2.5 PR1: 上下文构建"""
+        context = {}
+        if hasattr(event, "get_group_id") and event.get_group_id():
+            context["social_audience"] = 0.5
+        else:
+            context["social_audience"] = 0.0
+        context["authority_present"] = 0.0  # v1.3 真实解析
+        return context
+
     async def _flush_inject_queue(self) -> None:
         if not self._inject_queue:
             return
