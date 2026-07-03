@@ -1283,13 +1283,22 @@ class EmotionSpiritPlugin(Star):
             self._reflex_learner.learn(behavior)
             self._last_bot_reply_time[user_id] = _time_mod.time()
 
-            # ═══ v1.2.3: 分段回复 ═══
+            # ═══ v1.2.5 PR1: 分段回复 (修复 Bug 12) ═══
             seg_config = self._config.get("segmented_reply", {})
             if seg_config.get("enable", False) and hasattr(self, '_segmented_coordinator'):
-                try:
-                    await self._on_segmented_reply(bot_text, user_id, seg_config, event)
-                except Exception:
-                    logger.debug("emotion_spirit: segmented reply error, falling back", exc_info=True)
+                # 流式模式跳过
+                if self._config.get("provider_settings", {}).get("streaming_response", False):
+                    logger.debug("emotion_spirit: streaming_response=True, skipping segmented_reply")
+                else:
+                    try:
+                        await self._on_segmented_reply_v2(
+                            bot_text, user_id, seg_config, event, response
+                        )
+                    except Exception:
+                        logger.warning(
+                            "emotion_spirit: segmented_reply failed, falling back to AstrBot default",
+                            exc_info=True,
+                        )
 
             logger.debug(
                 "emotion_spirit on_llm_response: user=%s tone=%s weight=%.2f len=%d",
@@ -1297,79 +1306,6 @@ class EmotionSpiritPlugin(Star):
             )
         except Exception:
             logger.debug("emotion_spirit: on_llm_response error", exc_info=True)
-
-    async def _on_segmented_reply(
-        self,
-        bot_text: str,
-        user_id: str,
-        seg_config: dict,
-        event: AstrMessageEvent,
-    ) -> None:
-        """分段回复逻辑 (v1.2.3)。
-
-        通过 SegmentedReplyCoordinator 生成计划, 逐段 yield。
-        enable=false 时此方法不被调用。
-        """
-        try:
-            # 获取力学信号
-            force = getattr(self, '_force_dynamics', None)
-            force_state = force.get_current_force_state(self._labels) if force else None
-            signals = self._latest_signals.get(user_id) if hasattr(self, '_latest_signals') else None
-
-            expression_drive = 0.5
-            rhythm_strain = 0.5
-            pad_valence = 0.5
-            hot_pool_pressure = 0.0
-
-            if signals:
-                expression_drive = getattr(signals, 'affect_expression_drive', 0.5) or 0.5
-                rhythm_strain = getattr(signals, 'rhythm_strain', 0.5) or 0.5
-                pad_valence = getattr(signals, 'pad_valence', 0.5) or 0.5
-                hot_pool_pressure = getattr(signals, 'hot_pool_pressure', 0.0) or 0.0
-            elif force_state:
-                # 无 signals 时回退到 ForceState 的近似信号
-                expression_drive = force_state.get('social', 0.5) * 0.8 + 0.2
-                rhythm_strain = force_state.get('natural', 0.5) * 0.6 + 0.2
-                pad_valence = force_state.get('individual', 0.5) * 1.2 - 0.1
-                pad_valence = max(0.0, min(1.0, pad_valence))
-
-            config_for_coord = dict(seg_config)
-            # 复用 reflex_learner 的 ignored_seconds
-            config_for_coord["behavior_ignored_seconds"] = self._config.get(
-                "reflex_learner", {}
-            ).get("behavior_ignored_seconds", 7200.0)
-
-            # 记录用户消息到达 (让 ignored_rate 有数据)
-            self._segmented_coordinator.record_user_message(user_id)
-
-            # 生成分段计划
-            plan = self._segmented_coordinator.plan(
-                full_text=bot_text,
-                session_key=user_id,
-                expression_drive=expression_drive,
-                rhythm_strain=rhythm_strain,
-                pad_valence=pad_valence,
-                hot_pool_pressure=hot_pool_pressure,
-                config=config_for_coord,
-            )
-
-            if not plan:
-                # 主动沉默: 不 yield
-                return
-
-            # 记录本次 bot 回复
-            self._segmented_coordinator.record_bot_reply(user_id)
-
-            # 逐段 yield (POC X 路径: on_llm_response 多段 yield)
-            for part in plan:
-                delay = part.get("delay_before_seconds", 0.0)
-                text = part.get("text", "")
-                if delay > 0:
-                    await asyncio.sleep(delay)
-                if text:
-                    yield event.plain_result(text)
-        except Exception:
-            logger.debug("emotion_spirit: _on_segmented_reply error", exc_info=True)
 
     @staticmethod
     def _extract_bot_emotion(text: str) -> tuple[str, float]:

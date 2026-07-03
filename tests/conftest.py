@@ -23,13 +23,25 @@ astrbot_api_mock.logger.warning = lambda *a, **kw: None
 astrbot_api_mock.logger.info = lambda *a, **kw: None
 astrbot_api_mock.logger.debug = lambda *a, **kw: None
 astrbot_api_mock.logger.error = lambda *a, **kw: None
-# Mock astrbot.api.event (commands.py imports from it)
+# Mock astrbot.api.event (main.py + commands.py import from it)
+# v1.2.5: added filter decorators to support `from astrbot.api.event import filter`
 astrbot_api_event_mock = types.ModuleType("astrbot.api.event")
+astrbot_api_event_mock.filter = types.SimpleNamespace(
+    on_llm_request=lambda: lambda f: f,
+    on_llm_response=lambda **kw: lambda f: f,
+    on_decorating_result=lambda **kw: lambda f: f,
+    command=lambda *args, **kwargs: lambda f: f,
+)
 astrbot_api_event_mock.AstrMessageEvent = type("AstrMessageEvent", (), {})
 astrbot_api_mock.event = astrbot_api_event_mock
+# Mock astrbot.api.star (main.py: from astrbot.api.star import Context, Star)
+astrbot_api_star_mock = types.ModuleType("astrbot.api.star")
+astrbot_api_star_mock.Context = type("Context", (), {})
+astrbot_api_star_mock.Star = type("Star", (), {})
 sys.modules.setdefault("astrbot", astrbot_mock)
 sys.modules.setdefault("astrbot.api", astrbot_api_mock)
 sys.modules.setdefault("astrbot.api.event", astrbot_api_event_mock)
+sys.modules.setdefault("astrbot.api.star", astrbot_api_star_mock)
 astrbot_mock.api = astrbot_api_mock
 
 # 让 verification/ 模块能 import
