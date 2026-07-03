@@ -8,6 +8,7 @@ Reference: docs/UNIFIED_MEMORY_LIFESIM_DESIGN_2026-06-10.md §7
 
 from __future__ import annotations
 import math
+from typing import Optional
 from ..core.registry import register
 
 from ..core.utils import clamp as _clamp
@@ -29,10 +30,14 @@ class SuppressionState:
         context: dict,
         conscience_pressure: float,
         relationship_intimacy: float,
+        force_state: Optional[dict] = None,  # v1.2.5 PR2 §4.3 L1 新增
     ) -> float:
         """Compute suppression level ∈ [0, 1].
 
         0 = completely open, 1 = completely suppressed.
+
+        v1.2.5 PR2: 加 force_state 可选参数 (L1 输入调制)
+        向后兼容: 不传 force_state → 输出跟 v1.2.4 完全一致
         """
         # Personality baseline (Gross & John 2003: neuroticism is strongest predictor)
         baseline = (
@@ -48,11 +53,21 @@ class SuppressionState:
         authority_factor = context.get("authority_present", 0) * 0.2
         social_audience = context.get("social_audience", 0) * 0.15
 
-        return _clamp(
+        base_suppression = (
             baseline * intimacy_factor + authority_factor + social_audience
-            + 0.2 * conscience_pressure,
-            0, 1,
+            + 0.2 * conscience_pressure
         )
+
+        # L1: 力加权 (社会力 + 个体力 → 压抑↑)
+        if force_state is not None:
+            force_modifier = (
+                1.0
+                + 0.3 * force_state.get("social", 0.5)
+                + 0.2 * force_state.get("individual", 0.5)
+            )
+            base_suppression *= force_modifier
+
+        return _clamp(base_suppression, 0, 1)
 
     def check_rebound(self, suppression_level: float, duration_hours: float) -> float:
         """Wegner 1987: rebound effect when suppression is lifted.
