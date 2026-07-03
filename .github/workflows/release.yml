@@ -110,15 +110,27 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           echo "::notice::Cleaning any previous release/tag pair for ${TAG}"
-          # Delete published release if exists (ignore "not found")
-          gh release delete "${TAG}" --yes 2>/dev/null || true
-          # Delete any draft release that may shadow the published one (softprops picks drafts first → conflict)
-          DRAFT_ID=$(gh api -X GET "repos/${GITHUB_REPOSITORY}/releases" \
-            --jq ".[] | select(.draft == true and .tag_name == \"${TAG}\") | .id" 2>/dev/null | head -1)
-          if [ -n "${DRAFT_ID}" ]; then
-            echo "::notice::Deleting shadowing draft release ${DRAFT_ID}"
-            gh release delete "${DRAFT_ID}" --yes 2>/dev/null || true
-          fi
+          # 删 published release (用 REST API, 比 gh CLI 在 runner 上更可靠)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")
+          echo "DELETE published /releases/tags/${TAG} → HTTP ${HTTP_CODE}"
+          # 删所有 draft release (用 list API + filter by tag_name, 然后逐个 DELETE)
+          DRAFT_IDS=$(curl -s \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+            | python3 -c "import json,sys; rs=json.load(sys.stdin); print('\n'.join(str(r['id']) for r in rs if r.get('tag_name')==\"${TAG}\" and r.get('draft')))")
+          for RID in ${DRAFT_IDS}; do
+            echo "::notice::Deleting draft release ${RID}"
+            curl -s -o /dev/null -w "DELETE draft /releases/${RID} → HTTP %{http_code}\n" \
+              -X DELETE \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RID}"
+          done
           echo "::notice::Cleanup done."
 
       - name: Create GitHub Release
