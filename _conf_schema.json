@@ -409,10 +409,28 @@
         "hint": "向用户节奏靠拢的比例 (0=全默认, 1=全学用户)"
       },
       "enable_deliberate_silence": {
-        "description": "是否启用主动沉默",
+        "description": "是否启用主动沉默 (v1.2.5)",
         "type": "bool",
         "default": false,
-        "hint": "受伤/消化/满足时不发或极简回复。子开关独立于 enable, 但 enable=false 时本项无意义"
+        "hint": "v1.2.5 新: 沉默决策由人格+力学+情绪共同决定, 触发时 bot 不发任何消息"
+      },
+      "silent_threshold": {
+        "description": "沉默触发阈值 [0,1]",
+        "type": "float",
+        "default": 0.5,
+        "hint": "v1.2.5 新: silence_tendency >= 此值才触发沉默, 越高越不容易沉默"
+      },
+      "silent_cooldown_turns": {
+        "description": "沉默后冷却 N 轮",
+        "type": "int",
+        "default": 2,
+        "hint": "v1.2.5 S4: 刚沉默过, 至少过 N 轮才允许再次沉默"
+      },
+      "max_consecutive_silence": {
+        "description": "连续沉默上限",
+        "type": "int",
+        "default": 3,
+        "hint": "v1.2.5 S4: 连续沉默 N 次后, 阈值临时上调到 0.9 强制恢复"
       },
       "intimacy_gate": {
         "description": "只有亲密度 ≥ 此值才学用户节奏",
