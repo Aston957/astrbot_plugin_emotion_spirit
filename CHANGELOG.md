@@ -5,6 +5,33 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.9] - 2026-07-04 (L2 脚手架完善: 三子回写全接 + offset 可观测, 1367 tests, 48 modules)
+
+> v1.2.9 是 L2 脚手架剩余 3 项 (DO-2 + HP-3 + HP-1)。三子 (silence+collapse+suppression) 全接回写 + offset 持久化可观测 + 修 v1.2.8 recovery 重复触发 bug。
+> **L2 仍不影响 compute() 输出, v1.3 L3 才激活**。脚手架完善, 功能在 v1.3 交付。
+
+### 新增 (Features)
+- ✅ **DO-2**: `DefenseModulator.compute_silence()` 新增 — orchestrator 高频路径只算沉默, 省 suppression+collapse 两次子计算
+- ✅ **HP-3**: L2 全三子回写 — suppression 挂 `_schedule_plan_generation_loop` (每天 1 次, 慢变量) + collapse 边沿检测回写 (surface_handler, False→True 边沿触发)
+- ✅ **HP-1**: `/reflect_force_current` 加 `Cumulative offset` 段 — 含三力 offset 值 + "v1.3 L3 激活" 标注 (兑现 `shift()` docstring 承诺)
+
+### 修复 (Fixes)
+- ✅ **修 v1.2.8 recovery 重复触发 bug**: collapse 边沿检测 (False→True) 修旧 bug — collapse 持续期间每 tick 调 `trigger_recovery` → `start_recovery` 重置 `_recovery_stage=0`, 恢复永不推进
+
+### 重构 (Refactor)
+- ✅ orchestrator 沉默判定从 `compute_defense_states` + `SilenceTendency(...)` 构造 → `compute_silence` 直接返回 (省 3 处 → 1 处)
+
+### 测试 (Tests)
+- `test_defense_modulator.py`: +3 (compute_silence 不调 suppression + 一致性与 force_state 转发)
+- `test_l2_feedback_wiring.py`: +4 (新文件, collapse 边沿 + 不重复 + recovery + suppression 回写)
+- `test_reflect_force_current.py`: +2 (新文件, offset 显示 + v1.3 标注)
+- 总计: **1367 passed**, 0 failed (Win 概率性 `test_periodic_save_dirty_only` 已知)
+
+### 全测
+- **1367 passed**, 0 failed
+
+---
+
 ## [1.2.8] - 2026-07-03 (清 5 项债 + 正式 release, 1358 tests, 48 modules)
 
 > v1.2.8 是 v1.2.7 清债后的干净版, 正式 release。v1.2.7 为过渡版未 release (5 项债未清)。版本号 1.2.5 → 1.2.8 (跳过 1.2.6 文档版 / 1.2.7 过渡版, 均未 tag)。

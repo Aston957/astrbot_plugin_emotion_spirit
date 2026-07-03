@@ -4,4 +4,4 @@
 #
 # Versioning policy: standard SemVer (MAJOR.MINOR.PATCH).
 # `metadata.yaml` and git tags use the same string.
-__version__ = "1.2.8"
+__version__ = "1.2.9"

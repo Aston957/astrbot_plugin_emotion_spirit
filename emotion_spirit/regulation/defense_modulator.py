@@ -124,6 +124,34 @@ class DefenseModulator:
             silence_components=silence_tendency_obj.components,
         )
 
+    def compute_silence(
+        self,
+        personality: dict,
+        signals: Optional[Any],
+        body_state: Optional[Any],
+        intimacy_level: float,
+        context: dict,
+        force_state: Optional[dict],
+    ) -> Any:
+        """v1.2.9 DO-2: 只算沉默倾向 (orchestrator 高频路径用).
+
+        比 compute_defense_states 省 suppression + collapse 两次子计算.
+        silence 不用 conscience_pressure (silence 公式不读 conscience, 见 compute_defense_states L1 第 3 步).
+        suppression/collapse 的 L2 回写走低频钩子 (§2), 不在此路径.
+
+        返回 SilenceTendency (coordinator 产的), 非 DefenseStates. caller 直接用.
+        """
+        session_key = context.get("session_key", "default")
+        return self._segmented_coordinator.compute_silence_tendency(
+            user_id=session_key,
+            personality=personality,
+            force_state=force_state,
+            body_state=body_state,
+            signals=signals,
+            intimacy_level=intimacy_level,
+            context=context,
+        )
+
     def apply_event(
         self,
         defense_type: str,  # Literal["suppression", "collapse", "silence"]

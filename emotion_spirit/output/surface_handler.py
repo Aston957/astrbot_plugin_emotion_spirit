@@ -274,12 +274,20 @@ class SurfaceHandler:
         )
 
         # 记忆崩溃检测 (Phase D+ CollapseArchetype 集成)
+        # v1.2.9 HP-3: 边沿检测 + L2 回写 (修 v1.2.8 bug: collapse 持续期间不重复 trigger_recovery)
         was_collapse = self._p._pool.check_collapse(personality=current_personality.get("deep", {}))
-        # v1.2.8: collapse → recovery 触发 (走公开接口, 不伸手 _collapse_archetype/_recovery 私有)
         archetype = self._p._pool.get_collapse_archetype()
-        if was_collapse and archetype:
+        curr_collapse = was_collapse and bool(archetype)
+        prev_collapse = getattr(self._p, "_prev_collapse_active", False)
+        if curr_collapse and not prev_collapse:
+            # 本 tick 刚触发崩溃 (False→True 边沿) → recovery + L2 回写各一次
             lsv2 = getattr(self._p, '_life_sim_v2', None)
             if lsv2 and hasattr(lsv2, 'trigger_recovery'):
                 lsv2.trigger_recovery(archetype)
+            dm = getattr(self._p, '_defense_modulator', None)
+            if dm and hasattr(dm, 'apply_event'):
+                dm.apply_event("collapse", intensity=1.0)
+                logger.info("emotion_spirit: collapse L2 回写 (archetype=%s)", archetype)
+        self._p._prev_collapse_active = curr_collapse
 
         self._p._save_if_dirty()

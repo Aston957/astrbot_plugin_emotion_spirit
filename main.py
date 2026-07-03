@@ -865,6 +865,27 @@ class EmotionSpiritPlugin(Star):
                     ),
                 )
                 self._last_plan_date = today_str
+
+                # v1.2.9 HP-3: suppression L2 定期回写 (每天 1 次, 慢变量)
+                try:
+                    defense_states = self._defense_modulator.compute_defense_states(
+                        personality=personality,
+                        signals=None,  # schedule loop 无实时 signals
+                        body_state=self._body_state.default() if hasattr(self, "_body_state") else None,
+                        intimacy_level=0.5,  # schedule loop 无特定 user
+                        context={},
+                        force_state=(
+                            self._force_dynamics.force_state_from_labels(self._labels)
+                            if hasattr(self, "_force_dynamics") and hasattr(self, "_labels")
+                            else None
+                        ),
+                        conscience_pressure=self._conscience.get_pressure() if hasattr(self, "_conscience") else 0.0,
+                    )
+                    self._defense_modulator.apply_event("suppression", intensity=defense_states.suppression_level)
+                    logger.debug("emotion_spirit: suppression L2 回写 level=%.3f", defense_states.suppression_level)
+                except Exception:
+                    logger.debug("emotion_spirit: suppression L2 回写失败", exc_info=True)
+
                 logger.info(
                     "emotion_spirit: 日程已生成 %s, %d 个事件",
                     plan.date, len(plan.events),

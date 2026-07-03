@@ -80,29 +80,21 @@ class SegmentedReplyOrchestrator:
             current_persona: 当前 persona ID (main.py self._current_persona).
             labels: 5 轴标签 dict (main.py self._labels).
             force_state: 三元力学 ForceState (main.py get_current_force_state).
-            conscience_pressure: ConscienceTracker.get_pressure() as float (HP-2 已修).
+            conscience_pressure: ConscienceTracker.get_pressure() as float (HP-2 已修; v1.2.9 DO-2 保留向后兼容, handle 内不再使用).
         """
         try:
             # --- 1. 读 depends_on 组件的状态 (depends_on 必注入, 无需 hasattr 守卫) ---
             body_state = self._body_state.default()
             intimacy_level = self._intimacy.get_intimacy(user_id, current_persona)
 
-            # --- 2. 沉默判定 (L1: 走 DefenseModulator 统一入口) ---
-            from emotion_spirit.output.segmented_reply_coordinator import SilenceTendency
-
-            defense_states = self._defense_modulator.compute_defense_states(
+            # --- 2. 沉默判定 (L1: v1.2.9 DO-2 走 compute_silence 只算 silence, 省 suppression/collapse) ---
+            silence_tendency_obj = self._defense_modulator.compute_silence(
                 personality=personality,
                 signals=signals,
                 body_state=body_state,
                 intimacy_level=intimacy_level,
                 context=context,
                 force_state=force_state,
-                conscience_pressure=conscience_pressure,
-            )
-            silence_tendency_obj = SilenceTendency(
-                score=defense_states.silence_tendency,
-                reason=defense_states.silence_reason,
-                components=defense_states.silence_components,
             )
             should_silent, reason, _ = self._coordinator.should_be_silent(
                 user_id, silence_tendency_obj, seg_config

@@ -377,3 +377,88 @@ def test_defense_modulator_factory_can_instantiate():
     assert instance._suppression is None
     assert instance._collapse_selector is None
     assert instance._segmented_coordinator is None
+
+
+# === v1.2.9 DO-2: compute_silence() 高频路径 ===
+
+def test_compute_silence_only_does_not_compute_suppression():
+    """v1.2.9 DO-2: compute_silence 不调 suppression.compute / collapse_selector.compute_bas_bis"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.5)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.4, 0.6, 0.2))
+    dm._segmented_coordinator = MagicMock()
+    dm._segmented_coordinator.compute_silence_tendency = MagicMock(
+        return_value=MagicMock(score=0.3, reason="", components={})
+    )
+
+    dm.compute_silence(
+        personality={}, signals=None, body_state=None,
+        intimacy_level=0.5, context={}, force_state=None,
+    )
+
+    dm._suppression.compute.assert_not_called()
+    dm._collapse_selector.compute_bas_bis.assert_not_called()
+    dm._segmented_coordinator.compute_silence_tendency.assert_called_once()
+
+
+def test_compute_silence_matches_defense_states_silence_field():
+    """同一输入, compute_silence().score == compute_defense_states().silence_tendency"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    from emotion_spirit.output.segmented_reply_coordinator import SilenceTendency
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._suppression = MagicMock()
+    dm._suppression.compute = MagicMock(return_value=0.5)
+    dm._collapse_selector = MagicMock()
+    dm._collapse_selector.compute_bas_bis = MagicMock(return_value=(0.4, 0.6, 0.2))
+
+    fixed_silence = SilenceTendency(score=0.42, reason="test_reason", components={"a": 0.3, "b": 0.12})
+    dm._segmented_coordinator = MagicMock()
+    dm._segmented_coordinator.compute_silence_tendency = MagicMock(return_value=fixed_silence)
+
+    personality = {"extraversion": 0.5, "neuroticism": 0.5, "agreeableness": 0.5, "openness": 0.5, "conscientiousness": 0.5}
+    signals = MagicMock(rhythm_strain=0.5, pad_valence=0.5, hot_pool_pressure=0.0)
+
+    # compute_silence 应返回 SilenceTendency
+    result = dm.compute_silence(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={"session_key": "u1"}, force_state=None,
+    )
+
+    # compute_defense_states 的 silence 字段应与 compute_silence 一致
+    states = dm.compute_defense_states(
+        personality=personality, signals=signals, body_state=None,
+        intimacy_level=0.5, context={"session_key": "u1"}, force_state=None,
+    )
+
+    assert result.score == states.silence_tendency == 0.42
+    assert result.reason == states.silence_reason == "test_reason"
+    assert result.components == states.silence_components == {"a": 0.3, "b": 0.12}
+
+
+def test_compute_silence_forwards_force_state():
+    """compute_silence 应把 force_state 传给 coordinator.compute_silence_tendency"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+    dm._suppression = MagicMock()
+    dm._collapse_selector = MagicMock()
+    dm._segmented_coordinator = MagicMock()
+    dm._segmented_coordinator.compute_silence_tendency = MagicMock(
+        return_value=MagicMock(score=0.3, reason="", components={})
+    )
+
+    test_force_state = {"natural": 0.7, "social": 0.3, "individual": 0.9}
+    dm.compute_silence(
+        personality={}, signals=None, body_state=None,
+        intimacy_level=0.5, context={}, force_state=test_force_state,
+    )
+
+    call_kwargs = dm._segmented_coordinator.compute_silence_tendency.call_args.kwargs
+    assert call_kwargs.get("force_state") == test_force_state

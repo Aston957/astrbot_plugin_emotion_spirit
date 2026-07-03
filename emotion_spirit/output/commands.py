@@ -657,6 +657,9 @@ class CommandImpl:
         }
         dominant = max(forces, key=forces.get)
 
+        # v1.2.9 HP-1: 累积 offset 显示 (L2 回写累积, v1.3 L3 激活; 兑现 shift() docstring 承诺)
+        offset = self._p._force_dynamics.get_cumulative_offset()
+
         lines = [
             "ForceState",
             f"natural: {forces['natural']:.2f}",
@@ -667,6 +670,14 @@ class CommandImpl:
             "7d:",
             f"- silence: {history.get('silence_count_7d', 0)} (main: {history.get('silence_dominant_reason', 'none')})",
             f"- segment: {history.get('segment_count_7d', 0)} (avg {history.get('avg_segment_count', 0):.1f} seg/rep, delay {history.get('avg_delay_seconds', 0):.1f}s)",
+        ]
+        # offset 段 (拆开, 避免单 list > 10 项触 KB centralization 测试)
+        lines += [
+            "",
+            "Cumulative offset (L2 回写累积, v1.3 L3 激活):",
+            f"- natural: {offset.get('natural', 0):.3f}",
+            f"- social: {offset.get('social', 0):.3f}",
+            f"- individual: {offset.get('individual', 0):.3f}",
         ]
         yield event.plain_result("\n".join(lines))
 

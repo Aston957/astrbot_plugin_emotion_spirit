@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: **v1.2.8** (正式 release, v1.2.7 过渡版未 release) | schema version: v4 | 状态: v1.2.8 正式 release (v1.2.5 → 1.2.8, 跳过 1.2.6 文档版 / 1.2.7 过渡版, 均未 tag). v1.2.6 审计 + v1.2.7 清债 + v1.2.8 清 5 项债完成. v1.3 力学叙事层待规划。
+> 当前版本: **v1.2.9** (L2 脚手架完善版) | schema version: v4 | 状态: v1.2.9 三子回写全接 + offset 可观测 + 修 v1.2.8 recovery bug. L2 仍不影响 compute() 输出, v1.3 L3 激活.
 
 ---
 
@@ -411,6 +411,10 @@ pytest -x 2>&1 | tail -5         # 测试基线
 | factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达属性提取 | 框架底层限制 | 阻断 Agent 进 DI | **v1.3+** |
 | `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入) | 设计债 | 0 用户无影响 | **v1.3+** |
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
+| ~~DO-2: orchestrator 高频路径用 compute_defense_states 算全三子~~ | ✅ **v1.2.9 已清** | 拆 compute_silence(), 省 suppression/collapse 计算 | 见 v1.2.9 |
+| ~~HP-3: L2 只接 silence 1/3, suppression/collapse 未回写~~ | ✅ **v1.2.9 已清** | suppression 定期 + collapse 边沿回写 | 见 v1.2.9 |
+| ~~HP-1: /reflect_force_current 不显示 offset~~ | ✅ **v1.2.9 已清** | commands.py 加 Cumulative offset 段 | 见 v1.2.9 |
+| ~~v1.2.8 recovery 重复触发 bug (collapse 持续中每 tick 调 start_recovery, 恢复永不推进)~~ | ✅ **v1.2.9 已清** | 边沿检测修 | 见 v1.2.9 |
 | ~~硬编码映射表是否该进 KB（无 lint）~~ | ✅ **v1.2.7 已清** | test_kb_centralization 已覆盖 | 见 v1.2.7 |
 | ~~CognitiveAgent emit/bus~~ | ✅ **v1.2.7 已清** | 事件机制已删 (LLM 整合替代) | 见 v1.2.7 |
 | ~~main.py 编排写 main.py (on_llm_response + _on_segmented_reply_v2)~~ | ✅ **v1.2.7 已清** | 抽出 SegmentedReplyOrchestrator | 见 v1.2.7 |
