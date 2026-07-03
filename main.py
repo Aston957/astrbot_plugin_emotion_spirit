@@ -314,6 +314,10 @@ class EmotionSpiritPlugin(Star):
         self._realtime_dispatch = self._modules["realtime_dispatch"]
         self._rhythm_learner = self._modules["rhythm_learner"]
         self._segmented_coordinator = self._modules["segmented_reply_coordinator"]
+        # v1.2.5 PR2 §4: 压抑/崩溃/沉默 三防御子系统与力学的耦合调制器
+        # L1: compute_defense_states 统一三子读 force_state
+        # L2: apply_event 防御事件触发后回写 force_state
+        self._defense_modulator = self._modules["defense_modulator"]
 
         from emotion_spirit.agents.memory_agent import MemoryAgent
         from emotion_spirit.agents.personality_agent import PersonalityAgent
@@ -1373,9 +1377,20 @@ class EmotionSpiritPlugin(Star):
                 else self._get_current_personality_dict()
             )
 
-            # 2. 沉默判定
-            silence_tendency_obj = self._segmented_coordinator.compute_silence_tendency(
-                user_id, personality, force_state, body_state, signals, intimacy, context
+            # 2. 沉默判定 (v1.2.5 PR2 §4: 走 DefenseModulator 统一 L1 入口)
+            from emotion_spirit.output.segmented_reply_coordinator import SilenceTendency
+            defense_states = self._defense_modulator.compute_defense_states(
+                personality=personality,
+                signals=signals,
+                body_state=body_state,
+                intimacy_level=intimacy,
+                context=context,
+                force_state=force_state,
+            )
+            silence_tendency_obj = SilenceTendency(
+                score=defense_states.silence_tendency,
+                reason=defense_states.silence_reason,
+                components=defense_states.silence_components,
             )
             should_silent, reason, _ = self._segmented_coordinator.should_be_silent(
                 user_id, silence_tendency_obj, seg_config
@@ -1387,6 +1402,8 @@ class EmotionSpiritPlugin(Star):
                     user_id, tendency=silence_tendency_obj,
                     full_text=bot_text, force_state=force_state,
                 )
+                # v1.2.5 PR2 §4.2 L2: 防御事件回写 force_state
+                self._defense_modulator.apply_event("silence", intensity=silence_tendency_obj.score)
                 response.completion_text = ""
                 response.result_chain = None
                 logger.debug(

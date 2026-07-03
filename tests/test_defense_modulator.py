@@ -275,3 +275,32 @@ def test_apply_event_invalid_type_raises():
 
     with pytest.raises(ValueError, match="defense_type must be"):
         dm.apply_event("invalid_type", intensity=0.5)
+
+
+# === Task 7: main.py 集成 DefenseModulator ===
+
+def test_defense_modulator_in_module_registry():
+    """defense_modulator 必须在 ModuleRegistry 里 (@register 生效)"""
+    from emotion_spirit.core.registry import ModuleRegistry
+    all_modules = ModuleRegistry.get_all()
+    assert "defense_modulator" in all_modules
+    # 提供 DefenseModulator class
+    spec = all_modules["defense_modulator"]
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    assert spec.module_class is DefenseModulator
+    # 4 个依赖都注册
+    for dep in ["force_dynamics", "suppression", "collapse_archetype_selector", "segmented_reply_coordinator"]:
+        assert dep in spec.depends_on, f"missing dep: {dep}"
+
+
+def test_defense_modulator_factory_can_instantiate():
+    """plugin_factory.build() 应能实例化 DefenseModulator (验证 __init__ + DI 装配)"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    # 实例化 (传 4 个 None, 验证 __init__ 签名)
+    instance = DefenseModulator(None, None, None, None)
+    assert isinstance(instance, DefenseModulator)
+    # 验证 4 个 deps 都被存为下划线属性
+    assert instance._force_dynamics is None
+    assert instance._suppression is None
+    assert instance._collapse_selector is None
+    assert instance._segmented_coordinator is None
