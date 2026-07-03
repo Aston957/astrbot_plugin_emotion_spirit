@@ -154,6 +154,12 @@ class ForceDynamics:
         }
         for dim, force in self._dim_to_force.items():
             self._force_dims[force].append(dim)
+        # v1.2.5 PR2 §4.2: L2 累积偏移 (防御事件回写)
+        # 由 DefenseModulator.apply_event() 调 shift() 增量更新
+        # v1.3 L3 fixpoint: compute() 会用此偏移调制输出
+        self._cumulative_offset: dict[str, float] = {
+            "natural": 0.0, "social": 0.0, "individual": 0.0,
+        }
 
     # hormone 方向系数 (Phase 3.0B Task 3): 高 cortisol → individual +0.8
     # 最敏感; social -0.3 (放松 → 关注他人); natural -0.5 (中度反向)
@@ -312,3 +318,30 @@ class ForceDynamics:
         """5 label → 13-dim baseline → ForceState (便捷方法)。"""
         baseline = KnowledgeBase.compute_baseline_from_labels(labels)
         return self.compute(baseline)
+
+    # ════════════════════════════════════════════════════════════════════
+    # v1.2.5 PR2 §4.2: L2 累积偏移 API (DefenseModulator.apply_event() 用)
+    # ════════════════════════════════════════════════════════════════════
+
+    def shift(
+        self,
+        individual_delta: float = 0.0,
+        natural_delta: float = 0.0,
+        social_delta: float = 0.0,
+    ) -> None:
+        """v1.2.5 PR2 §4.2: 增量更新 3-force 累积偏移。
+
+        由 DefenseModulator.apply_event("silence" | "collapse" | "suppression", intensity)
+        调用, 从 KB defense_deltas.json 读 delta * intensity, 累加到 _cumulative_offset。
+
+        v1.2.5 (单步法): 此累积偏移暂不影响 compute() 输出, 仅供:
+          - /reflect_force_current 命令显示历史偏移
+          - v1.3 L3 fixpoint: compute() 改用此偏移调制 3-force
+        """
+        self._cumulative_offset["individual"] += individual_delta
+        self._cumulative_offset["natural"] += natural_delta
+        self._cumulative_offset["social"] += social_delta
+
+    def get_cumulative_offset(self) -> dict[str, float]:
+        """v1.2.5 PR2: 读累积偏移快照 (供 /reflect_force_current 诊断)."""
+        return dict(self._cumulative_offset)

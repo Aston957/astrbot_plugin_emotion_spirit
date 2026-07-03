@@ -213,3 +213,65 @@ def test_compute_defense_states_without_force_state():
     # 不传 force_state 时, kwargs 应不含 force_state
     call_kwargs = dm._suppression.compute.call_args.kwargs
     assert "force_state" not in call_kwargs or call_kwargs.get("force_state") is None
+
+
+# === Task 6: DefenseModulator.apply_event (L2) + force_dynamics.shift() ===
+
+def test_apply_event_silence_modifies_force_state():
+    """apply_event("silence", 0.5) 应调 force_dynamics.shift() with silence delta * 0.5"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+    dm._force_dynamics.shift = MagicMock()
+
+    dm.apply_event("silence", intensity=0.5)
+
+    dm._force_dynamics.shift.assert_called_once()
+    call_kwargs = dm._force_dynamics.shift.call_args.kwargs
+    # KB: silence.individual=-0.05, * intensity=0.5 = -0.025
+    assert abs(call_kwargs["individual_delta"] - (-0.025)) < 0.001
+    # KB: silence.natural=0.03, * 0.5 = 0.015
+    assert abs(call_kwargs["natural_delta"] - 0.015) < 0.001
+
+
+def test_apply_event_collapse_modifies_force_state():
+    """apply_event("collapse", 1.0) 应调 shift() with collapse delta"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+    dm._force_dynamics.shift = MagicMock()
+
+    dm.apply_event("collapse", intensity=1.0)
+
+    dm._force_dynamics.shift.assert_called_once()
+    call_kwargs = dm._force_dynamics.shift.call_args.kwargs
+    # KB: collapse.individual=0.05, collapse.natural=-0.08, collapse.social=0.03
+    assert abs(call_kwargs["individual_delta"] - 0.05) < 0.001
+    assert abs(call_kwargs["natural_delta"] - (-0.08)) < 0.001
+    assert abs(call_kwargs["social_delta"] - 0.03) < 0.001
+
+
+def test_apply_event_suppression_modifies_force_state():
+    """apply_event("suppression", 0.7) 应调 shift() with suppression delta"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+    dm._force_dynamics.shift = MagicMock()
+
+    dm.apply_event("suppression", intensity=0.7)
+
+    dm._force_dynamics.shift.assert_called_once()
+    call_kwargs = dm._force_dynamics.shift.call_args.kwargs
+    # KB: suppression.individual=0.04, suppression.social=-0.02, suppression.natural=0.0
+    assert abs(call_kwargs["individual_delta"] - 0.028) < 0.001  # 0.04 * 0.7
+    assert abs(call_kwargs["social_delta"] - (-0.014)) < 0.001  # -0.02 * 0.7
+
+
+def test_apply_event_invalid_type_raises():
+    """defense_type 不是 silence/collapse/suppression 应抛 ValueError"""
+    from emotion_spirit.regulation.defense_modulator import DefenseModulator
+    dm = DefenseModulator.__new__(DefenseModulator)
+    dm._force_dynamics = MagicMock()
+
+    with pytest.raises(ValueError, match="defense_type must be"):
+        dm.apply_event("invalid_type", intensity=0.5)

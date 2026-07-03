@@ -120,3 +120,28 @@ class DefenseModulator:
             silence_reason=silence_tendency_obj.reason,
             silence_components=silence_tendency_obj.components,
         )
+
+    def apply_event(
+        self,
+        defense_type: str,  # Literal["suppression", "collapse", "silence"]
+        intensity: float,
+    ) -> None:
+        """L2: 防御事件触发后回写 force_state (从 KB 读 delta)
+
+        intensity ∈ [0, 1]
+
+        v1.2.5 (单步法): 仅累加到 force_dynamics._cumulative_offset,
+        不影响下次 compute() 输出. v1.3 L3 fixpoint 接通 compute() 调制.
+        """
+        if defense_type not in ("suppression", "collapse", "silence"):
+            raise ValueError(f"defense_type must be suppression/collapse/silence, got {defense_type!r}")
+
+        from ..core.persona_labels_db import get_defense_deltas
+        deltas_kb = get_defense_deltas()
+        deltas = deltas_kb[defense_type]
+
+        self._force_dynamics.shift(
+            individual_delta=deltas.get("individual", 0.0) * intensity,
+            natural_delta=deltas.get("natural", 0.0) * intensity,
+            social_delta=deltas.get("social", 0.0) * intensity,
+        )
