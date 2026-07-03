@@ -35,9 +35,10 @@ jobs:
 
       - name: Verify version consistency (tag == metadata.yaml == _version.py)
         run: |
-          # Tag version (refs/tags/v1.0.0 -> 1.0.0)
+          # Tag version (refs/tags/v1.0.0 -> 1.0.0). Allow -rc.N / -beta.N / -alpha.N suffix.
           TAG="${GITHUB_REF#refs/tags/}"
           TAG_VERSION="${TAG#v}"
+          TAG_BASE=$(echo "${TAG_VERSION}" | sed -E 's/-(rc|beta|alpha)\.[0-9]+$//')
 
           # metadata.yaml version
           META_VERSION=$(grep '^version:' metadata.yaml | sed -E 's/^version:[[:space:]]*"([^"]+)".*/\1/')
@@ -46,22 +47,23 @@ jobs:
           PY_VERSION=$(grep -E '^__version__[[:space:]]*=' emotion_spirit/_version.py | sed -E 's/^__version__[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
           PY_BASE=$(echo "${PY_VERSION}" | sed -E 's/\.post[0-9]+$//')
 
-          echo "Tag:           ${TAG_VERSION}"
+          echo "Tag:           ${TAG_VERSION} (base: ${TAG_BASE})"
           echo "metadata.yaml: ${META_VERSION}"
           echo "_version.py:   ${PY_VERSION} (base: ${PY_BASE})"
           echo ""
 
-          if [ "${TAG_VERSION}" != "${META_VERSION}" ]; then
-            echo "::error file=metadata.yaml::version '${META_VERSION}' does not match git tag '${TAG_VERSION}'"
+          # 三源 "base version" 必须一致 (允许 tag 额外带 rc/beta/alpha 后缀)
+          if [ "${TAG_BASE}" != "${META_VERSION}" ]; then
+            echo "::error file=metadata.yaml::version '${META_VERSION}' does not match git tag base '${TAG_BASE}' (tag='${TAG_VERSION}')"
             exit 1
           fi
 
-          if [ "${TAG_VERSION}" != "${PY_BASE}" ]; then
-            echo "::error file=emotion_spirit/_version.py::__version__ '${PY_VERSION}' (base '${PY_BASE}') does not match git tag '${TAG_VERSION}'"
+          if [ "${TAG_BASE}" != "${PY_BASE}" ]; then
+            echo "::error file=emotion_spirit/_version.py::__version__ '${PY_VERSION}' (base '${PY_BASE}') does not match git tag base '${TAG_BASE}' (tag='${TAG_VERSION}')"
             exit 1
           fi
 
-          echo "✓ All three version sources consistent: ${TAG_VERSION}"
+          echo "✓ All three version sources consistent (base): ${TAG_BASE}"
 
       - name: Build release zip via git archive
         run: |
