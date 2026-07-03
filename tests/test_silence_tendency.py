@@ -242,3 +242,87 @@ def test_compute_silence_tendency_components_dict_present():
     for key in expected_keys - {"dominant_factor"}:
         val = result.components[key]
         assert isinstance(val, (int, float)), f"{key} = {val} 不是数值"
+
+
+# ═══ Task 4: should_be_silent / record_silence_event / record_response_event ═══
+
+
+def test_should_be_silent_under_threshold():
+    """score=0.3 < 0.5 → not silent"""
+    from emotion_spirit.output.segmented_reply_coordinator import (
+        SegmentedReplyCoordinator,
+        SilenceTendency,
+    )
+
+    coord = SegmentedReplyCoordinator()
+    tendency = SilenceTendency(score=0.3, reason="测试低分")
+    config = {"silent_threshold": 0.5, "silent_cooldown_turns": 2, "max_consecutive_silence": 3}
+
+    silent, reason, adj = coord.should_be_silent("s1", tendency, config)
+
+    assert silent is False
+    assert reason == "below_threshold"
+    assert adj.score == 0.3
+
+
+def test_should_be_silent_above_threshold():
+    """score=0.7 > 0.5 → silent"""
+    from emotion_spirit.output.segmented_reply_coordinator import (
+        SegmentedReplyCoordinator,
+        SilenceTendency,
+    )
+
+    coord = SegmentedReplyCoordinator()
+    tendency = SilenceTendency(score=0.7, reason="测试高分")
+    config = {"silent_threshold": 0.5, "silent_cooldown_turns": 2, "max_consecutive_silence": 3}
+
+    silent, reason, adj = coord.should_be_silent("s2", tendency, config)
+
+    assert silent is True
+    assert reason == "silence_threshold_met"
+    assert adj.score == 0.7
+
+
+def test_should_be_silent_cooldown_blocks_repeat():
+    """turns_since=1 < cooldown=2 → not silent even with high score"""
+    from emotion_spirit.output.segmented_reply_coordinator import (
+        SegmentedReplyCoordinator,
+        SilenceTendency,
+    )
+
+    coord = SegmentedReplyCoordinator()
+    # simulate: just silenced, so turns_since_last_silence = 0, cooldown=2
+    coord._turns_since_last_silence["s3"] = 0
+    # now user sent a message and we record_response_event → turns_since becomes 1
+    coord.record_response_event("s3")
+
+    tendency = SilenceTendency(score=0.8, reason="高分但冷却中")
+    config = {"silent_threshold": 0.5, "silent_cooldown_turns": 2, "max_consecutive_silence": 3}
+
+    silent, reason, adj = coord.should_be_silent("s3", tendency, config)
+
+    assert silent is False
+    assert reason == "cooldown_active"
+    assert adj.score == 0.8
+
+
+def test_should_be_silent_max_consecutive_force_response():
+    """consecutive=3 >= max=3 → threshold=0.9, score=0.6 not silent"""
+    from emotion_spirit.output.segmented_reply_coordinator import (
+        SegmentedReplyCoordinator,
+        SilenceTendency,
+    )
+
+    coord = SegmentedReplyCoordinator()
+    # simulate: 3 consecutive silences
+    coord._consecutive_silence_count["s4"] = 3
+    # cooldown is satisfied (turns_since >= 2)
+    coord._turns_since_last_silence["s4"] = 5
+
+    tendency = SilenceTendency(score=0.6, reason="中等倾向")
+    config = {"silent_threshold": 0.5, "silent_cooldown_turns": 2, "max_consecutive_silence": 3}
+
+    silent, reason, adj = coord.should_be_silent("s4", tendency, config)
+
+    assert silent is False
+    assert reason == "below_threshold"

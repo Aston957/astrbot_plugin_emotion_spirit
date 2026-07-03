@@ -82,6 +82,10 @@ class SegmentedReplyCoordinator:
         # 窗口大小 (轮数)
         self._window: int = _DEFAULT_IGNORED_WINDOW_TURNS
 
+        # per-session silence tracking (v1.2.5 PR1 §4)
+        self._turns_since_last_silence: dict[str, int] = {}
+        self._consecutive_silence_count: dict[str, int] = {}
+
     # ═══ 主入口 ═══
 
     def plan(
@@ -348,6 +352,67 @@ class SegmentedReplyCoordinator:
             score=round(score, 4),
             reason=reason,
             components=components,
+        )
+
+    # ═══ S4 silence duration limits (v1.2.5 PR1 §4) ═══
+
+    def should_be_silent(
+        self,
+        session_key: str,
+        tendency: SilenceTendency,
+        config: dict,
+    ) -> tuple[bool, str, SilenceTendency]:
+        """判断是否应该沉默 (S4 duration limits).
+
+        Args:
+            session_key: 会话标识.
+            tendency: compute_silence_tendency 返回的倾向值.
+            config: {silent_threshold, silent_cooldown_turns, max_consecutive_silence}.
+
+        Returns:
+            (silent, reason, adjusted_tendency).
+        """
+        threshold = float(config.get("silent_threshold", 0.5))
+        cooldown = int(config.get("silent_cooldown_turns", 2))
+        max_consec = int(config.get("max_consecutive_silence", 3))
+
+        turns_since = self._turns_since_last_silence.get(session_key, cooldown)
+        consecutive = self._consecutive_silence_count.get(session_key, 0)
+
+        # Rule 1: Cooldown check
+        if turns_since < cooldown:
+            return (False, "cooldown_active", tendency)
+
+        # Rule 2: Consecutive limit — force respond by raising threshold
+        if consecutive >= max_consec:
+            threshold = 0.9
+
+        # Rule 3: Normal threshold comparison
+        silent = tendency.score >= threshold
+
+        if silent:
+            return (True, "silence_threshold_met", tendency)
+        else:
+            return (False, "below_threshold", tendency)
+
+    def record_silence_event(self, session_key: str) -> None:
+        """记录一次沉默事件 (S3 event tracking).
+
+        沉默时调用: 递增连续沉默计数, 重置冷却计数.
+        """
+        self._consecutive_silence_count[session_key] = (
+            self._consecutive_silence_count.get(session_key, 0) + 1
+        )
+        self._turns_since_last_silence[session_key] = 0
+
+    def record_response_event(self, session_key: str) -> None:
+        """记录一次回复事件 (S3 event tracking).
+
+        回复时调用: 重置连续沉默计数, 递增冷却计数.
+        """
+        self._consecutive_silence_count[session_key] = 0
+        self._turns_since_last_silence[session_key] = (
+            self._turns_since_last_silence.get(session_key, 0) + 1
         )
 
     # ═══ per-session ignored_rate 计算 (D8) ═══
