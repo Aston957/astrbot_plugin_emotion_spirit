@@ -9,7 +9,26 @@ DeliberateSilence/BreathingRhythmController) 到 main.py 的回复链路。
 3. 模块新增走现有 @register + DI, 零新架构概念
 """
 
+from dataclasses import dataclass, field
+
 import logging
+
+
+@dataclass(frozen=True)
+class SilenceTendency:
+    """沉默倾向 (v1.2.5 PR1 §2.2)
+
+    score: 0.0 (必说) - 1.0 (必沉默), 连续值
+    reason: 触发原因字符串, 用于日志 + /reflect_force_current
+    components: 各因子贡献, 可观测性
+    """
+    score: float
+    reason: str
+    components: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        if not 0.0 <= self.score <= 1.0:
+            raise ValueError(f"score must be in [0, 1], got {self.score}")
 import time
 from collections import deque
 from typing import Any
