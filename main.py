@@ -104,7 +104,8 @@ class EmotionSpiritPlugin(Star):
         )
 
         # ═══ 2. 公开 API 网关 ═══
-        self._public_api = PublicAPI(self._modules)
+        # v1.2.5 PR3 T3: 走 _modules 装配, 删手 new
+        self._public_api = self._modules["public_api"]
 
         # ═══ 3. persona 状态 (在 setup_persona_state 中用 _modules 初始化) ═══
         self._setup_persona_state()
@@ -695,29 +696,29 @@ class EmotionSpiritPlugin(Star):
             self._labels = {}
             self._migrate_old_spirit_data()
 
-    def _reset_superego_modules(self) -> None:
-        """v1.2.5 PR3 T2: 重置超我层 (走 _modules["superego"] 子字典, 避免双轨).
+    def _rebuild_superego_subdict(self) -> None:
+        """v1.2.5 PR3: 单点重建 _modules["superego"] 子字典 + 同步 self._xxx 引用.
 
-        修法: 重建 _modules["superego"] 子字典, 同步更新 self._conscience 等引用.
-        这样 self._conscience is self._modules["superego"]["conscience"] 永远成立.
+        被 initialize() 和 _reset_superego_modules() 共用, 避免双轨 bug.
+        调用前必须保证 self._conscience 已存在 (factory 已装配).
         """
         from emotion_spirit.regulation.superego import (
             ValueAlignment, IdealSelf, ValueResistance,
         )
         from emotion_spirit.regulation.superego_guard import SuperegoGuard
-        from emotion_spirit.regulation.superego.conscience import ConscienceTracker
 
-        # 重建 superego 子字典 (单一来源)
-        new_conscience = ConscienceTracker()
+        # 保留现有 conscience 引用 (factory 装配的原对象)
+        # initialize() 时 _conscience 已在 _init_modules_phase1 取好
+        # _reset_superego_modules() 会重造 conscience, 覆盖 self._conscience 后再调用本方法
         new_alignment = ValueAlignment(self._current_persona)
         new_ideal = IdealSelf(self._current_persona, self._labels)
         new_value_resistance = ValueResistance(self._current_persona)
         new_guard = SuperegoGuard(
-            new_conscience, new_alignment, new_ideal, self._current_persona,
+            self._conscience, new_alignment, new_ideal, self._current_persona,
         )
 
         self._modules["superego"] = {
-            "conscience": new_conscience,
+            "conscience": self._conscience,
             "alignment": new_alignment,
             "ideal_self": new_ideal,
             "value_resistance": new_value_resistance,
@@ -725,11 +726,24 @@ class EmotionSpiritPlugin(Star):
         }
 
         # 同步更新 self._xxx 引用 (跟 _modules["superego"][...] 同对象)
-        self._conscience = new_conscience
         self._alignment = new_alignment
         self._ideal = new_ideal
         self._value_resistance = new_value_resistance
         self._superego_guard = new_guard
+
+    def _reset_superego_modules(self) -> None:
+        """v1.2.5 PR3 T2: 重置超我层 (走 _modules["superego"] 子字典, 避免双轨).
+
+        修法: 新建 conscience, 重建 _modules["superego"], 同步 self._xxx 引用.
+        """
+        from emotion_spirit.regulation.superego.conscience import ConscienceTracker
+
+        # 新建 conscience (重置必须重造), 通过 local 变量避免 self._xxx = ClassName() 直赋
+        new_conscience = ConscienceTracker()
+        self._conscience = new_conscience
+
+        # 单点重建 superego 子字典, 同步 self._xxx 引用
+        self._rebuild_superego_subdict()
 
         # 清持久化 (保留原行为)
         for key in self._modules["superego"].keys():
@@ -778,14 +792,8 @@ class EmotionSpiritPlugin(Star):
         self._load_persona_state()
         if self._persona_initialized:
             self._update_baseline()
-            from emotion_spirit.regulation.superego import ValueAlignment, IdealSelf, ValueResistance
-            from emotion_spirit.regulation.superego_guard import SuperegoGuard
-            self._alignment = ValueAlignment(self._current_persona)
-            self._value_resistance = ValueResistance(self._current_persona)
-            self._ideal = IdealSelf(self._current_persona, self._labels)
-            self._superego_guard = SuperegoGuard(
-                self._conscience, self._alignment, self._ideal, self._current_persona,
-            )
+            # v1.2.5 PR3 T2 扩展: initialize() 也走 _modules["superego"] 单点重建, 避免双轨
+            self._rebuild_superego_subdict()
 
         # 注册 Web API 端点 (migration re-run)
         self._setup_web_apis()
@@ -1592,18 +1600,19 @@ class EmotionSpiritPlugin(Star):
         narrative_data = self._store.get("narrative")
         cf_data = self._store.get("counterfactual")
 
-        self._patterns = PatternExtractor(self._pool)
+        # v1.2.5 PR3 T4: 9 个 memory/output 模块走 self._modules 装配, 删手 new
+        self._patterns = self._modules["pattern_extractor"]
         if patterns_data:
             self._patterns.from_dict(patterns_data)
-        self._buffer_signals = BufferSignals(self._pool)
+        self._buffer_signals = self._modules["buffer_signals"]
         if signals_data:
             self._buffer_signals.from_dict(signals_data)
         if self._enable_shadow:
-            self._shadow = ShadowDetector(self._pool, self._buffer_signals, self._patterns)
+            self._shadow = self._modules["shadow_detector"]
             if shadow_data:
                 self._shadow.from_dict(shadow_data)
         if self._enable_life:
-            self._life_sim = LifeSimulator(self._consumer, self._pool, self._intimacy, self._buffer_signals, self._reservoir)
+            self._life_sim = self._modules["life_simulator"]
             if life_sim_data:
                 self._life_sim.from_dict(life_sim_data)
             self._life_sim.configure(llm_caller=self._get_llm_callable("life_sim"))
@@ -1614,22 +1623,22 @@ class EmotionSpiritPlugin(Star):
         if diary_data:
             self._diary.from_dict(diary_data)
 
-        self._drift = PersonalityDrift(self._consumer, self._reservoir)
+        self._drift = self._modules["personality_drift"]
         if drift_data:
             self._drift.from_dict(drift_data)
         if self._enable_sentinel:
-            self._sentinel = PredictiveSentinel(self._consumer, self._buffer_signals, self._reservoir, self._conscience, self._alignment, self._ideal)
+            self._sentinel = self._modules["predictive_sentinel"]
             if sentinel_data:
                 self._sentinel.from_dict(sentinel_data)
         if self._enable_narrative:
-            self._narrative = NarrativeIdentity(self._pool, self._patterns, self._drift, self._buffer_signals, self._diary)
+            self._narrative = self._modules["narrative_identity"]
             if narrative_data:
                 self._narrative.from_dict(narrative_data)
-        self._counterfactual = Counterfactual(self._pool)
+        self._counterfactual = self._modules["counterfactual"]
         if cf_data:
             self._counterfactual.from_dict(cf_data)
 
-        self._injector = PromptInjector(self._pool, self._intimacy, self._alignment, self._conscience, self._ideal, self._shadow, self._diary, buffer_signals=self._buffer_signals)
+        self._injector = self._modules["prompt_injector"]
 
     def _load_life_and_v2_data(self) -> None:
         """v2/reflex/dream/coordinator 状态恢复 (L1547-1565)。"""

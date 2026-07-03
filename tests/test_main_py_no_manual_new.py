@@ -52,6 +52,94 @@ def test_scan_main_py_manual_new_patterns():
     assert len(findings) > 0
 
 
+# === v1.2.5 PR3 Task 4+5: 已处理类不得回退为手 new ===
+
+def test_no_manual_new_for_t4_classes():
+    """T4 修后, main.py 不应有 9 个已处理类手 new"""
+    t4_classes = {
+        "PatternExtractor", "BufferSignals", "ShadowDetector",
+        "LifeSimulator", "PersonalityDrift", "PredictiveSentinel",
+        "NarrativeIdentity", "Counterfactual", "PromptInjector",
+    }
+
+    src = Path("main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    violations = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Attribute):
+            continue
+        if not (isinstance(target.value, ast.Name) and target.value.id == "self"):
+            continue
+        if not isinstance(node.value, ast.Call):
+            continue
+        if isinstance(node.value.func, ast.Name) and node.value.func.id in t4_classes:
+            violations.append(f"line {node.lineno}: self.{target.attr} = {node.value.func.id}(...)")
+
+    assert not violations, f"T4 回退为手 new: {violations}"
+
+
+def test_public_api_no_manual_new():
+    """main.py 不应有 PublicAPI(self._modules) 手 new (PR3 T3)"""
+    src = Path("main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Attribute):
+            continue
+        target = node.targets[0]
+        if not (isinstance(target.value, ast.Name) and target.value.id == "self"):
+            continue
+        if not isinstance(node.value, ast.Call):
+            continue
+        if isinstance(node.value.func, ast.Name) and node.value.func.id == "PublicAPI":
+            pytest.fail(f"line {node.lineno} PublicAPI 手 new 仍存在 (T3 未修)")
+
+
+def test_initialize_no_superego_manual_new():
+    """initialize() 不应有 ValueAlignment/IdealSelf/ValueResistance/SuperegoGuard 手 new (T2 扩展)"""
+    src = Path("main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    forbidden = {"ValueAlignment", "IdealSelf", "ValueResistance", "SuperegoGuard"}
+
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.AsyncFunctionDef) and node.name == "initialize"):
+            continue
+        for child in ast.walk(node):
+            if not (isinstance(child, ast.Call) and isinstance(child.func, ast.Name)):
+                continue
+            if child.func.id in forbidden:
+                # 检查是否被直接赋给 self._xxx
+                def find_containing_assign(needle, root):
+                    from collections import deque
+                    queue = deque([root])
+                    while queue:
+                        cur = queue.popleft()
+                        if isinstance(cur, ast.Assign) and cur.value is needle:
+                            return cur
+                        for c in ast.iter_child_nodes(cur):
+                            queue.append(c)
+                    return None
+                parent = find_containing_assign(child, node)
+                if parent is not None:
+                    for target in parent.targets:
+                        if (isinstance(target, ast.Attribute)
+                            and isinstance(target.value, ast.Name)
+                            and target.value.id == "self"):
+                            pytest.fail(
+                                f"line {parent.lineno} initialize() 内 "
+                                f"self.{target.attr} = {child.func.id}() 手 new (T2 扩展未修)"
+                            )
+
+
 def test_no_manual_new_for_superego_in_reset():
     """AST 检查: _reset_superego_modules 不能有 ConscienceTracker() 等手 new (PR3 T2)"""
     src = Path("main.py").read_text(encoding="utf-8")

@@ -20,9 +20,18 @@ def _get_reset_superego_source() -> str:
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "_reset_superego_modules":
-            # 用 ast.get_source_segment 拿源码
             return ast.get_source_segment(src, node)
     pytest.fail("_reset_superego_modules not found in main.py")
+
+
+def _get_rebuild_source() -> str:
+    """提取 _rebuild_superego_subdict 函数的源码片段."""
+    src = Path("main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "_rebuild_superego_subdict":
+            return ast.get_source_segment(src, node)
+    pytest.fail("_rebuild_superego_subdict not found in main.py")
 
 
 def test_reset_superego_modules_no_manual_new_in_source():
@@ -85,8 +94,8 @@ def test_reset_superego_modules_imports_conscience_tracker():
     )
 
 
-def test_reset_superego_modules_assigns_to_modules_dict():
-    """_reset_superego_modules 必须重建 self._modules["superego"] 子字典 (双轨消核心)
+def test_rebuild_superego_subdict_assigns_to_modules_dict():
+    """_rebuild_superego_subdict 必须重建 self._modules["superego"] 子字典 (双轨消核心)
 
     AST 检查: 函数体内有 `self._modules["superego"] = {...}` 模式
     """
@@ -94,7 +103,7 @@ def test_reset_superego_modules_assigns_to_modules_dict():
     tree = ast.parse(src)
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "_reset_superego_modules":
+        if isinstance(node, ast.FunctionDef) and node.name == "_rebuild_superego_subdict":
             for child in ast.walk(node):
                 # 检查 self._modules["superego"] = {...} 赋值
                 if isinstance(child, ast.Assign):
@@ -108,17 +117,15 @@ def test_reset_superego_modules_assigns_to_modules_dict():
                             and target.slice.value == "superego"):
                             return  # 找到, 测试通过
             pytest.fail(
-                "handbook §1.2 + 双轨消要求: _reset_superego_modules 必须重建 "
+                "handbook §1.2 + 双轨消要求: _rebuild_superego_subdict 必须重建 "
                 "self._modules['superego'] 子字典 (单点重建, 同步 self._xxx 引用)"
             )
 
 
-def test_reset_superego_modules_identity_pattern_in_source():
-    """源码检查: self._xxx 必须从 self._modules["superego"][...] 同步, 保持身份一致"""
-    func_src = _get_reset_superego_source()
-    # 必须有 self._conscience = ... 模式
-    for attr in ["_conscience", "_alignment", "_ideal", "_value_resistance", "_superego_guard"]:
-        # 简单字符串检查: 行内含 "self._conscience ="
+def test_rebuild_superego_subdict_identity_pattern_in_source():
+    """源码检查: _rebuild_superego_subdict 内 self._xxx 必须同步, 保持身份一致"""
+    func_src = _get_rebuild_source()
+    for attr in ["_alignment", "_ideal", "_value_resistance", "_superego_guard"]:
         assert f"self.{attr} =" in func_src, (
-            f"_reset_superego_modules 必须重置 self.{attr} (跟新 _modules['superego'] 同步)"
+            f"_rebuild_superego_subdict 必须重置 self.{attr} (跟新 _modules['superego'] 同步)"
         )
