@@ -14,71 +14,182 @@
 
 ---
 
-## 1. 框架规则三件套
+## 1. 框架规则六件套
 
 ### 1.1 硬编码数据 → 进 KB，不进代码
 
-**规则**：任何「可复用、可调、被多个 persona 共享的事实数据」——人格标签、标签映射、默认词库、阈值表——不写死在 `.py` 里，写进 KB。
+**规则** — 满足**任一**(OR)即进 KB:
+- 可复用(多模块/persona 共享同一数据)
+- 可调(用户/开发者可能调参:阈值/权重/系数)
+- 多 persona 共享(跨人格的标签/映射/词库)
 
-**真实落法**：
-- KB 文件：`emotion_spirit/core/kb/persona_labels_db.json`（2.74 MB，进 git 但 `.gitattributes` 标 `-diff`， regenerate 不爆 git log）
-- Loader / API：`emotion_spirit/core/persona_labels_db.py`
-  - `get_persona_labels_db()` 全量加载 + 缓存
-  - `get_persona_labels(persona_id)` 单查
-  - `export_persona_labels_db(path)` in-memory → JSON
-- 再生脚本：`tools/regenerate_kb.py`（改了 KB 源要重跑这个，不是手编 JSON）
+**不进 KB**(归代码或 §1.4):
+- 行为逻辑/算法 → .py 代码
+- 类型契约/语义类型 → §1.4(ConsciencePressure 等)
+- 单模块私有配置 → `_conf_schema.json`
 
-**违反会被什么拦下**：
-- 目前**无自动拦截** —— 这是「应该」类，靠 review。建议未来加一个 lint：`grep` 出现在 `.py` 里、形如 `{"label": "...", "..."}` 的超过 N 项的 dict 字面量，标红提醒「这是不是该进 KB」。
-- 间接拦：KB 改了但没重跑 `regenerate_kb.py` → 下次 KB regen 你的手改被覆盖。
+算法参数(defense_deltas.json / silence_tendency_weights.json)算"可调" → 进 KB(已进)。
 
-**清债候选**：搜 main.py / 业务层里时长超过 ~10 项的硬编码映射表，逐个评估进 KB。
+**真实落法**:
+- KB 文件: `emotion_spirit/core/kb/*.json`(persona_labels_db.json 2.74 MB，进 git 但 `.gitattributes` 标 `-diff`)
+- Loader / API: `emotion_spirit/core/persona_labels_db.py`(`get_xxx()` + 缓存)
+- 再生脚本: `tools/regenerate_kb.py`(改 KB 源要重跑，手编被覆盖)
+
+**违反会被什么拦下**:
+- `tests/test_kb_centralization.py`: AST 扫 .py，单 dict/list 字面量 > 10 项 → CI 红(标"该进 KB?")
+- 间接(已有): KB regen 覆盖手编
+
+**违反样本**: 硬编码映射表(§6 清债候选)。类型契约盲区(conscience 源错配)归 §1.4，不归 §1.1。
 
 ---
 
 ### 1.2 新功能组件 → `@register` + factory，禁止 main.py 手 `new`
 
-**规则**：任何带 `__init__`、被装配进系统的功能组件，一律走 `@register` 自注册 + `plugin_factory.build()` 自动装配。**不在 main.py 里手实例化**。
+**规则**(4 条):
 
-**真实落法**：
-- 注册装饰器：`emotion_spirit/core/registry.py` 的 `@register(provides=..., depends_on=..., param_wire=..., config_keys=...)`
-- 模块规格：`ModuleSpec`（provides / depends_on / param_wire / config_keys / provides_classes）
-- 自动 wire：`build()` 用 `inspect.signature` + `param_wire` 按依赖图装配，**加新模块不动 main.py**
-- 入口：`main.py:95` 早已用 `build_modules()` = `plugin_factory.build()` 装配 28 模块
+1. **判定标准**: 有状态(`__init__` 持实例属性)+ 被装配进系统的组件，必须 @register。纯函数/无状态工具(如 `persona_profiles.get_personality_params`)不注册，import 即可。
+2. **活性**: @register 模块必须被 `self._modules["x"]` 或 `.get("x")` 取用。注册无 consumer = 死代码，CI 红。
+3. **薄壳**: main.py 只保留 ① factory 装配 ② 模块取用(`self._x = self._modules["x"]`)③ AstrBot 钩子委托(`await self._x.handle(...)`)。任何功能逻辑(算法/编排/业务/数据构造)抽 @register。单方法硬上限 50 行。
+4. **依赖显式**: 跨组件依赖必须 `@register depends_on` 声明，不论同层跨层。不能隐式 import + new(不透明耦合 = 双轨)。
 
-**当前违反样本（技术债现场）**：`grep -n "TODO(tech-debt): 本组件已 @register" main.py` 会列出 **12+ 处** —— 这些组件**已被 factory 装配了一份**（在 `self._modules` 里），main.py 又**手 `new` 了第二份**自己用。这就是「DI 双轨」。示例：`main.py:298` (engine_manager)、`:302` (hotpool_forwarder)、`:306` (personality_bridge)、`:337` (realtime_dispatch) 等。
+**真实落法**:
+- 注册装饰器: `emotion_spirit/core/registry.py` `@register(provides=..., depends_on=..., param_wire=..., config_keys=...)`
+- 自动 wire: `plugin_factory.build()` 用 `inspect.signature` + `param_wire` 按依赖图装配，加新模块不动 main.py
+- 入口: main.py `build_modules()` = `plugin_factory.build()` 装配 58 模块
+- factory/registry 本身是**轴心**(core 层，不 @register，鸡生蛋) — 这是 §1.2 的唯一例外
 
-**违反会被什么拦下**：
-- 目前**无自动拦截** —— TODO 注释是人工提醒，不是 CI gate。
-- 建议清单检查（可脚本化）：`grep -nE "self\._\w+ = [A-Z]\w*\(" main.py` 列出所有「main.py 里手 new 大写类」的位置，逐个对照该类是否已 `@register`。已 register 的就是违反。
+**违反会被什么拦下**:
+- 规则 1+2+4 → `tests/test_registry_liveness.py`: AST 判定 @register 装饰目标有状态 + 断言每个 @register 模块被 main.py 或某 @register 模块取用 + 扫隐式 import new。违反 = CI 红
+- 规则 3 → `tests/test_main_py_no_long_orchestration.py`: AST 扫 main.py 单方法 > 50 行 → CI 红
+- 规则 3(已有) → `tests/test_main_py_no_manual_new.py`(v1.2.5 PR3): AST 扫无 `self._x = Class(...)`
 
-**清债做法**（v1.2 计划，见 `docs/` 内 [[emotion-spirit-v12-design]]）：把 12 个手 new 的组件改成从 `self._modules` 取，删手 new。改完对应 TODO 一起删。
+**违反样本**(v1.2.6 审计发现):
+- 误注册/双轨: 8 个 @register 但 main.py 只 import 用(decay_model / emotion_classifier / knowledge / label_mapper / persona_analyzer / persona_profiles / persona_report_parser / trend_utils)
+- 幽灵: 9 个 @register 零消费(activity_history / adaptation_engine / emotion_predictor / energy_model / environment_context / personality_feedback / project_manager / recovery_tracker / user_activity_detector)
+- 编排写 main.py: `on_llm_response`(1291) + `_on_segmented_reply_v2`(1387) = ~219 行
+
+**已清**(供回归验证不在 regression): v1.2.1 清 12 处手 new DI 双轨; v1.2.5 PR3 清 10 个手 new 走 `self._modules`。
 
 ---
 
-### 1.3 功能层划分 → 用 `layer.py` 装饰器，违反即 TypeError
+### 1.3 功能层划分 → layer.py 装饰器 + 架构层归属 + core 元层
 
-**规则**：per-user 数据（某用户的亲密度、人格 shadow）方法标 `@per_user_only`；全局共享数据（KB、persona 列表）方法标 `@global_only`。**不许跨层访问**（Layer 2 业务层直接动 Layer 3 数据层的 per-user 状态）。
+**规则**(3 条):
 
-**真实落法**：`emotion_spirit/layer.py`
-- `@per_user_only` —— 用 `inspect.signature.bind` **运行时强制** caller 传非空 `str user_id`，否则 `TypeError`
+1. **架构层归属**(组织维度，什么放哪层):
+   - core: 元层(DI/registry/factory/KB/knowledge)，不 @register(鸡生蛋)
+   - utils: 无状态+无依赖的纯函数工具(跨层共享，如 emotion_classifier/label_mapper/persona_profiles/trend_utils)，不 @register(import 即可，`__init__.py` 统一导出)
+   - memory: 有状态记忆存储(per-user 或全局状态)
+   - regulation: 调节算法(力学/防御/调节，有依赖被装配)
+   - output: 输出/IO(产出/发送/格式化)
+   - bridge: LLM 桥(模型交互)
+   - agents: 自主智能体(事件驱动 + 决策)
+   - sylanne/migrations: 特殊用途
+2. **core 元层不依赖业务层**: core 不 import memory/regulation/output/agents(被依赖，不依赖)。业务层之间耦合允许(emotion_spirit 是反馈回路，不是单向数据流)，但必须 §1.2 规则 4 显式声明(`depends_on`)。
+3. **per-user/global 数据访问层**: per-user 数据方法标 `@per_user_only`;全局共享数据方法标 `@global_only`。
+
+**真实落法**: `emotion_spirit/layer.py`
+- `@per_user_only` —— `inspect.signature.bind` 运行时强制 caller 传非空 `str user_id`，否则 `TypeError`
 - `@global_only` —— 运行时拒绝方法定义带 `user_id` 参数
-- 异常：`LayerViolationError(RuntimeError)`
+- 异常: `LayerViolationError(RuntimeError)`
 
-**违反会被什么拦下**：**运行时立刻 TypeError** —— 这是本手册里唯一一条**已有强拦截**的框架规则。它是「可拦式规约」的标准样本：不用人记，挂了装饰器就生效。
+**违反会被什么拦下**:
+- 规则 1+2 → `tests/test_layer_dependencies.py`: AST 扫 import，core 不依赖业务层 → CI 红
+- 规则 3(已有，唯一强拦): layer.py 装饰器运行时 TypeError
 
-**八层结构**（修订时别破坏分层）：
+**违反样本**(v1.2.6 审计):
+- 跨层耦合: DefenseModulator(regulation)depends_on output/segmented_reply_coordinator(耦合允许，Q2 审职能归属)
+- regulation 兜底臃肿: 24 模块过半可疑
+- 层归属错位: suppression 在 memory/ 但语义调节 → 标 TODO(v1.2.6 不挪文件)
+- agent 双轨(待 Q2): agent 层上游功能又在 output/regulation 注册
+
+**九层结构**(组织维度，不约束业务层依赖方向 — 那归 §1.2 规则 4):
 ```
 emotion_spirit/
-  agents/      ← 自主智能体 (CognitiveAgent / EventBus / SelfCore / LifeAgent ...)
+  agents/      ← 自主智能体 (CognitiveAgent / EventBus / SelfCore / LifeAgent)
   bridge/      ← LLM 桥 (engine_manager / hotpool_forwarder / personality_bridge)
-  core/        ← 核心+DI (registry / plugin_factory / knowledge / kb / persona_labels_db)
-  memory/      ← 记忆系统 (intimacy / activity_history / decay_model / reflex_learner ...)
-  regulation/  ← 调节 (dream_generator / superego_guard)
-  output/      ← 输出 (diary_writer / realtime_dispatch / rhythm_learner)
-  sylanne/     ← sylanne namespace 核心
-  migrations/  ← 配置迁移 (registry / runner / rules/)
+  core/        ← 元层:DI+KB (registry / plugin_factory / knowledge / kb) — 不 @register(鸡生蛋)
+  utils/       ← 无状态纯函数工具 (emotion_classifier / label_mapper / persona_profiles / trend_utils) — 不 @register(import, __init__.py 导出)
+  memory/      ← 有状态记忆 (memory_pool / intimacy / decay_model / reflex_learner)
+  regulation/  ← 调节算法 (force_dynamics / defense_modulator / superego / dream_generator)
+  output/      ← 输出/IO (diary_writer / segmented_reply_coordinator / realtime_dispatch)
+  sylanne/     ← sylanne namespace
+  migrations/  ← 配置迁移
 ```
+
+### 1.4 类型契约 → 带维度标签的类型，拦维度错配
+
+**规则**: 跨子系统流动 + 易错配 + 后果静默的值，必须用带维度标签的类型(如 `ConsciencePressure`)，不能用裸 float。
+
+**判定三条**(都满足才加标签，避免过度工程):
+1. 跨子系统流动(参数传多个模块)
+2. 易错配(多个不同语义的值是同种基础类型，如多个 [0,1] float 都叫"压力")
+3. 错配后果静默(传错不报错)
+
+不加: 本地变量 / 单一用途 / 错配会报错的。
+
+**真实落法**:
+- 包装类: `@dataclass(frozen=True) class ConsciencePressure: value: float; def as_float(self) -> float`
+- 唯一产源: `ConscienceTracker.get_pressure() -> ConsciencePressure`
+- 消费方: `suppression.compute(conscience_pressure: ConsciencePressure)` 用 `.as_float()`
+
+**违反会被什么拦下**:
+- 静态: mypy/pyright(float ≠ ConsciencePressure)
+- 运行时: 包装类 `__post_init__` 校验值域 + `.as_float()` 调不到 → AttributeError
+- `tests/test_type_contracts.py`: 扫跨子系统参数，裸 float + 易错配 → CI 红
+
+**违反样本**: conscience 源错配 — `main.py:399` `conscience_pressure=signals.body_criticality`(body 信号进 superego 槽，v1.2.6 审计发现)
+
+### 1.5 生命周期 → 有状态模块必须实现生命周期接口
+
+**规则**:
+- 有状态 @register 模块必须实现生命周期接口: `to_dict()` / `from_dict()`(持久化)+ `reset()`(重置)
+- 生命周期操作(persist/load/reset)必须走 factory 单点重建，不能 main.py 手 new 第二份(双轨，违反 §1.2 规则 4)
+
+**真实落法**:
+- 持久化: `self._store.set("x", self._x.to_dict())` + `self._x.from_dict(data)`(main.py `_persist_modules` / `_load_state`)
+- 重置: `factory.rebuild_sub("x")` 或 `self._modules["x"] = plugin_factory.build_x(...)`(单点重建)
+
+**违反会被什么拦下**:
+- `tests/test_lifecycle_pairs.py`: 有状态 @register 模块必须有 to_dict/from_dict 配对 + reset 一致性(reset 后 `self._x is self._modules["x"]`)
+- `tests/test_main_py_no_manual_new.py`(已有，v1.2.5 PR3): 拦手 new 双轨
+
+**违反样本**:
+- `_reset_superego_modules` 双轨(v1.2.5 PR3 已清 `be3afa5`)
+- `force_dynamics._cumulative_offset` 不持久化(v1.2.6 HP-4 待修)
+
+**接口范围**(v1.2.6 定): `to_dict` / `from_dict` + `reset` 三件。`init()` / `migrate()` 等真有需求再加，避免过度设计。
+
+### 1.6 agent 编排 → 功能调用连线，不是节点
+
+**规则**(4 条):
+
+1. **agent 是连线，不是节点**: agent 编排功能组件(perceive/gate/act 调组件方法)，不实现功能(算法/业务在组件里)。持组件引用，方法体 = 流程控制 + 调组件。
+   - 边界: 允许"流程控制"(if/match、根据组件返回值决定 mode、组装数据)；禁止"算法实现"(公式计算、大段业务逻辑、状态机)
+   - 判定: agent 方法体不该有"算"(自己计算值)，只该有"根据组件返回值决定流程"
+2. **SelfCore 统一编排**: agent 不互相直接调，走 `SelfCore.run_cycle`。agent 间协作走 LLM 整合(compose 融合)，不直接 import 调。
+3. **agent 间协作走 LLM 整合，不用事件**: agent 间不通过事件机制(emit/subscribe)协作。协作走 compose 融合 4 轴输出 → LLM 整合。禁止引入 EventBus/AgentEvent(v1.2.6 决定删当前空转事件机制，v1.2.7 执行)。
+4. **agent 是 @register 例外(编排层)**: SelfCore @register；4 agent 当前手 new(因 factory `param_wire` 不能注入 bus)。理想: agent 也 @register(扩 factory 支持 bus 注入后)，手 new 是技术债，标 TODO。
+5. **agent vs @register 组件判定**(编排逻辑该抽时): 看是不是"认知轴"。
+   - **agent**: 认知轴(memory/personality/relationship/life 4 轴之一)，包装功能组件做 perceive→gate→act，由 SelfCore 编排
+   - **@register 组件**: 输入/输出编排(调组件 + IO)，被 main.py 或 agent 委托
+   - 例: 分段回复编排(调 DefenseModulator+coordinator+send)是输出编排，不是认知轴 → @register 组件(SegmentedReplyOrchestrator)，不是 agent
+
+**真实落法**:
+- agent 基类: `agents/base.py` CognitiveAgent(perceive/gate/act)
+- 编排器: `agents/self_core.py` SelfCore @register(run_cycle 驱动 4 agent)
+- 4 agent: MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent(各编排一轴)
+- (v1.2.7 删: event_bus.py + AgentEvent + 4 事件类型 + base.py emit)
+
+**违反会被什么拦下**:
+- 规则 1 → `tests/test_agent_no_impl.py`: AST 扫 agent 方法体，不该有算法/业务逻辑，应只有调组件 + 流程控制
+- 规则 3 → `tests/test_no_event_bus.py`: 禁止 agents/ 内有 EventBus/AgentEvent/emit/subscribe(防回归，v1.2.7 删后守护)
+- 规则 2 → `tests/test_agent_no_direct_call.py`: agent 不互相 import/调，走 SelfCore
+
+**违反样本**(v1.2.6 审计):
+- 事件机制待删(v1.2.7): 4 agent emit(BoundaryBreached/ShadowDetected/LifeEventReady/RelationshipChanged)零 subscriber，v1.2.6 决定删事件(LLM 整合替代)，v1.2.7 执行删除
+- agent 手 new: 4 agent 因 factory param_wire 限制手 new — 规则 4 债(TODO)
+- (规则 1/2 当前没违反，agent 编排不实现 + SelfCore 统一编排是好的)
 
 ---
 
