@@ -201,7 +201,7 @@ pytest -x 2>&1 | tail -5         # 测试基线
 
 ---
 
-## 6. 现存清债清单（2026-06-29 快照, v1.2.1 后）
+## 6. 现存清债清单（2026-07-03 快照, v1.2.5 PR1 后）
 
 | 债 | 类型 | 影响 | 何时清 |
 |---|---|---|---|
@@ -213,6 +213,26 @@ pytest -x 2>&1 | tail -5         # 测试基线
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
 | `test_v2_full_lifecycle` wall clock 跟 `_time_to_slot` 偶发不对齐 (stash 验证 5 跑 3 过 2 挂) | 测试维护 | Win 本地偶发 | mock `time.time` 让 slot 对齐 — 上架前清 |
 | 硬编码映射表是否该进 KB（无 lint） | 框架债务 | 潜在 | 有空回扫 |
+
+### v1.2.5 PR1 已清的债 (2026-07-03, 待 ship)
+
+- ✅ Bug 12: 分段回复 100% 不工作 (`_on_segmented_reply` yield 被 await → TypeError 静默吞) — 改为 `_on_segmented_reply_v2` 主动 send 投递
+- ✅ Bug 12b: emotion_spirit 投递架构调整 (主动 send + 清空 `llm_resp`)
+- ✅ 流式模式 (`streaming_response=true`) 跳过 emotion_spirit 分段投递, 不再与 AstrBot 流式冲突
+- ✅ v1.2.4 阶段 56+v1.2.3=57 模块架构继承, 无新模块 (PR1 纯方法级)
+- ✅ public_api_stable.md 同步到 v1.2.5, 无 stable API 变更
+- ✅ tests: 1298 passed (新增 37: silence_tendency 20 / delay_strategy 5 / on_llm_response_segmented 2 / conf_schema_v125 3 / commands_reflect 7)
+
+### v1.2.5 PR1 仍未清的债 (继承自 v1.2.4)
+
+- (同 §6 主表) CognitiveAgent 4 子类仍手 new
+- (同 §6 主表) factory `param_wire` 1:1 限制
+- (同 §6 主表) `CommandImpl` / `PublicAPI` / `SurfaceHandler` 仍手 new
+- (同 §6 主表) `_reset_superego_modules` 手 new 5 个
+- (同 §6 主表) `merge_life_sim_config` 漏搬 `enable_life_fragment`
+- (同 §6 主表) `test_periodic_save_dirty_only` Win 概率性 fail
+- (同 §6 主表) `test_v2_full_lifecycle` wall clock 偶发不对齐
+- (同 §6 主表) 硬编码映射表是否进 KB
 
 ### v1.2.1 已清的债 (供下次 session 验证不在 regression)
 

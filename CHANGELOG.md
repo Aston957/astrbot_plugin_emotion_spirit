@@ -5,6 +5,29 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.5] - 2026-07-03 (PR1: 分段修复 + 沉默语义)
+
+### 修复 (Bug Fixes)
+- **Bug 12**: 分段回复 100% 不工作 (v1.2.4 release blocker)
+  - **Bug 12a**: `_on_segmented_reply` 含 yield 被 await → TypeError 静默吞
+  - **Bug 12b**: emotion_spirit 投递架构改为主动 send + 清空 llm_resp
+
+### 新功能 (Features)
+- **沉默 S1-S4**: 不删消息 / 语义透明 (SilenceTendency) / 情绪事件 (S3 写 memory) / 时长上限 (S4 冷却+连续上限)
+- **沉默人格加权**: 6 factor 连续函数 (系数从 KB 读, Jack 1992 / Carver 1998 / Noftle 2006 文献背书)
+- **亲密度双向调节**: Jack 讨好假说
+- **延迟策略接口**: TypingDelayStrategy 默认字符级打字, v1.3 接 TTS 预留
+- **流式模式跳过**: `streaming_response=true` 时 emotion_spirit 跳过
+- **`/reflect_force_current`** 命令: 看当前 ForceState + 7 天沉默/分段历史
+
+### 工程 (Engineering)
+- KB 文件 `silence_tendency_weights.json` 新增
+- 4 个新方法标 `@per_user_only`
+
+### 测试 (Tests)
+- 新增: test_silence_tendency.py (20), test_delay_strategy.py (5), test_on_llm_response_segmented.py (2), test_conf_schema_v125.py (3), test_commands_reflect.py (7)
+- 总计: ~1290 passed
+
 ## [1.2.4] — 2026-06-30
 
 > main.py 模块化减负。纯重构，无 API/行为变更。
