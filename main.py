@@ -959,12 +959,19 @@ class EmotionSpiritPlugin(Star):
                 logger.warning("emotion_spirit: 日记定时生成失败", exc_info=True)
                 await asyncio.sleep(120)
 
-    def _get_current_personality_dict(self) -> dict[str, float]:
-        """获取当前人格参数 dict。"""
+    def _get_current_personality_dict(self) -> dict[str, Any]:
+        """获取当前人格参数 dict (可能是嵌套或 flat, 消费方需自行 flatten).
+
+        Bug 14 修 (PR3 T9): 之前 type hint 撒谎说 dict[str, float], 实际 shape
+        取决于 persona_profiles.get_personality_params(), 返回嵌套 dict 如
+        {"deep": {"expression_drive": 0.15, ...}, "surface": {...}}.
+        所有消费方必须先用 _flatten_personality() 拍平或按 layer 访问.
+        """
         try:
             from emotion_spirit.memory.persona_profiles import get_personality_params
             return get_personality_params(self._labels)
         except Exception:
+            # fallback 保持 flat shape (历史兼容性), v1.2.6 再全局统一
             return {"openness": 0.5, "extraversion": 0.5, "agreeableness": 0.5,
                     "neuroticism": 0.5, "conscientiousness": 0.5}
 

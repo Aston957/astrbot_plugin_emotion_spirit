@@ -38,7 +38,33 @@ __all__ = [
     "LifeEvent",
     "LifeEventType",
     "LIFE_EVENT_WEIGHTS",
+    "_flatten_personality",
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# v1.2.5 PR3 T9: 拍平嵌套 personality dict (Bug 14 防回归)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _flatten_personality(p: dict) -> list[tuple[str, float]]:
+    """拍平嵌套 personality dict 为 (qualified_key, scalar) 列表。
+
+    处理三种 shape:
+    - 嵌套: {"deep": {"expression_drive": 0.15, ...}, ...} (真实数据源, persona_profiles.py:120)
+    - flat: {"openness": 0.5, ...} (fallback, main.py:923)
+    - mixed: {"deep": {...}, "top_level_scalar": 0.8} (防御性)
+
+    非 scalar 值 (str, None, 嵌套 dict, bool) 跳过, 不崩.
+    """
+    flat = []
+    for layer, params in p.items():
+        if isinstance(params, dict):
+            for k, v in params.items():
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    flat.append((f"{layer}.{k}", float(v)))
+        elif isinstance(params, (int, float)) and not isinstance(params, bool):
+            flat.append((layer, float(params)))
+    return flat
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -286,7 +312,7 @@ class LifeSimulatorV2:
         import datetime as _dt
         now = _dt.datetime.now()
         time_desc = now.strftime("%H:%M, %A")
-        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in personality.items())
+        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in _flatten_personality(personality))
         activities_text = "\n".join(
             f"{i+1}. {e.activity} (时间: {e.approximate_time})"
             for i, e in enumerate(template_events)
@@ -577,7 +603,7 @@ class LifeSimulatorV2:
 
         mem_text = "\n".join(f"- {m}" for m in recent_memories[:5]) or "（暂无）"
         yes_text = "\n".join(f"- {e}" for e in yesterday_events[:3]) or "（暂无）"
-        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in personality.items())
+        p_desc = ", ".join(f"{k}={v:.1f}" for k, v in _flatten_personality(personality))
         preferences = derive_activity_preferences(personality)
         pref_text = ", ".join(f"{k}={v:.2f}" for k, v in preferences.items())
 
