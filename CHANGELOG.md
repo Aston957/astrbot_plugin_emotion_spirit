@@ -5,6 +5,34 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.6] - 2026-07-03 (架构审计 + handbook 六件套规约, 不改代码, 未 release)
+
+> v1.2.6 是只读审计 + 规约文档, 版本号仍 1.2.5 (未 tag/未 release)。v1.2.7 才改代码。
+
+### 规约 (handbook 六件套, §1.1-§1.6)
+- 三件套 → 六件套, 每条绑钩子 (符合 §0 可拦哲学, 从"2/3 不可拦"修到"全可拦")
+- §1.2 @register: 4 规则 (判定有状态/活性必被取用/薄壳 main 只调用 50 行/依赖显式 depends_on)
+- §1.3 layer: 九层 (加 utils/) + 层归属 + core 元层 + per-user/global (删业务层依赖方向 — 反馈回路耦合允许但 §1.2 规则 4 显式)
+- §1.4 类型契约 (新): ConsciencePressure 等带维度标签类型, 治 conscience 源错配
+- §1.5 生命周期 (新): 有状态模块 to_dict/from_dict + reset
+- §1.6 agent 编排 (新): agent 是连线不实现 + SelfCore 统一编排 + LLM 整合不用事件 + agent vs @register 判定 (认知轴 vs 输出编排)
+
+### 审计 (docs/v126_audit_report.md)
+- 58 @register 活性: 9 幽灵 + 7 无状态误用 + 1 双轨 + 3 真在跑 (修正: 36% → 24% 真有问题)
+- Q1 main.py 219 行编排: _extract_bot_emotion 抽 utils/ + _on_segmented_reply_v2 抽 @register (SegmentedReplyOrchestrator)
+- Q2 分层: regulation 积债非兜底 (8 幽灵+2 该挪 utils/) + 跨层合规 (depends_on 显式) + agent 双轨=编排双轨
+- Q3 agents: 主循环运转 (composed 进 prompt) + 事件空转 (4 事件零 subscriber) → 删事件 (LLM 整合)
+- 8 幽灵分类: 4 工具 (挪 utils/) + 4 组件 (@register + 接通 LifeSimulatorV2; 7 进 LifeSimulatorV2 + user_activity_detector 进 main.py)
+- agent 集合明确: Memory(memory_pool+shadow) / Personality(superego_guard+drift) / Relationship(intimacy+social_graph) / Life(life_simulator_v2 含 7 幽灵)
+
+### 版本重排
+- v1.2.6 审计 (完成) / v1.2.7 清债 + 可拦测试 / v1.2.8+ 原 L2 脚手架 (deferred, 见 docs/superpowers/plans/2026-07-03-v126-l2-scaffolding-plan.md)
+
+### v1.2.7 plan
+- docs/superpowers/plans/2026-07-03-v127-debt-cleanup-plan.md (10 任务, 给执行模型)
+
+---
+
 ## [1.2.5] - 2026-07-03 (PR2: 力学系统耦合 — DefenseModulator L1+L2)
 
 ### 新增 (Features)
