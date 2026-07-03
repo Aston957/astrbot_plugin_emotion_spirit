@@ -437,6 +437,32 @@ def force_state_from_persona_id_with_conscience(
     )
 
 
+# v1.2.5: KB 加载缓存
+_kb_cache: dict[str, dict] = {}
+
+
+def _cached_load(filename: str) -> dict:
+    """v1.2.5: 通用 KB 加载 + 缓存 (类似现有 export_persona_labels_db)"""
+    if filename in _kb_cache:
+        return _kb_cache[filename]
+
+    kb_dir = Path(__file__).parent / "kb"
+    filepath = kb_dir / filename
+    if not filepath.exists():
+        raise FileNotFoundError(f"KB file not found: {filepath}")
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    _kb_cache[filename] = data
+    return data
+
+
+def get_silence_tendency_weights() -> dict:
+    """v1.2.5 PR1: 加载沉默公式加权系数 (KB)"""
+    return _cached_load("silence_tendency_weights.json")
+
+
 __all__ = [
     "REQUIRED_DIMS",
     "DB_PATH",
@@ -457,4 +483,5 @@ __all__ = [
     "parse_persona_id",
     "force_state_from_persona_id",
     "force_state_from_persona_id_with_conscience",
+    "get_silence_tendency_weights",
 ]

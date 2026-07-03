@@ -1,0 +1,74 @@
+{
+  "_doc": "沉默倾向公式的加权系数 (v1.2.5 PR1). 文献依据: Jack & Dill 1992 (Silencing the Self), Carver 1998 (COPE 元分析), Noftle 2006 (Attachment × Big Five). 修改前读 docs/superpowers/specs/2026-07-03-segmented-reply-fix-design.md §3.2.",
+  "_version": 1,
+  "_regenerate": "手写, 暂不接 tools/regenerate_kb.py (v1.2.5 PR2 加)",
+
+  "factors": {
+    "tension_stress": {
+      "_doc": "Carver 1998: 神经质 → withdrawal coping",
+      "source": "Carver 1998 (本地 KB personality-psychology_full_part_01)",
+      "weight_in_sum": 0.20,
+      "personality_modifiers": {"neuroticism": 0.5}
+    },
+    "hurt_void": {
+      "_doc": "Noftle 2006: 回避依恋 × -E, -A; Carver: N → withdrawal",
+      "source": "Noftle 2006 (JPSP) + Carver 1998",
+      "weight_in_sum": 0.25,
+      "personality_modifiers": {
+        "extraversion_reverse": 0.5,
+        "neuroticism": 0.4,
+        "agreeableness_reverse": 0.3
+      }
+    },
+    "satisfaction_quiet": {
+      "_doc": "⚠️ 临床观察, 待 v1.3 验证: 内向者满足时倾向沉静",
+      "source": "临床观察 (无直接文献背书)",
+      "weight_in_sum": 0.10,
+      "personality_modifiers": {"extraversion_reverse": 0.4}
+    },
+    "exhaustion": {
+      "_doc": "⚠️ Wegner 1987 ironic rebound 推论: 尽责者耗尽时易讽刺反弹",
+      "source": "Wegner 1987 推论 (无直接文献背书)",
+      "weight_in_sum": 0.20,
+      "personality_modifiers": {"conscientiousness": 0.3}
+    },
+    "overload": {
+      "_doc": "Carver 1998: N → emotion-focused coping",
+      "source": "Carver 1998",
+      "weight_in_sum": 0.15,
+      "personality_modifiers": {"neuroticism": 0.3}
+    },
+    "social_audience": {
+      "_doc": "Extraversion 与社交活跃度直接相关",
+      "source": "Big Five 元分析",
+      "weight_in_sum": 0.10,
+      "personality_modifiers": {"extraversion_reverse": 0.5}
+    }
+  },
+
+  "intimacy_modifier": {
+    "_doc": "Jack & Dill 1992 讨好假说 + Noftle 2006 系数",
+    "source": "Jack 1992 + Noftle 2006",
+    "base_coefficient": -0.3,
+    "personality_modifiers": {
+      "agreeableness": 0.5,
+      "neuroticism": 0.4,
+      "openness_reverse": -0.3
+    }
+  },
+
+  "context_modifier": {
+    "_doc": "上下文敏感系数 (v1.2.5 新)",
+    "source": "v1.2.5 新增, authority_present v1.3 真实解析",
+    "authority_present_coefficient": 0.4
+  },
+
+  "force_modifier": {
+    "_doc": "力平衡加权 (L1 子读力, 替代 v1.2.3 离散 0.85/1.20/1.0)",
+    "source": "v1.2.5 设计 (v1.2.4 简化版升级)",
+    "social_coefficient": -0.3,
+    "natural_coefficient": 0.2,
+    "individual_coefficient": 0.4,
+    "range": [0.5, 1.5]
+  }
+}
