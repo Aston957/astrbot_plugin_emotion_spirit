@@ -88,7 +88,7 @@ def test_compute_silence_tendency_default_personality_neutral():
     }
 
     result = coord.compute_silence_tendency(
-        session_key="test_session",
+        user_id="test_session",
         personality=personality,
         force_state=None,
         body_state=None,
@@ -118,7 +118,7 @@ def test_compute_silence_tendency_introvert_anxious_high_intimacy_silences():
     }
 
     result = coord.compute_silence_tendency(
-        session_key="test_introvert",
+        user_id="test_introvert",
         personality=personality,
         force_state={"natural": 0.3, "social": 0.2, "individual": 0.5},
         body_state={"energy": 0.3, "arousal": 0.7},
@@ -154,7 +154,7 @@ def test_compute_silence_tendency_extrovert_open_low_intimacy_speaks():
     }
 
     result = coord.compute_silence_tendency(
-        session_key="test_extrovert",
+        user_id="test_extrovert",
         personality=personality,
         force_state={"natural": 0.3, "social": 0.5, "individual": 0.2},
         body_state={"energy": 0.8, "arousal": 0.3},
@@ -187,7 +187,7 @@ def test_compute_silence_tendency_returns_correct_reason():
     }
 
     result = coord.compute_silence_tendency(
-        session_key="test_reason",
+        user_id="test_reason",
         personality=personality,
         force_state=None,
         body_state=None,
@@ -215,7 +215,7 @@ def test_compute_silence_tendency_components_dict_present():
     }
 
     result = coord.compute_silence_tendency(
-        session_key="test_components",
+        user_id="test_components",
         personality=personality,
         force_state=None,
         body_state=None,
@@ -326,3 +326,42 @@ def test_should_be_silent_max_consecutive_force_response():
 
     assert silent is False
     assert reason == "below_threshold"
+
+
+# ═══ Task 5: @per_user_only 装饰器测试 ═══
+
+
+def test_compute_silence_tendency_requires_user_id():
+    """空字符串 user_id 应抛 TypeError (handbook §1.3 @per_user_only)"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    with pytest.raises(TypeError, match="requires.*user_id"):
+        coord.compute_silence_tendency(
+            user_id="",
+            personality={"extraversion": 0.5, "neuroticism": 0.5,
+                        "agreeableness": 0.5, "openness": 0.5,
+                        "conscientiousness": 0.5},
+        )
+
+
+def test_should_be_silent_requires_user_id():
+    """空字符串 user_id 应抛 TypeError (handbook §1.3 @per_user_only)"""
+    from emotion_spirit.output.segmented_reply_coordinator import (
+        SegmentedReplyCoordinator,
+        SilenceTendency,
+    )
+
+    coord = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    tendency = SilenceTendency(score=0.5, reason="test")
+    with pytest.raises(TypeError, match="requires.*user_id"):
+        coord.should_be_silent(user_id="", tendency=tendency, config={})
+
+
+def test_record_silence_event_requires_user_id():
+    """空字符串 user_id 应抛 TypeError (handbook §1.3 @per_user_only)"""
+    from emotion_spirit.output.segmented_reply_coordinator import SegmentedReplyCoordinator
+
+    coord = SegmentedReplyCoordinator.__new__(SegmentedReplyCoordinator)
+    with pytest.raises(TypeError, match="requires.*user_id"):
+        coord.record_silence_event(user_id="")

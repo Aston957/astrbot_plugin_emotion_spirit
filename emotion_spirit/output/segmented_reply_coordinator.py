@@ -35,6 +35,8 @@ from typing import Any, Optional
 
 from emotion_spirit.core.registry import register
 
+from ..layer import per_user_only
+
 logger = logging.getLogger(__name__)
 
 # 默认配置常量
@@ -169,9 +171,10 @@ class SegmentedReplyCoordinator:
 
     # ═══ silence tendency 计算 (v1.2.5 PR1 §3.2) ═══
 
+    @per_user_only
     def compute_silence_tendency(
         self,
-        session_key: str,
+        user_id: str,
         personality: dict,
         force_state: Optional[Any] = None,
         body_state: Optional[Any] = None,
@@ -182,7 +185,7 @@ class SegmentedReplyCoordinator:
         """计算沉默倾向分数 (6 factor 人格加权算法, 系数全部从 KB 读取).
 
         Args:
-            session_key: 会话标识 (预留, 未来可用于 per-session 缓存).
+            user_id: 用户标识 (预留, 未来可用于 per-session 缓存).
             personality: Big Five 人格 dict {extraversion, neuroticism,
                         agreeableness, openness, conscientiousness}.
             force_state: ForceState 或 dict {natural, social, individual}.
@@ -356,16 +359,17 @@ class SegmentedReplyCoordinator:
 
     # ═══ S4 silence duration limits (v1.2.5 PR1 §4) ═══
 
+    @per_user_only
     def should_be_silent(
         self,
-        session_key: str,
+        user_id: str,
         tendency: SilenceTendency,
         config: dict,
     ) -> tuple[bool, str, SilenceTendency]:
         """判断是否应该沉默 (S4 duration limits).
 
         Args:
-            session_key: 会话标识.
+            user_id: 用户标识.
             tendency: compute_silence_tendency 返回的倾向值.
             config: {silent_threshold, silent_cooldown_turns, max_consecutive_silence}.
 
@@ -376,8 +380,8 @@ class SegmentedReplyCoordinator:
         cooldown = int(config.get("silent_cooldown_turns", 2))
         max_consec = int(config.get("max_consecutive_silence", 3))
 
-        turns_since = self._turns_since_last_silence.get(session_key, cooldown)
-        consecutive = self._consecutive_silence_count.get(session_key, 0)
+        turns_since = self._turns_since_last_silence.get(user_id, cooldown)
+        consecutive = self._consecutive_silence_count.get(user_id, 0)
 
         # Rule 1: Cooldown check
         if turns_since < cooldown:
@@ -395,24 +399,26 @@ class SegmentedReplyCoordinator:
         else:
             return (False, "below_threshold", tendency)
 
-    def record_silence_event(self, session_key: str) -> None:
+    @per_user_only
+    def record_silence_event(self, user_id: str) -> None:
         """记录一次沉默事件 (S3 event tracking).
 
         沉默时调用: 递增连续沉默计数, 重置冷却计数.
         """
-        self._consecutive_silence_count[session_key] = (
-            self._consecutive_silence_count.get(session_key, 0) + 1
+        self._consecutive_silence_count[user_id] = (
+            self._consecutive_silence_count.get(user_id, 0) + 1
         )
-        self._turns_since_last_silence[session_key] = 0
+        self._turns_since_last_silence[user_id] = 0
 
-    def record_response_event(self, session_key: str) -> None:
+    @per_user_only
+    def record_response_event(self, user_id: str) -> None:
         """记录一次回复事件 (S3 event tracking).
 
         回复时调用: 重置连续沉默计数, 递增冷却计数.
         """
-        self._consecutive_silence_count[session_key] = 0
-        self._turns_since_last_silence[session_key] = (
-            self._turns_since_last_silence.get(session_key, 0) + 1
+        self._consecutive_silence_count[user_id] = 0
+        self._turns_since_last_silence[user_id] = (
+            self._turns_since_last_silence.get(user_id, 0) + 1
         )
 
     # ═══ per-session ignored_rate 计算 (D8) ═══
