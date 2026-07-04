@@ -79,3 +79,18 @@ def test_no_hidden_manual_new():
     violations = [(attr, cls) for attr, cls in assignments
                   if attr not in allowed and cls[0].isupper()]
     assert not violations, f"main.py 可能有双轨手 new: {violations}"
+
+
+def test_public_api_is_facade_not_registered():
+    """Bug-C (v1.2.10): PublicAPI 是 facade, 不应 @register.
+
+    PublicAPI.__init__ 吃整个 modules dict, factory 的 depends_on 单 dep 注入模型
+    不适用 (会 TypeError). 防 v1.2.5 PR3 T3 半截 @register 重演.
+    手 new 走 test_no_hidden_manual_new 的 allowed 列表 (已含 _public_api).
+    """
+    import emotion_spirit  # noqa: F401 — trigger @register side effects
+    registry = ModuleRegistry.get_all()
+    assert "public_api" not in registry, (
+        "PublicAPI 不应 @register (facade 吃整个 modules dict, factory 注入不了) — "
+        "见 main.py self._public_api = PublicAPI(self._modules) 手 new"
+    )

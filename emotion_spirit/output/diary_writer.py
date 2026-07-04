@@ -273,6 +273,28 @@ class DiaryWriter:
             logging.getLogger("emotion_spirit").warning("emotion_spirit: diary LLM 生成失败", exc_info=True)
         return None
 
+    async def generate_reflection_llm(self, prompt: str) -> str | None:
+        """Bug-B (v1.2.10): 用 LLM 把 superego reflection prompt 生成日记正文.
+
+        与 generate_diary_llm 不同: 本方法接受外部已构建的 reflection prompt
+        (build_superego_reflection_prompt, 带 tension + conflict_values 富上下文),
+        不自己 build_diary_prompt. 失败不抛, 返回 None (LLM-off / caller 未注入 / 异常).
+        """
+        if not self._llm_enabled or not self._llm_caller:
+            return None
+        try:
+            text = await self._llm_caller(
+                "你是一个有自己情感和生活的虚构角色。按下面的指引写日记。", prompt,
+            )
+            if text and text.strip():
+                return text.strip()
+        except Exception:
+            import logging
+            logging.getLogger("emotion_spirit").warning(
+                "emotion_spirit: superego reflection LLM 生成失败", exc_info=True,
+            )
+        return None
+
     def record_diary(self, text: str, diary_type: str, user_id: str = "<global>") -> dict[str, Any]:
         """记录一篇日记。
 

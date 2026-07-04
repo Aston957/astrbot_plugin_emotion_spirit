@@ -410,6 +410,7 @@ pytest -x 2>&1 | tail -5         # 测试基线
 | CognitiveAgent 4 子类仍手 new (MemoryAgent/PersonalityAgent/RelationshipAgent/LifeAgent) | 框架债务 | 当前 0 用户无影响；清爽度 | **v1.3+** |
 | factory `param_wire` 只能 `dep_name → param_name` 1:1,不能表达属性提取 | 框架底层限制 | 阻断 Agent 进 DI | **v1.3+** |
 | `CommandImpl` / `SurfaceHandler` 仍手 new (需 plugin 自身注入) | 设计债 | 0 用户无影响 | **v1.3+** |
+| `PublicAPI` 手 new (第 4 处 facade, v1.2.5 PR3 T3 半截 @register → KeyError, v1.2.10 回退手 new) | 设计债 | 0 用户无影响 | **v1.3+** (factory param_wire 扩展) |
 | `test_periodic_save_dirty_only` Win 概率性 fail | 测试维护 | 仅 Win 本地，CI 不红 | 可挂 |
 | ~~DO-2: orchestrator 高频路径用 compute_defense_states 算全三子~~ | ✅ **v1.2.9 已清** | 拆 compute_silence(), 省 suppression/collapse 计算 | 见 v1.2.9 |
 | ~~HP-3: L2 只接 silence 1/3, suppression/collapse 未回写~~ | ✅ **v1.2.9 已清** | suppression 定期 + collapse 边沿回写 | 见 v1.2.9 |

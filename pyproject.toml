@@ -54,7 +54,15 @@ include = ["emotion_spirit*"]
 version = { attr = "emotion_spirit._version.__version__" }
 
 [tool.setuptools.package-data]
-emotion_spirit = ["py.typed"]
+emotion_spirit = [
+    "py.typed",
+    # Bug-A (v1.2.10): KB 数据必须进 wheel. core/kb/ 是 data dir (无 __init__.py),
+    # packages.find 只控制哪些目录进 wheel, 不控制 data 文件; 必须显式 package-data,
+    # 否则 pip install . 后 wheel 缺 KB → runtime FileNotFoundError (v1.2.9 fresh-install P0).
+    "core/kb/*.json",
+    # sylanne subpackage 的 py.typed (同病, 顺手补).
+    "sylanne/py.typed",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

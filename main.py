@@ -104,8 +104,11 @@ class EmotionSpiritPlugin(Star):
         )
 
         # ═══ 2. 公开 API 网关 ═══
-        # v1.2.5 PR3 T3: 走 _modules 装配, 删手 new
-        self._public_api = self._modules["public_api"]
+        # Bug-C (v1.2.10): PublicAPI 是 facade (吃整个 modules dict),
+        # 不走 @register — factory 只注入单个 dep, 无路径传整个 instances dict
+        # (v1.2.5 PR3 T3 漏加 @register → KeyError). 手 new, 同
+        # CommandImpl/SurfaceHandler/LifeAgent 第 4 处 (v1.3 factory param_wire 扩展).
+        self._public_api = PublicAPI(self._modules)
 
         # ═══ 3. persona 状态 (在 setup_persona_state 中用 _modules 初始化) ═══
         self._setup_persona_state()
@@ -125,6 +128,8 @@ class EmotionSpiritPlugin(Star):
         self._last_texts: dict[str, str] = {}
         # 注入队列 (engine.inject 需要 async, listener 是 sync)
         self._inject_queue: list[tuple[str, str, float, str]] = []
+        # Bug-B (v1.2.10): superego reflection 队列 (sync consume 推, async worker 消费).
+        self._diary_reflection_queue: list[tuple[str, list[str], str]] = []  # (tension, conflict_values, user_id)
         # 安全层状态 (由 SurfaceHandler 更新, on_llm_request 读取)
         self._safety_level: str = "normal"
         self._safety_note: str | None = None
@@ -809,6 +814,9 @@ class EmotionSpiritPlugin(Star):
         # diary 定时生成 (按 diary.schedule_hours)
         asyncio.ensure_future(self._schedule_diary_generation_loop())
 
+        # Bug-B (v1.2.10): superego reflection 队列后台 worker
+        asyncio.ensure_future(self._drain_diary_reflection_loop())
+
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
             self._persona_mode, self._current_persona,
@@ -971,11 +979,9 @@ class EmotionSpiritPlugin(Star):
                         else:
                             logger.warning("emotion_spirit: LLM 日记生成返回空，跳过")
                     else:
-                        # 旧行为: 只存 prompt 不调 LLM
-                        diary_type = self._diary.determine_diary_type()
-                        prompt = self._diary.build_diary_prompt(diary_type)
-                        self._diary.record_diary(prompt, diary_type)
-                        logger.info("emotion_spirit: prompt-only 日记已记录 (%s)", diary_type)
+                        # Bug-B (v1.2.10): LLM-off 不再存 prompt 模板 (复读机), 跳过.
+                        # 0 篇真日记 > 假 prompt. (与 surface_handler reflection 一致.)
+                        logger.debug("emotion_spirit: diary LLM 未启用, 跳过定时日记 (v1.2.10 Bug-B)")
 
                     self._last_diary_key = today_hour_key
                     self._save_if_dirty()
@@ -985,6 +991,39 @@ class EmotionSpiritPlugin(Star):
             except Exception:
                 logger.warning("emotion_spirit: 日记定时生成失败", exc_info=True)
                 await asyncio.sleep(120)
+
+    # ── Bug-B (v1.2.10): superego reflection LLM worker ──────────────
+
+    async def _process_one_reflection(self, tension: str, conflict_values: list[str], user_id: str) -> None:
+        """Bug-B (v1.2.10): 处理 1 个 superego reflection 队列项 → LLM 生成日记正文."""
+        if self._diary is None:
+            return
+        try:
+            prompt = self._diary.build_superego_reflection_prompt(tension, conflict_values)
+            text = await self._diary.generate_reflection_llm(prompt)
+            if text:
+                self._diary.record_diary(text, "superego_reflection", user_id=user_id)
+                self._save_if_dirty()
+                logger.info(
+                    "emotion_spirit: superego reflection LLM 日记已生成 (user=%s, %d 字)",
+                    user_id[:8], len(text),
+                )
+        except Exception:
+            logger.warning("emotion_spirit: superego reflection 生成失败", exc_info=True)
+
+    async def _drain_diary_reflection_loop(self) -> None:
+        """Bug-B (v1.2.10): 后台消费 superego reflection 队列 (mirror _schedule_diary_generation_loop)."""
+        while True:
+            try:
+                if self._diary_reflection_queue:
+                    tension, conflict_values, user_id = self._diary_reflection_queue.pop(0)
+                    await self._process_one_reflection(tension, conflict_values, user_id)
+                await asyncio.sleep(2.0)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.warning("emotion_spirit: superego reflection drain 异常", exc_info=True)
+                await asyncio.sleep(10)
 
     def _get_current_personality_dict(self) -> dict[str, Any]:
         """获取当前人格参数 dict (可能是嵌套或 flat, 消费方需自行 flatten).

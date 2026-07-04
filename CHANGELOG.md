@@ -5,7 +5,26 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
-## [1.2.9] - 2026-07-04 (L2 脚手架完善: 三子回写全接 + offset 可观测, 1367 tests, 48 modules)
+## [1.2.10] - 2026-07-04 (3 P0 fresh-install hotfixes + CI wheel-smoke, ~1373 tests, 48 modules)
+
+> v1.2.10 修 v1.2.9 fresh-install 3 P0 (pip install . 路径, CI 盲点). Bug-A: wheel 缺 KB JSON → FileNotFoundError. Bug-C: public_api KeyError (注册半截). Bug-B: 日记存 prompt 模板 → 复读机 + scheduled loop 同病. 加 CI wheel-install-smoke job.
+
+### 修复 (Fixes)
+- ✅ **Bug-A**: `pyproject.toml` package-data 加 `core/kb/*.json` + `sylanne/py.typed` — wheel 不再漏 KB JSON (v1.2.9 fresh-install P0)
+- ✅ **Bug-C**: `main.py` public_api 回退 facade 手 new `PublicAPI(self._modules)` — 不再 KeyError (@register 不适配整 dict 注入, v1.3 factory 扩展)
+- ✅ **Bug-B**: `surface_handler.py` superego reflection 推队列 + 后台 LLM worker (`_drain_diary_reflection_loop` + `_process_one_reflection`); `diary_writer.py` 加 `generate_reflection_llm`; scheduled loop LLM-off 分支 skip (不再存 prompt 模板)
+- ✅ CI 加 `wheel-install-smoke` job (非 editable `pip install .` + KB import 检查, 堵盲点)
+
+### 测试 (Tests)
+- `test_packaging.py`: +2 (KB JSON in package-data + 源文件存在)
+- `test_registry_liveness.py`: +1 (PublicAPI 不应 @register)
+- `test_superego_reflection_diary.py`: +4 (新文件, consume 入队不 record + LLM 输出被 record + LLM-off skip + scheduled loop skip)
+- 总计: ~**1373 passed**, 0 failed
+
+### 全测
+- ~**1373 passed**, 0 failed
+
+---
 
 > v1.2.9 是 L2 脚手架剩余 3 项 (DO-2 + HP-3 + HP-1)。三子 (silence+collapse+suppression) 全接回写 + offset 持久化可观测 + 修 v1.2.8 recovery 重复触发 bug。
 > **L2 仍不影响 compute() 输出, v1.3 L3 才激活**。脚手架完善, 功能在 v1.3 交付。

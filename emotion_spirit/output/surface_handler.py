@@ -200,13 +200,13 @@ class SurfaceHandler:
                         conflict_values.extend(event.conflict_values)
                 conflict_values = list(set(conflict_values))[:5]
 
-                if self._p._diary:
-                    reflection_prompt = self._p._diary.build_superego_reflection_prompt(
-                        dominant_tension, conflict_values,
-                    )
-                    self._p._diary.record_diary(reflection_prompt, "superego_reflection", user_id=user_id)
+                # Bug-B (v1.2.10): 不再直接 record prompt 模板 (复读机).
+                # LLM-on → 推队列, 后台 worker 调 LLM 生成正文再 record.
+                # LLM-off → 不入队 (skip, 0 篇 > 12 篇假).
+                if self._p._diary is not None and getattr(self._p._diary, "_llm_enabled", False):
+                    self._p._diary_reflection_queue.append((dominant_tension, conflict_values, user_id))
                     logger.info(
-                        "emotion_spirit: superego reflection diary recorded for user=%s",
+                        "emotion_spirit: superego reflection enqueued (user=%s)",
                         session_id[:8],
                     )
 

@@ -29,6 +29,7 @@ def test_no_method_exceeds_50_lines():
     violations = [(n, l) for n, l in _get_function_lengths() if l > max_allowed]
     allowlist = {
         # 这些是 AstrBot 生命周期钩子 / 数据加载 / 持久化, 允许超限
+        "__init__",                       # ~53 行: 构造函数 (config migration + 28 模块装配 + 队列)
         "_init_modules_phase1",       # ~80 行: factory 装配 + 模块取用
         "initialize",                 # ~30 行: AstrBot 钩子
         "_ns_handler",                # ~12 行: 命令闭包 (多个实例, 短的)

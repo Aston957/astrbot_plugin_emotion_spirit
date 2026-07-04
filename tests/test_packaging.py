@@ -132,3 +132,33 @@ def test_no_third_party_imports():
                     if not any(top.startswith(p) for p in allowed_prefixes):
                         third_party.append(f"{py_file.name}: from {node.module} import ...")
     assert third_party == [], f"发现第三方依赖: {third_party}"
+
+
+def test_kb_json_in_package_data():
+    """Bug-A (v1.2.10): core/kb/*.json 必须在 package-data.
+
+    core/kb/ 是 data dir (无 __init__.py), packages.find 不会拉它的 JSON.
+    若漏列 package-data, pip install . 构建的 wheel 会缺 KB JSON,
+    runtime persona_labels_db.get_silence_tendency_weights() → FileNotFoundError.
+    (v1.2.9 fresh-install P0, CI 用 editable install 测不到, 由 wheel-install-smoke job 兜底.)
+    """
+    pyproject = REPO_ROOT / "pyproject.toml"
+    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    pkg_data = (
+        data.get("tool", {})
+        .get("setuptools", {})
+        .get("package-data", {})
+        .get("emotion_spirit", [])
+    )
+    assert isinstance(pkg_data, list), f"package-data 应为 list, 实际 {type(pkg_data)}"
+    assert "core/kb/*.json" in pkg_data, (
+        f"core/kb/*.json 不在 package-data (Bug-A): {pkg_data} — "
+        "pip install . 会漏 KB JSON, runtime FileNotFoundError"
+    )
+
+
+def test_kb_json_files_exist_in_source():
+    """Bug-A 配套: 源码树里 3 个 KB JSON 必须存在 (wheel 打包的前提)."""
+    kb_dir = REPO_ROOT / "emotion_spirit" / "core" / "kb"
+    for name in ("persona_labels_db.json", "silence_tendency_weights.json", "defense_deltas.json"):
+        assert (kb_dir / name).is_file(), f"KB 源文件缺失: {kb_dir / name}"

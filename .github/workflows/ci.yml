@@ -72,3 +72,29 @@ jobs:
             **/test-*.xml
           if-no-files-found: ignore
           retention-days: 7
+
+  wheel-install-smoke:
+    # Bug-A (v1.2.10) regression gate. CI 的 test job 用 `pip install -e` (editable)
+    # 跑测试, KB JSON 永远在源码树里 → 永远碰不到 wheel packaging 缺失.
+    # 本 job 用非 editable `pip install .` (build wheel → site-packages) 验证
+    # KB JSON 等数据文件真的进了 wheel. v1.2.9 fresh-install FileNotFoundError 的根因.
+    name: Wheel install smoke (Bug-A regression)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: pip install . (non-editable, builds wheel)
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Verify KB JSON packaged in wheel
+        run: |
+          python -c "from emotion_spirit.core.persona_labels_db import get_silence_tendency_weights, get_defense_deltas; assert get_silence_tendency_weights(), 'silence_tendency_weights.json missing from wheel (Bug-A)'; assert get_defense_deltas(), 'defense_deltas.json missing from wheel (Bug-A)'; print('KB JSON packaged OK')"

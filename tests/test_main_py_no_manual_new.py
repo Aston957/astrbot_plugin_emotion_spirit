@@ -84,11 +84,18 @@ def test_no_manual_new_for_t4_classes():
     assert not violations, f"T4 回退为手 new: {violations}"
 
 
-def test_public_api_no_manual_new():
-    """main.py 不应有 PublicAPI(self._modules) 手 new (PR3 T3)"""
+def test_public_api_is_facade_hand_new():
+    """main.py PublicAPI 走手 new (facade 吃整个 modules dict, @register 不适配).
+
+    Bug-C (v1.2.10): v1.2.5 PR3 T3 尝试 @register 但漏加装饰器 → KeyError.
+    即使加 @register 也会 TypeError (factory 只注入单个 dep, 无路径传 instances dict).
+    回退手 new, 同 CommandImpl/SurfaceHandler/LifeAgent.
+    见 registry._build_one (registry.py:205-271) — depends_on 单 dep 注入模型不适用.
+    """
     src = Path("main.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
 
+    found = False
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
@@ -100,7 +107,13 @@ def test_public_api_no_manual_new():
         if not isinstance(node.value, ast.Call):
             continue
         if isinstance(node.value.func, ast.Name) and node.value.func.id == "PublicAPI":
-            pytest.fail(f"line {node.lineno} PublicAPI 手 new 仍存在 (T3 未修)")
+            found = True
+            # PublicAPI 手 new 是故意的 (facade 模式), 不失败.
+            # 参数: PublicAPI(self._modules) — 传整个 modules dict
+            continue  # OK, allowed
+
+    # 必须存在 (确保我们没有误删 hand-new)
+    assert found, "main.py 缺少 PublicAPI(self._modules) 手 new (Bug-C 必须存在)"
 
 
 def test_initialize_no_superego_manual_new():

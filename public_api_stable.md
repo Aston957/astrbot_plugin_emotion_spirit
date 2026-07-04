@@ -1,4 +1,4 @@
-# emotion_spirit Public API (v1.2.9)
+# emotion_spirit Public API (v1.2.10)
 
 > **稳定 API** = 跨 minor 版本保证不破坏。v1.0 引入的 API 在 v1.x 全程稳定。
 > **Internal API** = 可能在任意 minor 版本变更。仅 codebase 内部使用。
