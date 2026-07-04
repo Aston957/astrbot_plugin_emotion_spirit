@@ -41,3 +41,32 @@ def test_force_dynamics_accepts_personality():
 
 # TODO (v1.3.0 后续 rc): DefenseModulator / Suppression / CollapseArchetypeSelector /
 # IntimacyTracker / DecayModel / ReflexLearner 接 personality. 加测试守护.
+
+
+def test_kb_weights_dims_covered_by_personality():
+    """rc.4: KB conscience_params.json weights 引用的维度必须 ∈ 13维 personality (防 rc.3 错配重蹈).
+
+    rc.3 set_personality 只传 deep (5维) → KB weights 引用 9 维 (含 6 个 surface 维) →
+    surface 维度取 0.5 兜底 → 参数没人格化 → 饱和. 本测试防 regress.
+    """
+    import json
+    from pathlib import Path
+
+    kb = json.loads(
+        Path("emotion_spirit/core/kb/conscience_params.json").read_text(encoding="utf-8")
+    )
+    # 13 维 personality (force_dynamics.py:4-7 / _BASELINE deep 5 + surface 8)
+    PERSONALITY_DIMS = {
+        "warmth_bias", "patience", "boundary_permeability",  # 自然 (deep)
+        "relational_gravity", "intimacy_pull", "expression_drive", "gossip_tendency",  # 社会 (surface)
+        "inner_coherence", "curiosity", "perception_acuity", "directness",  # 个体 (surface)
+        "relational_autonomy", "exploration_openness",  # 个体 (surface)
+    }
+    for param_name, spec in kb.items():
+        if param_name == "_meta":
+            continue
+        for dim in spec.get("weights", {}):
+            assert dim in PERSONALITY_DIMS, (
+                f"KB {param_name}.weights 引用 {dim!r}, 但不在 13维 personality 内 — "
+                "set_personality 传 deep+surface 合并 (13维), weights 维度必须在其中"
+            )

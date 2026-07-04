@@ -488,9 +488,21 @@ class EmotionSpiritPlugin(Star):
         # v1.3.0 rc.2 §1.7: ConscienceTracker 轴心耦合 — 从 13维 personality 算衰减率/阈值/倍率
         # labels 变 → personality 变 → 轴心参数变. 防止 _conscience 用默认参数.
         if hasattr(self, "_conscience") and self._conscience is not None:
-            deep_personality = self._baseline_personality.get("deep", {})
-            if deep_personality:
-                self._conscience.set_personality(deep_personality)
+            # rc.4: 传全 13 维 (deep 5 + surface 8), 不是只传 deep.
+            # KB conscience_params.json weights 引用 9 维 (3 deep + 6 surface),
+            # 只传 deep 会让 surface 维度取 0.5 兜底 → 参数没人格化 (Bug-G rc.3 仍饱和根因).
+            deep = self._baseline_personality.get("deep", {})
+            surface = self._baseline_personality.get("surface", {})
+            full_personality = {**deep, **surface}  # 13 维
+            if full_personality:
+                self._conscience.set_personality(full_personality)
+                logger.info(
+                    "emotion_spirit: conscience set_personality dims=%d acute_decay=%.3f chronic_decay=%.3f threshold=%.3f",
+                    len(full_personality),
+                    self._conscience._acute_decay_rate_per_min,
+                    self._conscience._chronic_decay_rate_per_hour,
+                    self._conscience._collapse_threshold,
+                )
 
     @staticmethod
     def _validate_labels(labels: tuple[str, ...]) -> dict[str, str] | None:
@@ -793,9 +805,11 @@ class EmotionSpiritPlugin(Star):
         new_conscience = ConscienceTracker()
         # v1.3.0 rc.2 §1.7: 新 conscience 立刻从 baseline personality 算轴心参数, 防止默认参数状态
         if hasattr(self, "_baseline_personality"):
-            deep_personality = self._baseline_personality.get("deep", {})
-            if deep_personality:
-                new_conscience.set_personality(deep_personality)
+            deep = self._baseline_personality.get("deep", {})
+            surface = self._baseline_personality.get("surface", {})
+            full_personality = {**deep, **surface}  # rc.4: 13 维
+            if full_personality:
+                new_conscience.set_personality(full_personality)
         self._conscience = new_conscience
 
         # 单点重建 superego 子字典, 同步 self._xxx 引用
@@ -865,11 +879,6 @@ class EmotionSpiritPlugin(Star):
 
         # Bug-B (v1.2.10): superego reflection 队列后台 worker
         asyncio.ensure_future(self._drain_diary_reflection_loop())
-
-        # Bug-G (v1.2.11): conscience pressure hourly decay. tick_pressure 原是死代码
-        # (_raw_pressure 单调递增 → P95 失效 → 每条对话 critical). 每小时调一次让 _raw_pressure 衰减.
-        self._last_decay_tick = time.time()
-        asyncio.ensure_future(self._decay_tick_loop())
 
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
@@ -1078,30 +1087,6 @@ class EmotionSpiritPlugin(Star):
             except Exception:
                 logger.warning("emotion_spirit: superego reflection drain 异常", exc_info=True)
                 await asyncio.sleep(10)
-
-    async def _decay_tick_loop(self) -> None:
-        """Bug-G (v1.2.11): conscience pressure 每小时衰减. tick_pressure 原死代码, 现接线.
-
-        修复 P0: tick_pressure 从未调用 → _raw_pressure 单调递增 → _window.append(累加值) →
-        P95 ≈ 当前值 → get_pressure()=1.0 永真 → 每条对话 critical + superego reflection diary enqueue.
-        hourly 调一次让 _raw_pressure 自然衰减, _window 改增量语义后 P95 反映真实事件强度高分位.
-        """
-        while True:
-            await asyncio.sleep(3600)  # 每小时
-            try:
-                now = time.time()
-                hours = (now - self._last_decay_tick) / 3600.0
-                self._last_decay_tick = now
-                if hasattr(self, "_conscience") and self._conscience is not None:
-                    self._conscience.tick_pressure(hours)
-                    logger.info(
-                        "emotion_spirit: conscience pressure decayed hours=%.2f raw=%.3f",
-                        hours, self._conscience._raw_pressure,
-                    )
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logger.warning("emotion_spirit: conscience decay tick error", exc_info=True)
 
     def _get_current_personality_dict(self) -> dict[str, Any]:
         """获取当前人格参数 dict (可能是嵌套或 flat, 消费方需自行 flatten).

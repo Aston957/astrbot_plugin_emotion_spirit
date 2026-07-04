@@ -20,22 +20,22 @@
   "acute_decay_rate_per_min": {
     "baseline": 0.12,
     "weights": {
-      "patience": -0.05,
-      "inner_coherence": -0.04,
+      "patience": 0.03,
+      "inner_coherence": 0.03,
       "boundary_permeability": 0.03
     },
     "range": [0.03, 0.30],
-    "note": "急性衰减率(每分钟). patience/inner_coherence 高 → 衰减率升(恢复快)."
+    "note": "急性衰减率(每分钟). patience/inner_coherence 高 → 衰减率升(恢复快). rc.4 weights 正负纠正 (patience/inner_coherence = 正权重)."
   },
   "chronic_decay_rate_per_hour": {
-    "baseline": 0.08,
+    "baseline": 0.20,
     "weights": {
-      "inner_coherence": -0.04,
-      "patience": -0.03,
-      "exploration_openness": -0.02
+      "inner_coherence": 0.06,
+      "patience": 0.04,
+      "exploration_openness": 0.03
     },
-    "range": [0.02, 0.20],
-    "note": "慢性衰减率(每小时). inner_coherence 高 → 韧性强 → 慢性快衰减."
+    "range": [0.05, 0.40],
+    "note": "慢性衰减率(每小时). inner_coherence/patience 高 → 衰减快 (韧性消散快, rc.4 正权重)."
   },
   "collapse_threshold": {
     "baseline": 0.75,
@@ -57,13 +57,13 @@
     "note": "急性倍率(事件瞬时冲击强度). expression_drive 高 → 急性大."
   },
   "chronic_multiplier": {
-    "baseline": 0.30,
+    "baseline": 0.20,
     "weights": {
       "intimacy_pull": 0.15,
       "warmth_bias": 0.08
     },
     "range": [0.1, 0.8],
-    "note": "慢性倍率(事件累积速度). intimacy_pull 高 → 慢性积累快."
+    "note": "慢性倍率(事件累积速度). intimacy_pull 高 → 慢性积累快. rc.4 baseline 0.30→0.20 (防饱和)."
   },
   "suppression_efficiency": {
     "baseline": 0.50,
