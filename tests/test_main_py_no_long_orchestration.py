@@ -33,10 +33,12 @@ def test_no_method_exceeds_50_lines():
         "_init_modules_phase1",       # ~80 行: factory 装配 + 模块取用
         "initialize",                 # ~30 行: AstrBot 钩子
         "_ns_handler",                # ~12 行: 命令闭包 (多个实例, 短的)
+        "_ns_command",                # ~52 行 (v1.2.11): AstrBot 命名空间命令工厂 + Patch A __signature__ 覆盖 + 注释
         "_schedule_plan_generation_loop",  # ~70 行: 调度循环
         "_schedule_diary_generation_loop", # ~61 行: 调度循环
         "on_llm_request",             # ~71 行: AstrBot LLM 请求钩子
         "_load_phase2_data",          # ~64 行: 数据加载
+        "_load_persona_state",        # ~55 行 (v1.2.11 Patch B): 数据加载 + B5 conditional 重写 + 详细注释
         "_persist_modules",           # ~52 行: 持久化 (串联所有 @register 模块)
     }
     violations = [(n, l) for n, l in violations if n not in allowlist]

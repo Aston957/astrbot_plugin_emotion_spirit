@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import types
 from pathlib import Path
 
@@ -43,6 +44,19 @@ sys.modules.setdefault("astrbot.api", astrbot_api_mock)
 sys.modules.setdefault("astrbot.api.event", astrbot_api_event_mock)
 sys.modules.setdefault("astrbot.api.star", astrbot_api_star_mock)
 astrbot_mock.api = astrbot_api_mock
+# Mock astrbot.core.utils.astrbot_path (main.py:23 imports get_astrbot_data_path).
+# v1.2.11: 补全 conftest mock — 之前 test_init_persistence 等各自 mock, conftest 漏了,
+# 导致 `from main import` 的测试 (e.g. test_signature_compat) collect 即崩.
+# 用 setdefault 不覆盖已有, test_init_persistence 自己的 mock 仍优先.
+astrbot_core_mock = types.ModuleType("astrbot.core")
+astrbot_core_utils_mock = types.ModuleType("astrbot.core.utils")
+astrbot_core_utils_path_mock = types.ModuleType("astrbot.core.utils.astrbot_path")
+astrbot_core_utils_path_mock.get_astrbot_data_path = lambda: tempfile.gettempdir()
+sys.modules.setdefault("astrbot.core", astrbot_core_mock)
+sys.modules.setdefault("astrbot.core.utils", astrbot_core_utils_mock)
+sys.modules.setdefault("astrbot.core.utils.astrbot_path", astrbot_core_utils_path_mock)
+astrbot_core_mock.utils = astrbot_core_utils_mock
+astrbot_core_utils_mock.astrbot_path = astrbot_core_utils_path_mock
 
 # 让 verification/ 模块能 import
 _ROOT = Path(__file__).resolve().parent.parent
@@ -52,6 +66,22 @@ sys.path.insert(0, str(_ROOT / "verification"))
 _TESTS_DIR = Path(__file__).resolve().parent
 if str(_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESTS_DIR))
+
+
+# v1.2.11: defensive logger method 兜底 — Patch B B5 路径用 logger.info + Bug-F ephemeral
+# filter 用 logger.debug, 但某些 collect 顺序下 main 在 mock 完成前 import, 拿到空 ModuleType.
+# 直接给 main.logger 补所有方法 (conftest.py 末尾, 任何 main import 之后都会运行).
+def _noop(*args, **kwargs):
+    return None
+
+
+try:
+    import main as _main_module  # noqa: E402
+    for _mname in ("debug", "info", "warning", "error", "critical", "exception"):
+        if not hasattr(_main_module.logger, _mname):
+            setattr(_main_module.logger, _mname, _noop)
+except (ImportError, AttributeError):
+    pass
 
 
 # 从 fixture_labels.py re-export

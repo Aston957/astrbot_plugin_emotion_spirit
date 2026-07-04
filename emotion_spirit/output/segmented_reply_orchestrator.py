@@ -83,6 +83,11 @@ class SegmentedReplyOrchestrator:
             conscience_pressure: ConscienceTracker.get_pressure() as float (HP-2 已修; v1.2.9 DO-2 保留向后兼容, handle 内不再使用).
         """
         try:
+            # imports 留在 try 块内 (不要提到模块级, conftest 没 mock astrbot.core.message, 模块级会崩 `import emotion_spirit`).
+            # Bug-E (v1.2.11): MessageChain 提到 try 开头, 让 113 行沉默路径也能用 MessageChain([]).
+            from astrbot.core.message.components import Plain
+            from astrbot.core.message.message_event_result import MessageChain
+
             # --- 1. 读 depends_on 组件的状态 (depends_on 必注入, 无需 hasattr 守卫) ---
             body_state = self._body_state.default()
             intimacy_level = self._intimacy.get_intimacy(user_id, current_persona)
@@ -111,8 +116,8 @@ class SegmentedReplyOrchestrator:
                     "silence", intensity=silence_tendency_obj.score
                 )
                 response.completion_text = ""
-                response.result_chain = None
-                logger.debug(
+                response.result_chain = MessageChain([])
+                logger.info(
                     "emotion_spirit: deliberate silence triggered reason=%s score=%.2f",
                     reason, silence_tendency_obj.score,
                 )
@@ -142,9 +147,6 @@ class SegmentedReplyOrchestrator:
 
             # --- 5. 逐段 send (F4: 先发首段无延迟) ---
             try:
-                from astrbot.core.message.components import Plain
-                from astrbot.core.message.message_event_result import MessageChain
-
                 await event.send(MessageChain([Plain(plan[0]["text"])]))
                 for part in plan[1:]:
                     delay = part.get("delay_before_seconds", 0.0)
@@ -158,9 +160,12 @@ class SegmentedReplyOrchestrator:
                     exc_info=True,
                 )
 
-            # --- 6. 清空 llm_resp (Bug 12b 修复) ---
+            # --- 6. 清空 completion_text (Bug 12b 防 double-send) + result_chain 留空 MessageChain (Bug-E v1.2.11) ---
+            # Bug-E: 不能清 result_chain=None, 会堵死 meme_manager.on_decorating_result (if not result 早退
+            # → 表情包消失). 改设 MessageChain([]) (空但非 None, MessageChain 无 __bool__ → truthy → 不早退;
+            # chain 空 → AstrBot 不 double-send 原文). 用户反馈 §8.2.
             response.completion_text = ""
-            response.result_chain = None
+            response.result_chain = MessageChain([])
 
             # --- 7. 推进冷却计数 ---
             self._coordinator.record_response_event(user_id)

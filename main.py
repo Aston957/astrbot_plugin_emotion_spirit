@@ -11,6 +11,7 @@ AstrBot 插件入口 (Phase B, P3-1 拆分后)。
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from datetime import date, datetime, timezone, timedelta  # Bug 13 注意: datetime 是类, 不是模块. 用 date.today() / date.fromtimestamp(), 不要写 datetime.date.X
 from pathlib import Path
@@ -24,6 +25,16 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 # persona_id 的 sentinel(占位符)值集合 — 表示"还没真正选过人格"
 # 出现这些值时,_load_persona_state 视为"未初始化",让 /setup_init 走正常路径
 _SENTINEL_PERSONA_IDS = frozenset({"default", "unknown", ""})
+
+# Bug-F (v1.2.11): bot ephemeral state token filter (临时 patch, v1.3 做 memory_type 彻底分类).
+# bot "我刚到/我准备出门" 这类短期 state 应走 AstrBot 对话历史, 不该写进 long-term warm pool
+# — 否则新对话召回注入 system_prompt → LLM 误以为还在上一场景 (用户反馈 §8.3).
+# 判定: bot_text[:200] 含任一 token → 跳 add_for_user (intimacy/reflex 不受影响).
+_EPHEMERAL_BOT_TOKENS = frozenset({
+    "我刚", "我到", "我准备", "我马上", "我现在", "我这就",
+    "我正", "我去", "我出门", "我回来", "我走", "我出发",
+    "等会儿", "马上", "待会", "稍等", "一会儿",
+})
 
 from emotion_spirit.core.plugin_factory import build as build_modules
 from emotion_spirit.output.command_router import CommandRouter
@@ -75,6 +86,19 @@ def _ns_command(name: str, cmd_attr: str, desc: str = ""):
     # 同时把 desc 写到 __doc__,register/star_handler.py:63 优先从 docstring 取 desc
     if desc:
         _ns_handler.__doc__ = desc
+    # Patch A (v1.2.11): 覆盖 __signature__ 为 (self, event), 屏蔽 *args/**kwargs.
+    # AstrBot 4.26.x CommandFilter.init_handler_md 用 inspect.signature 解析 handler,
+    # 把 *args/**kwargs 误识别成必填命名参数 → 18 命令全 404 (不带参数 "必要参数缺失",
+    # 带参数 TypeError: _empty() takes no arguments).
+    # 覆盖后框架只看到 (self, event); _ns_handler 运行时仍从 *args 接 CommandFilter
+    # 传参 (函数定义不变, test_ns_handler_accepts_varargs 守护). AstrBot 修了之后本覆盖是 no-op.
+    # 用户反馈: 2026-07-04-emotion-spirit-v1210-feedback.md §3.
+    _ns_handler.__signature__ = inspect.Signature(
+        parameters=[
+            inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter("event", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        ]
+    )
     return filter.command(name, desc=desc)(_ns_handler)
 
 
@@ -662,34 +686,25 @@ class EmotionSpiritPlugin(Star):
     def _load_persona_state(self) -> None:
         """加载 persona 状态,处理持久化与 config 的优先级。
 
-        v1.2.2-fix(B5): config.auto_source 显式指定且存在于可用列表时,
-        无论 saved_persona 是否为 sentinel,都优先使用 config,
-        并重置 initialized=False 触发 /setup_init 走 LLM 路径。
-        v1.2.3-clean(TD-1): 移除 B5 逻辑已覆盖的冗余 sentinel 分支。
+        v1.2.11 (Patch B, 用户反馈 §4.3): B5 改 conditional.
+        原 v1.2.2-fix(B5): config.auto_source 显式时, 无论 saved 是否已初始化
+        都强制 reset (initialized=False + labels={}) 走 LLM 路径. 但 LLM 不可用
+        (无 API key / free tier 用尽 / 厂商 outage) 时这条路径死掉, saved labels
+        永远读不到, 18 命令全报"无标签数据" (用户手动注入 spirit_data.json 的
+        ENFJ labels workaround 也被 B5 清空).
+
+        现行 (v1.2.11): saved 已初始化 → 信任 saved, 跳过 B5 (LLM 可用/不可用都安全).
+        saved 未初始化 (sentinel / labels 空) → 走 B5 (config.auto_source 显式 +
+        可用 → 触发 LLM). 用户改 config.auto_source 想重新分析 → 发 /setup_init
+        (或清 saved 让它重新走 B5).
+
+        语义变更: 原 B5 "config 永远优先 + 强制 LLM" → "saved 优先, config 退化为
+        首次引导". LLM 可用场景也不再每次启动重新 LLM (避免重复调用, labels 已落盘).
         """
         persona_data = self._store.get("persona", {})
         if self._is_persona_initialized(persona_data):
+            # saved 已初始化 → 信任 saved, 跳过 B5 (LLM 不可用场景的核心修复).
             saved_persona_id = persona_data.get("persona_id", "")
-            config_persona = self._config.get("auto_source", "")
-
-            # config 显式指定 + 存在于可用 persona 列表 → config 优先
-            if config_persona and config_persona not in _SENTINEL_PERSONA_IDS:
-                available = self._list_available_personas()
-                if config_persona in available:
-                    logger.info(
-                        "emotion_spirit: config.auto_source='%s' 覆盖 saved='%s',"
-                        "重置 initialized=False 以触发 LLM 分析",
-                        config_persona, saved_persona_id,
-                    )
-                    self._current_persona = config_persona
-                    self._persona_initialized = False
-                    self._labels = {}
-                    return
-                logger.warning(
-                    "emotion_spirit: config.auto_source='%s' 不在可用列表 %s,忽略",
-                    config_persona, available,
-                )
-
             self._persona_initialized = True
             self._labels = dict(persona_data.get("labels", {}))
             if saved_persona_id:
@@ -698,10 +713,31 @@ class EmotionSpiritPlugin(Star):
                 "emotion_spirit: persona 已恢复 — id=%s labels=%s",
                 self._current_persona, list(self._labels.keys()),
             )
-        else:
-            self._persona_initialized = False
-            self._labels = {}
-            self._migrate_old_spirit_data()
+            return
+
+        # saved 未初始化 (sentinel / labels 空) → B5: config.auto_source 显式 +
+        # 在可用列表 → 触发 LLM 分析 (首次引导).
+        config_persona = self._config.get("auto_source", "")
+        if config_persona and config_persona not in _SENTINEL_PERSONA_IDS:
+            available = self._list_available_personas()
+            if config_persona in available:
+                logger.info(
+                    "emotion_spirit: config.auto_source='%s' (saved 未初始化) "
+                    "触发 LLM 分析",
+                    config_persona,
+                )
+                self._current_persona = config_persona
+                self._persona_initialized = False
+                self._labels = {}
+                return
+            logger.warning(
+                "emotion_spirit: config.auto_source='%s' 不在可用列表 %s,忽略",
+                config_persona, available,
+            )
+
+        self._persona_initialized = False
+        self._labels = {}
+        self._migrate_old_spirit_data()
 
     def _rebuild_superego_subdict(self) -> None:
         """v1.2.5 PR3: 单点重建 _modules["superego"] 子字典 + 同步 self._xxx 引用.
@@ -1385,7 +1421,7 @@ class EmotionSpiritPlugin(Star):
             seg_config = self._config.get("segmented_reply", {})
             if seg_config.get("enable", False) and hasattr(self, '_segmented_orchestrator'):
                 if self._config.get("provider_settings", {}).get("streaming_response", False):
-                    logger.debug("emotion_spirit: streaming_response=True, skipping segmented_reply")
+                    logger.info("emotion_spirit: streaming_response=True, skipping segmented_reply")
                 else:
                     state = self._collect_segmented_state(user_id, event)
                     try:
@@ -1402,19 +1438,31 @@ class EmotionSpiritPlugin(Star):
                             exc_info=True,
                         )
 
-            logger.debug(
+            logger.info(
                 "emotion_spirit on_llm_response: user=%s tone=%s weight=%.2f len=%d",
                 user_id[:8], tone, weight, len(bot_text),
             )
         except Exception:
-            logger.debug("emotion_spirit: on_llm_response error", exc_info=True)
+            logger.warning("emotion_spirit: on_llm_response error", exc_info=True)
 
     def _apply_bot_reply_effects(self, user_id: str, bot_text: str, tone: str, weight: float) -> None:
-        """Bot 回复副作用: 写 memory + 更新 intimacy + reflex learn (v1.2.8: 从 on_llm_response 抽出)."""
-        self._pool.add_for_user(
-            user_id=user_id, text=bot_text[:500], raw_weight=weight,
-            phi=0.4, tags=["bot_reply", tone], source_user="bot",
-        )
+        """Bot 回复副作用: 写 memory + 更新 intimacy + reflex learn (v1.2.8: 从 on_llm_response 抽出).
+
+        v1.2.11 (Bug-F): bot ephemeral state (开头含 "我刚到/我准备" 等词) 不入 warm pool
+        (token filter 临时挡, v1.3 做 memory_type 彻底分类). intimacy/reflex/last_bot_reply_time
+        不受影响 (只跳 add_for_user).
+        """
+        head = bot_text[:200]
+        if any(tok in head for tok in _EPHEMERAL_BOT_TOKENS):
+            logger.debug(
+                "emotion_spirit: skip ephemeral bot-state memory write user=%s head=%r",
+                user_id[:8], head[:50],
+            )
+        else:
+            self._pool.add_for_user(
+                user_id=user_id, text=bot_text[:500], raw_weight=weight,
+                phi=0.4, tags=["bot_reply", tone], source_user="bot",
+            )
         self._intimacy.update(
             user_id, interval_seconds=0,
             vulnerability_delta=0.05 if tone == "warm" else 0.0,
