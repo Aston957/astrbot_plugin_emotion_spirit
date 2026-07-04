@@ -45,6 +45,10 @@ def test_no_large_hardcoded_data_in_production_code():
         # 排除 persona_profiles.py (叙事模板)
         if py_file.name == "persona_profiles.py":
             continue
+        # 排除 superego/conscience.py (get_pressure_breakdown 诊断字段聚合, v1.3.0 rc.2)
+        # 注: 这是 runtime 计算的诊断 API 聚合 dict, 不是硬编码数据. 跟 label_mapper 一样属聚合器.
+        if py_file.name == "conscience.py" and "superego" in str(py_file):
+            continue
         # 排除 __init__.py (import 列表非硬编码数据)
         if py_file.name == "__init__.py":
             continue

@@ -110,6 +110,9 @@ class SurfaceHandler:
         )
 
         # ═══ 良心事件记录 ═══
+        # v1.3.0 rc.2: 本轮走选项 C, record_* suppression_level 默认 0.0 (不动时序).
+        # TODO(下一 rc, Bug-F?): 把 self._p._suppression_level 计算 (下方 line 145)
+        #   前移到本块之前, 让 6 个 record_* 调用都能拿到真实 suppression_level.
         if resistance_result.conflict_values:
             self._p._conscience.record_value_conflict(
                 resistance=resistance_result.resistance,

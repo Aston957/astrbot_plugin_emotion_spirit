@@ -485,6 +485,13 @@ class EmotionSpiritPlugin(Star):
         self._interaction_count = 0
         logger.info("emotion_spirit: baseline personality updated from labels")
 
+        # v1.3.0 rc.2 §1.7: ConscienceTracker 轴心耦合 — 从 13维 personality 算衰减率/阈值/倍率
+        # labels 变 → personality 变 → 轴心参数变. 防止 _conscience 用默认参数.
+        if hasattr(self, "_conscience") and self._conscience is not None:
+            deep_personality = self._baseline_personality.get("deep", {})
+            if deep_personality:
+                self._conscience.set_personality(deep_personality)
+
     @staticmethod
     def _validate_labels(labels: tuple[str, ...]) -> dict[str, str] | None:
         if len(labels) != 5:
@@ -784,6 +791,11 @@ class EmotionSpiritPlugin(Star):
 
         # 新建 conscience (重置必须重造), 通过 local 变量避免 self._xxx = ClassName() 直赋
         new_conscience = ConscienceTracker()
+        # v1.3.0 rc.2 §1.7: 新 conscience 立刻从 baseline personality 算轴心参数, 防止默认参数状态
+        if hasattr(self, "_baseline_personality"):
+            deep_personality = self._baseline_personality.get("deep", {})
+            if deep_personality:
+                new_conscience.set_personality(deep_personality)
         self._conscience = new_conscience
 
         # 单点重建 superego 子字典, 同步 self._xxx 引用

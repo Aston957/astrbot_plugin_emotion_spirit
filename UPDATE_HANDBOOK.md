@@ -4,7 +4,7 @@
 > **进 release zip** — 用户下载也会看到，所以保持措辞中性、不写 internal-only 的敏感细节（密码、内部 server 地址、未公开路线图）。
 > 仓库内更深的开发文档在 `docs/`（不进 zip），那里放实验/历史/report。
 >
-> 当前版本: **v1.2.9** (L2 脚手架完善版) | schema version: v4 | 状态: v1.2.9 三子回写全接 + offset 可观测 + 修 v1.2.8 recovery bug. L2 仍不影响 compute() 输出, v1.3 L3 激活.
+> 当前版本: **v1.2.10** (3 P0 hotfixes shipped, v1.2.x 线完结) | schema version: v4 | 状态: v1.3.0 进行中 — §1.7 轴心驱动规约 (rc.1 前置), 后续 rc 按规约改 Bug-G/E/F/H + 合入 Patch A/B/D.
 
 ---
 
@@ -190,6 +190,50 @@ emotion_spirit/
 - 事件机制待删(v1.2.7): 4 agent emit(BoundaryBreached/ShadowDetected/LifeEventReady/RelationshipChanged)零 subscriber，v1.2.6 决定删事件(LLM 整合替代)，v1.2.7 执行删除
 - agent 手 new: 4 agent 因 factory param_wire 限制手 new — 规则 4 债(TODO)
 - (规则 1/2 当前没违反，agent 编排不实现 + SelfCore 统一编排是好的)
+
+---
+
+### 1.7 轴心功能驱动 → 参数从人格耦合,不硬编码 (v1.3.0 rc.1)
+
+**规则**(5 条):
+
+1. **轴心定义**:emotion_spirit 的轴心功能是 4 个互相耦合的系统,所有行为参数围绕它们适配:
+   - **人格轴**(基础):`persona_labels_db` / `knowledge` / `persona_profiles` — 5维 labels → 13维 personality,是其他 3 轴的参数源
+   - **力学轴**:`force_dynamics` — 三力(自然/社会/个体),耦合典范(`compute(personality, conscience_pressure)`,baseline 从 KB 算)
+   - **memory 轴**:`memory_pool` / `intimacy` / `decay_model` / `reflex_learner` — 记忆/亲密/反射
+   - **超我轴**:`conscience` / `defense_modulator` / `suppression` / `collapse` / `silence` — 良心压力 + 防御调制(压抑/崩溃/沉默)
+
+2. **参数分层**(判定"硬编码 vs 人格化"的可操作标准):
+   - **轴心参数(必人格化)**:行为反应参数,合理值因人格不同而不同。判定法(满足任一):
+     - **反事实测试**:假设两个人格(如 INFP 焦虑型 vs ESTJ 冷静型),这个参数的合理值该不该不同?该不同 → 轴心参数。
+     - **语义检查**:参数名含 `rate/threshold/multiplier/coefficient/factor` 且语义跟行为反应(反应速度/敏感度/崩溃点/积累快慢)相关。
+     - 例:`pressure_decay_rate`(衰减快慢)、`pressure_rise_threshold`(崩溃阈值)、`guard_reflex_multiplier`(反射强度)、`intimacy_growth_rate`(亲密增长)、`decay_rate`(记忆衰减)。
+   - **算法常数(可硬编码)**:数学/统计常数,跟人格无关。判定:改变它影响算法性质(统计/数值),不是行为语义。例:`_DEFAULT_QUANTILE=0.95`(P95 分位)、`_COLD_START_THRESHOLD=10`(采样阈值)。
+   - **系统参数(可硬编码)**:工程/资源参数,跟人格无关。判定:改变它影响资源/性能(内存/时间/容量),不是行为。例:`window maxlen=200`、`TTL=24h`、`buffer max=30`。
+   - **存疑默认人格化**:反事实测试拿不准的,默认按轴心参数处理(人格化),避免漏 — 误人格化只是多写映射,漏人格化是积债。
+
+3. **参数来源**:轴心参数必须从 **13维 personality**(force_dynamics.compute 用的同款 `personality: dict[str, float]`)映射,不是 5维 labels,不是固定值。映射表进 KB(像 `defense_deltas.json`),`compute_*_params_from_personality(personality)` 算。
+
+4. **耦合方式**:轴心模块必须显式接受 personality(静态参数)+ 其他轴心当前状态(动态调制)作为参数,不隐式读全局/硬编码:
+   - **静态**:`__init__(personality)` 或 `set_personality(personality)` 算轴心参数(人格不变则参数不变)
+   - **动态**:关键方法接受其他轴心状态(如 `ConscienceTracker.record_*(..., suppression_level=)` 接受防御轴实时调制积累速度)
+
+5. **新增参数**:新增可调参数必须判定分层(轴心/算法/系统),轴心参数必须有人格映射。标"非人格依赖"需在代码注释说明理由(算法/系统参数走此豁免)。
+
+**真实落法**:
+- 人格映射:13维 personality → 轴心参数,走 KB(新增 `conscience_params.json` / `memory_params.json`),`compute_*_from_personality(personality)` 算
+- 耦合接口:`ConscienceTracker.__init__(personality)` 算衰减率/阈值;`record_value_conflict(..., suppression_level=)` 接受防御轴动态状态
+- KB 扩展:轴心参数映射表进 KB(§1.1),不进 `config.py` 硬编码
+
+**违反会被什么拦下**:
+- `tests/test_axis_coupling.py`: 扫轴心模块(`ConscienceTracker` / `DefenseModulator` / `Suppression` / `CollapseArchetypeSelector` / `IntimacyTracker` / `DecayModel` / `ReflexLearner`),验证 `__init__` 或 `set_personality` 接受 personality 参数;扫 `SUPEREGO_CONFIG` / `EMA_ALPHA` / 类似轴心参数 dict,要求映射进 KB 或逐项标注"非人格依赖"。违反 = CI 红
+- 间接:`test_kb_centralization.py` 扩展扫轴心 config dict(rate/threshold/multiplier 类参数 > 3 项)
+
+**违反样本**(v1.2.10 Bug-G 发现):
+- `ConscienceTracker.__init__()` 不接受 personality,衰减率/阈值硬编码 `SUPEREGO_CONFIG` → 压力系统不随人格变化,所有 persona 同一套参数 → `_raw_pressure` 单调递增 + P95 饱和 → 每条对话 critical
+- `tick_pressure` 死代码(没人调)→ 衰减从未发生 → 压力永高(活性债,§1.2 规则 2 同类)
+- `SUPEREGO_CONFIG` 整个 dict 固定值,不从 13维 personality 算 → 违反规则 3
+- `EMA_ALPHA` / `BUFFER_POOL_CONFIG` 部分参数(phi/chi 跟反应速度?)→ 需逐个反事实测试判定
 
 ---
 

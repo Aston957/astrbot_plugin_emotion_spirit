@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "description": "ConscienceTracker 轴心参数从 13维 personality 映射 (handbook §1.7). v1.3.0 rc.2.",
+    "dimensions": [
+      "warmth_bias",
+      "patience",
+      "boundary_permeability",
+      "relational_gravity",
+      "intimacy_pull",
+      "expression_drive",
+      "gossip_tendency",
+      "inner_coherence",
+      "curiosity",
+      "perception_acuity",
+      "directness",
+      "relational_autonomy",
+      "exploration_openness"
+    ]
+  },
+  "acute_decay_rate_per_min": {
+    "baseline": 0.12,
+    "weights": {
+      "patience": -0.05,
+      "inner_coherence": -0.04,
+      "boundary_permeability": 0.03
+    },
+    "range": [0.03, 0.30],
+    "note": "急性衰减率(每分钟). patience/inner_coherence 高 → 衰减率升(恢复快)."
+  },
+  "chronic_decay_rate_per_hour": {
+    "baseline": 0.08,
+    "weights": {
+      "inner_coherence": -0.04,
+      "patience": -0.03,
+      "exploration_openness": -0.02
+    },
+    "range": [0.02, 0.20],
+    "note": "慢性衰减率(每小时). inner_coherence 高 → 韧性强 → 慢性快衰减."
+  },
+  "collapse_threshold": {
+    "baseline": 0.75,
+    "weights": {
+      "inner_coherence": 0.15,
+      "patience": 0.10,
+      "boundary_permeability": -0.08
+    },
+    "range": [0.5, 0.95],
+    "note": "崩溃阈值. inner_coherence/patience 高 → 阈值高(不易崩)."
+  },
+  "acute_multiplier": {
+    "baseline": 1.0,
+    "weights": {
+      "expression_drive": 0.30,
+      "gossip_tendency": 0.10
+    },
+    "range": [0.5, 2.0],
+    "note": "急性倍率(事件瞬时冲击强度). expression_drive 高 → 急性大."
+  },
+  "chronic_multiplier": {
+    "baseline": 0.30,
+    "weights": {
+      "intimacy_pull": 0.15,
+      "warmth_bias": 0.08
+    },
+    "range": [0.1, 0.8],
+    "note": "慢性倍率(事件累积速度). intimacy_pull 高 → 慢性积累快."
+  },
+  "suppression_efficiency": {
+    "baseline": 0.50,
+    "weights": {
+      "boundary_permeability": -0.20,
+      "directness": -0.10,
+      "inner_coherence": 0.10
+    },
+    "range": [0.1, 0.9],
+    "note": "压抑效率(suppression_level 调制慢性积累的强度). boundary_permeability 高 → 压抑效率低(边界透,压抑不住)."
+  }
+}

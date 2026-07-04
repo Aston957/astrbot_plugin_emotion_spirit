@@ -1,4 +1,13 @@
-"""Phase 4 C1 — ConscienceTracker 滑动窗口 P95 归一化 (B2 算法)"""
+"""ConscienceTracker v1.3.0 rc.2 双通道 + 人格耦合 守护.
+
+历史:
+- Phase 4 C1: P95 归一化 (B2 算法) — 已删 (v1.3.0 rc.2 治 Bug-G 治本)
+- v1.2.11 test2: _window 增量语义 + _decay_tick_loop 接线 (半修)
+- v1.3.0 rc.2: 双通道 (急性 + 慢性) + lazy decay + 人格参数 + suppression 调制
+
+本文件保留 _window 诊断 append 测试 + get_pressure [0,1] 范围测试,
+旧 P95/cold-start 测试改写为双通道对应行为.
+"""
 import pytest
 
 from emotion_spirit.regulation.superego import ConscienceTracker
@@ -12,7 +21,7 @@ def reset_env(monkeypatch):
 
 
 def test_window_appends_on_record():
-    """每次 record_* 写时, _window 应同步 append 当前 raw_pressure。"""
+    """每次 record_* 写时, _window 应同步 append 单次增量 (Bug-G v1.2.11 增量语义)."""
     tracker = ConscienceTracker()
     initial_window_len = len(tracker._window)
     tracker.record_value_conflict(
@@ -23,17 +32,11 @@ def test_window_appends_on_record():
     assert tracker._window[-1] == pytest.approx(0.3, abs=0.01)
 
 
-def test_get_pressure_quantile_normalized():
-    """冷启动后 (>10 帧), get_pressure 用 P95 归一化, 非 clip raw.
+def test_get_pressure_dual_channel_caps_at_1():
+    """v1.3.0 rc.2: 双通道 (急性+慢性) 求和后 cap 1.0 (不再是 _raw/P95 公式).
 
-    v1.2.11 Bug-G 修后场景: _window 改增量语义 (单次 conscience_impact).
-    10 帧 impact=0.5 → raw=5.0, _window=[0.5]*10, P95=0.5.
-    ratio = 5.0/0.5 = 10.0 → cap 1.0 (10 个事件累计已饱和, 期望行为).
-
-    关键不变量 (增量语义):
-    1. _window 含 10 项 (not 11) — alignment 不入 window
-    2. P95 = 0.5 (单次事件强度), 不是 raw 累计 5.0
-    3. alignment 后 _raw_pressure 下降, P95 不变 (验证 Bug-G 修复)
+    10 次 impact=0.5 → 急性 5.0 + 慢性 1.5 = 6.5, min(1.0) = 1.0.
+    这是 v1.3.0 rc.2 设计: 大量事件快速 cap 1.0, 但衰减后能下来.
     """
     tracker = ConscienceTracker()
     for _ in range(10):
@@ -41,50 +44,48 @@ def test_get_pressure_quantile_normalized():
             resistance=0.5, conflict_values=["x"], tension_type="intrinsic",
             behavioral_shift=0.1, conscience_impact=0.5,
         )
-    # Bug-G 增量语义: window 含 10 项单次增量, 每项 0.5 (not 累计值 5.0)
+    # 双通道: 急性 5.0 + 慢性 1.5 = 6.5 → cap 1.0
     assert len(tracker._window) == 10
     assert tracker._window[-1] == pytest.approx(0.5)
 
     pressure = tracker.get_pressure()
-    # 10 × 0.5 = 5.0 / 0.5 = 10 → cap 1.0 (saturated by design)
     assert pressure == pytest.approx(1.0)
 
-    # alignment: raw 减 0.12 → 4.88, 但 _window 不变 (alignment 不入 window per Bug-G)
+    # alignment: 急性 0.7×0.12 + 慢性 0.3×0.12 = 0.12 总减, 但仍 cap 1.0
     tracker.record_alignment(value_name="honesty", action="repair")
-    assert len(tracker._window) == 10, "Bug-G: alignment 不应 append _window"
-    # 仍 cap 1.0 (raw=4.88 仍 >> P95=0.5)
+    assert len(tracker._window) == 10, "v1.3.0 rc.2: alignment 不应 append _window"
     pressure_after = tracker.get_pressure()
     assert pressure_after == pytest.approx(1.0), (
-        f"alignment 后 _raw 下降但 _window 不变, ratio 仍 > 1 → 应 cap 1.0, 实际 {pressure_after}"
+        f"alignment 后急性+慢性仍 cap 1.0, 实际 {pressure_after}"
     )
 
 
-def test_cold_start_returns_raw():
-    """< 10 帧时, get_pressure 直接返回 raw_pressure (degraded mode)。"""
+def test_small_events_reflect_in_pressure():
+    """v1.3.0 rc.2: 小事件 (<阈值) 直接反映在 pressure, 无 cold-start 区分."""
     tracker = ConscienceTracker()
     for _ in range(5):
         tracker.record_value_conflict(
             resistance=0.5, conflict_values=["x"], tension_type="intrinsic",
             behavioral_shift=0.1, conscience_impact=0.06,
         )
-    # 5 × 0.06 = 0.3
+    # 5 × 0.06 = 0.3 急性 + 0.09 慢性 = 0.39
     pressure = tracker.get_pressure()
-    assert pressure == pytest.approx(0.3, abs=0.01)
+    assert pressure == pytest.approx(0.39, abs=0.01)
 
 
 def test_window_size_env_var_override(monkeypatch):
-    """env var EMOTION_SPIRIT_PRESSURE_WINDOW 可覆盖默认 200。"""
+    """env var EMOTION_SPIRIT_PRESSURE_WINDOW 可覆盖默认 200 (诊断用)."""
     monkeypatch.setenv("EMOTION_SPIRIT_PRESSURE_WINDOW", "50")
     tracker = ConscienceTracker()
     assert tracker._window.maxlen == 50
 
 
-def test_extreme_events_dont_dominate():
-    """单一极端事件不主导归一化 (P95 给 5% headroom, 50 帧窗口)。
+def test_extreme_events_decay_via_dual_channel():
+    """v1.3.0 rc.2: 极端事件不主导(双通道急性快衰 + 慢性有界).
 
-    49 帧常态 (conscience_impact=0.1 → raw=4.9) + 1 帧极端 (impact=1.0 → raw=5.9) = 50 帧
-    P95 idx = int(50 * 0.95) = 47, sorted[47] = 0.1 (NOT the extreme 1.0)
-    normalized = 5.9 / 0.1 = 59 → clip 1.0
+    49 次 0.1 + 1 次 1.0: 急性 5.0 + 慢性 1.5 = 6.5 → cap 1.0 (灌完立刻).
+    1h tick 后: 急性衰 99.96% → 0.002, 慢性衰 8% → 1.38.
+    total = 1.38, clip 1.0 → 衰减后期望显著降.
     """
     tracker = ConscienceTracker()
     for _ in range(49):
@@ -94,34 +95,47 @@ def test_extreme_events_dont_dominate():
         )
     tracker.record_value_conflict(
         resistance=1.0, conflict_values=["x"], tension_type="intrinsic",
-        behavioral_shift=1.0, conscience_impact=1.0,  # 极端但非 raw=10
+        behavioral_shift=1.0, conscience_impact=1.0,  # 极端
     )
-    # 验证 P95 不是 max (5% headroom 生效)
-    assert tracker._window_quantile < tracker._window[-1], \
-        f"P95 ({tracker._window_quantile}) 应小于 max ({tracker._window[-1]})"
-    # 极端事件导致 raw/P95 = 5.9/0.1 = 59 → clip 1.0
-    pressure = tracker.get_pressure()
-    assert pressure == 1.0
+    # 灌完应 cap 1.0 (急性 5.0 + 慢性 1.5 = 6.5)
+    pressure_full = tracker.get_pressure()
+    assert pressure_full == 1.0, f"灌完应 cap 1.0, 实际 {pressure_full}"
+    # 1h tick: 急性衰到 ~0.002, 慢性衰到 ~1.38, total ~1.38 → cap 1.0 (慢性积累有界)
+    tracker.tick_pressure(1.0)
+    pressure_decayed = tracker.get_pressure()
+    # 1h 急性衰 99.96%, 慢性衰 8%. 灌了 50 个事件, 慢性积累有界 ~1.5
+    # tick 后 慢性 ~1.38, 急性 ~0.002 → total ~1.38 → cap 1.0
+    # 关键: 双通道让"灌完 cap 1.0"和"长期 cap 1.0"分开
+    # 进一步: 24h tick (慢性衰 85%) → 慢性 ~0.23, 急性 ~0 → total < 0.3
+    tracker.tick_pressure(23.0)  # 累计 24h
+    pressure_24h = tracker.get_pressure()
+    assert pressure_24h < 0.5, (
+        f"24h 衰减后期望 < 0.5, 实际 {pressure_24h} (双通道衰减未生效?)"
+    )
 
 
 def test_no_negative_pressure():
-    """减压时, raw_pressure 不变负。"""
+    """v1.3.0 rc.2: 减压时, 双通道 (_acute + _chronic) 不变负."""
     tracker = ConscienceTracker()
-    tracker._raw_pressure = 0.0
+    tracker._acute_pressure = 0.0
+    tracker._chronic_pressure = 0.0
     tracker.record_repair(repair_type="simple")
-    assert tracker._raw_pressure >= 0.0
+    assert tracker._acute_pressure >= 0.0
+    assert tracker._chronic_pressure >= 0.0
 
 
 def test_no_negative_pressure_via_alignment():
-    """record_alignment 减压时, raw_pressure 不变负。"""
+    """v1.3.0 rc.2: record_alignment 减压时, 双通道不变负."""
     tracker = ConscienceTracker()
-    tracker._raw_pressure = 0.0
+    tracker._acute_pressure = 0.0
+    tracker._chronic_pressure = 0.0
     tracker.record_alignment(value_name="honesty", action="repair")
-    assert tracker._raw_pressure >= 0.0
+    assert tracker._acute_pressure >= 0.0
+    assert tracker._chronic_pressure >= 0.0
 
 
-def test_p95_caching():
-    """多次 get_pressure 不重复排序 (window_quantile 缓存)。"""
+def test_get_pressure_idempotent():
+    """v1.3.0 rc.2: 多次 get_pressure 调用结果一致 (lazy decay 时间差 < 1s 视为不变)."""
     tracker = ConscienceTracker()
     for _ in range(15):
         tracker.record_value_conflict(
@@ -129,11 +143,11 @@ def test_p95_caching():
             behavioral_shift=0.1, conscience_impact=0.2,
         )
     p1 = tracker.get_pressure()
-    cached_quantile = tracker._window_quantile
-    assert cached_quantile > 0.0
     p2 = tracker.get_pressure()
-    assert tracker._window_quantile == cached_quantile
-    assert p1 == p2
+    # 短时间 (<1s) 衰减可忽略
+    assert p1 == pytest.approx(p2, abs=0.01), (
+        f"多次 get_pressure 应一致 (短时衰减忽略), p1={p1} p2={p2}"
+    )
 
 
 def test_compat_force_dynamics_range():

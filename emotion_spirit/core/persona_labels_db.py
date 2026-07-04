@@ -468,6 +468,16 @@ def get_defense_deltas() -> dict:
     return _cached_load("defense_deltas.json")
 
 
+def get_conscience_params_kb() -> dict:
+    """v1.3.0 rc.2: 加载 conscience 轴心参数 KB (13维 personality 映射, handbook §1.7).
+
+    6 个轴心参数 (acute_decay_rate_per_min / chronic_decay_rate_per_hour /
+    collapse_threshold / acute_multiplier / chronic_multiplier /
+    suppression_efficiency), 每参含 baseline + weights + range.
+    """
+    return _cached_load("conscience_params.json")
+
+
 __all__ = [
     "REQUIRED_DIMS",
     "DB_PATH",
@@ -490,4 +500,5 @@ __all__ = [
     "force_state_from_persona_id_with_conscience",
     "get_silence_tendency_weights",
     "get_defense_deltas",
+    "get_conscience_params_kb",
 ]

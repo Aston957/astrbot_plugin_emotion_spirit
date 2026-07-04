@@ -27,6 +27,7 @@ __all__ = [
     "get_value_behaviors",
     "get_personality_from_labels",
     "get_labels_from_config",
+    "compute_conscience_params_from_personality",
 ]
 
 def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -> str:
@@ -130,6 +131,34 @@ def get_personality_params(labels: dict[str, str] | str) -> dict[str, dict[str, 
         # 兼容旧代码: 如果传入字符串，返回空字典
         return {}
     return labels_to_personality(labels)
+
+
+def compute_conscience_params_from_personality(personality: dict[str, float]) -> dict[str, float]:
+    """从 13维 personality 算 ConscienceTracker 轴心参数 (handbook §1.7, v1.3.0 rc.2).
+
+    读 KB conscience_params.json (persona_labels_db.get_conscience_params_kb),
+    每参数 = baseline + Σ(dim_value × weight), clamp 到 range.
+    缺维度用 0.5 中性兜底.
+
+    Returns:
+        dict 含 6 个轴心参数: acute_decay_rate_per_min / chronic_decay_rate_per_hour /
+        collapse_threshold / acute_multiplier / chronic_multiplier / suppression_efficiency
+    """
+    from ..core.persona_labels_db import get_conscience_params_kb
+
+    kb = get_conscience_params_kb()
+    params: dict[str, float] = {}
+    for param_name, spec in kb.items():
+        if param_name == "_meta":
+            continue
+        baseline = spec["baseline"]
+        weights = spec["weights"]
+        lo, hi = spec["range"]
+        val = baseline
+        for dim, w in weights.items():
+            val += personality.get(dim, 0.5) * w
+        params[param_name] = max(lo, min(hi, val))
+    return params
 
 
 def get_intimacy_weights() -> dict[str, float]:
