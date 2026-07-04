@@ -183,6 +183,14 @@ class SegmentedReplyOrchestrator:
                     response.result_chain = MessageChain([])
                 for part in plan:
                     response.result_chain.chain.append(Plain(part["text"]))
+                # Bug-H (v1.3.0 rc.3): 诊断 log — append 后 chain 内容, 给 framework 调试.
+                # 实测 framework 某处把 [Plain] 换成 [Reply(placeholder)] → respond.stage:287 skip.
+                # 此 log 确认 emotion_spirit 写入的 chain 是否含 Plain (定位 framework 替换点).
+                logger.info(
+                    "emotion_spirit: append mode result_chain id=%s chain=%s",
+                    id(response.result_chain),
+                    [(type(c).__name__, getattr(c, "text", "")[:30]) for c in response.result_chain.chain],
+                )
                 response.completion_text = ""  # 防 AstrBot 追加默认链
                 # 不 event.send, 不清 result_chain (让 on_decorating_result 处理)
 

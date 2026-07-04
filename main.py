@@ -27,10 +27,10 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 # 出现这些值时,_load_persona_state 视为"未初始化",让 /setup_init 走正常路径
 _SENTINEL_PERSONA_IDS = frozenset({"default", "unknown", ""})
 
-# Bug-F (v1.2.11): bot ephemeral state token filter (临时 patch, v1.3 做 memory_type 彻底分类).
-# bot "我刚到/我准备出门" 这类短期 state 应走 AstrBot 对话历史, 不该写进 long-term warm pool
-# — 否则新对话召回注入 system_prompt → LLM 误以为还在上一场景 (用户反馈 §8.3).
-# 判定: bot_text[:200] 含任一 token → 跳 add_for_user (intimacy/reflex 不受影响).
+# Bug-F (v1.2.11 → v1.3.0 rc.3): bot ephemeral state 判定 token 列表.
+# bot "我刚到/我准备出门" 等短期 state → 标 memory_type=bot_ephemeral_state (仍入 pool 记录,
+# 但召回时过滤, 不注入 system_prompt). 旧法 token filter "不入 pool" 治标不治本 (v1.3.0 改标类型).
+# 判定: bot_text[:200] 含任一 token → 判定为 ephemeral.
 _EPHEMERAL_BOT_TOKENS = frozenset({
     "我刚", "我到", "我准备", "我马上", "我现在", "我这就",
     "我正", "我去", "我出门", "我回来", "我走", "我出发",
@@ -1490,21 +1490,25 @@ class EmotionSpiritPlugin(Star):
     def _apply_bot_reply_effects(self, user_id: str, bot_text: str, tone: str, weight: float) -> None:
         """Bot 回复副作用: 写 memory + 更新 intimacy + reflex learn (v1.2.8: 从 on_llm_response 抽出).
 
-        v1.2.11 (Bug-F): bot ephemeral state (开头含 "我刚到/我准备" 等词) 不入 warm pool
-        (token filter 临时挡, v1.3 做 memory_type 彻底分类). intimacy/reflex/last_bot_reply_time
-        不受影响 (只跳 add_for_user).
+        v1.3.0 rc.3 (Bug-F): 用 memory_type 标记 (替 v1.2.11 token filter "不入 pool").
+        bot ephemeral state (含 "我刚到/我准备" 等词) → memory_type="bot_ephemeral_state"
+        (仍入 pool 记录, 但召回时过滤, 不污染上下文). 其他 bot reply → "bot_reply".
         """
         head = bot_text[:200]
         if any(tok in head for tok in _EPHEMERAL_BOT_TOKENS):
+            memory_type = "bot_ephemeral_state"
             logger.debug(
-                "emotion_spirit: skip ephemeral bot-state memory write user=%s head=%r",
+                "emotion_spirit: ephemeral bot-state tagged user=%s head=%r",
                 user_id[:8], head[:50],
             )
         else:
-            self._pool.add_for_user(
-                user_id=user_id, text=bot_text[:500], raw_weight=weight,
-                phi=0.4, tags=["bot_reply", tone], source_user="bot",
-            )
+            memory_type = "bot_reply"
+
+        self._pool.add_for_user(
+            user_id=user_id, text=bot_text[:500], raw_weight=weight,
+            phi=0.4, tags=["bot_reply", tone], source_user="bot",
+            memory_type=memory_type,  # v1.3.0 rc.3 Bug-F
+        )
         self._intimacy.update(
             user_id, interval_seconds=0,
             vulnerability_delta=0.05 if tone == "warm" else 0.0,

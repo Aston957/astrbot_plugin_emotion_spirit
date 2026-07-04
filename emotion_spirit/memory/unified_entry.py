@@ -65,6 +65,10 @@ class UnifiedEntry:
     # -- Cascade tracking --
     cascade_generation: int = field(default=0)
 
+    # -- Bug-F memory_type classification (v1.3.0 rc.3) --
+    # bot_reply / bot_ephemeral_state / bot_long_term_fact / user_fact
+    memory_type: str = field(default="bot_reply")
+
     # -- Ghost tracking --
     ghost_sensitivity_shift: float = field(default=0.0)  # Counterfactual ghost sensitivity
     _ticks_above_ghost_threshold: int = field(default=0)
@@ -274,6 +278,7 @@ class UnifiedEntry:
             "mentioned": list(self.mentioned),
             "impression": self.impression,
             "compression": round(self.compression, 6),
+            "memory_type": self.memory_type,  # v1.3.0 rc.3 Bug-F
         }
 
     @classmethod

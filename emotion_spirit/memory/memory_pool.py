@@ -89,6 +89,7 @@ class MemoryPool:
         participants: set[str] | None = None,
         privacy: str = "private",
         entities: dict | None = None,
+        memory_type: str = "bot_reply",  # v1.3.0 rc.3 Bug-F
     ) -> UnifiedEntry:
         """添加到缓冲池。自动设置 participants = {source_user, <global>} (如未指定)。"""
         if participants is None:
@@ -110,6 +111,7 @@ class MemoryPool:
             last_recalled=0.0,
             peak_temperature=min(1.0, raw_weight),
             participants=participants,
+            memory_type=memory_type,  # v1.3.0 rc.3 Bug-F
         )
         self._next_id += 1
         self.buffer.append(entry)
@@ -141,9 +143,12 @@ class MemoryPool:
     # 兼容旧签名 (surface_handler 调用)
     def add_for_user(self, user_id: str, text: str, raw_weight: float, phi: float,
                      tags: list, source_user: str, privacy: str = "private",
-                     entities: dict | None = None) -> UnifiedEntry:
+                     entities: dict | None = None,
+                     memory_type: str = "bot_reply",  # v1.3.0 rc.3 Bug-F
+                     ) -> UnifiedEntry:
         return self.add(text, raw_weight, phi, tags, source_user,
-                        participants={user_id}, privacy=privacy, entities=entities)
+                        participants={user_id}, privacy=privacy, entities=entities,
+                        memory_type=memory_type)
 
     def confirm_check(self) -> list:
         """全局温度门控确认。崩溃期间暂停。"""
@@ -266,6 +271,7 @@ class MemoryPool:
         # search_by_vector returns [(entry_id, distance), ...]
         id_dist_pairs = self.search_by_vector(
             tuple(query_vec), top_k=k, user_id=current_user,
+            exclude_memory_types={"bot_ephemeral_state"},  # v1.3.0 rc.3 Bug-F
         )
         results = []
         for entry_id, _dist in id_dist_pairs:
@@ -425,16 +431,20 @@ class MemoryPool:
         top_k: int = 5,
         tier: str | None = None,
         user_id: str | None = None,
+        exclude_memory_types: set[str] | None = None,  # v1.3.0 rc.3 Bug-F
     ) -> list[tuple[str, float]]:
         results: list[tuple[str, float]] = []
         for entry_id, vec in self._vector_index.items():
-            if tier is not None or user_id is not None:
+            if tier is not None or user_id is not None or exclude_memory_types is not None:
                 entry = self._find_entry_by_id(entry_id)
                 if entry is None:
                     continue
                 if tier is not None and entry.tier != tier:
                     continue
                 if user_id is not None and user_id not in entry.participants:
+                    continue
+                # v1.3.0 rc.3 Bug-F: 召回时过滤特定 memory_type (如 ephemeral state)
+                if exclude_memory_types is not None and getattr(entry, "memory_type", "bot_reply") in exclude_memory_types:
                     continue
             dist = math.sqrt(sum((a - b) ** 2 for a, b in zip(vec, query_vec)))
             results.append((entry_id, dist))
