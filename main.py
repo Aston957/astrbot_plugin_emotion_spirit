@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import time
 from datetime import date, datetime, timezone, timedelta  # Bug 13 注意: datetime 是类, 不是模块. 用 date.today() / date.fromtimestamp(), 不要写 datetime.date.X
 from pathlib import Path
 from typing import Any
@@ -853,6 +854,11 @@ class EmotionSpiritPlugin(Star):
         # Bug-B (v1.2.10): superego reflection 队列后台 worker
         asyncio.ensure_future(self._drain_diary_reflection_loop())
 
+        # Bug-G (v1.2.11): conscience pressure hourly decay. tick_pressure 原是死代码
+        # (_raw_pressure 单调递增 → P95 失效 → 每条对话 critical). 每小时调一次让 _raw_pressure 衰减.
+        self._last_decay_tick = time.time()
+        asyncio.ensure_future(self._decay_tick_loop())
+
         logger.info(
             "emotion_spirit initialized: mode=%s persona=%s buffer=%d warm=%d cold=%d ghosts=%d",
             self._persona_mode, self._current_persona,
@@ -1060,6 +1066,30 @@ class EmotionSpiritPlugin(Star):
             except Exception:
                 logger.warning("emotion_spirit: superego reflection drain 异常", exc_info=True)
                 await asyncio.sleep(10)
+
+    async def _decay_tick_loop(self) -> None:
+        """Bug-G (v1.2.11): conscience pressure 每小时衰减. tick_pressure 原死代码, 现接线.
+
+        修复 P0: tick_pressure 从未调用 → _raw_pressure 单调递增 → _window.append(累加值) →
+        P95 ≈ 当前值 → get_pressure()=1.0 永真 → 每条对话 critical + superego reflection diary enqueue.
+        hourly 调一次让 _raw_pressure 自然衰减, _window 改增量语义后 P95 反映真实事件强度高分位.
+        """
+        while True:
+            await asyncio.sleep(3600)  # 每小时
+            try:
+                now = time.time()
+                hours = (now - self._last_decay_tick) / 3600.0
+                self._last_decay_tick = now
+                if hasattr(self, "_conscience") and self._conscience is not None:
+                    self._conscience.tick_pressure(hours)
+                    logger.info(
+                        "emotion_spirit: conscience pressure decayed hours=%.2f raw=%.3f",
+                        hours, self._conscience._raw_pressure,
+                    )
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.warning("emotion_spirit: conscience decay tick error", exc_info=True)
 
     def _get_current_personality_dict(self) -> dict[str, Any]:
         """获取当前人格参数 dict (可能是嵌套或 flat, 消费方需自行 flatten).

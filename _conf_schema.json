@@ -449,6 +449,13 @@
         "type": "int",
         "default": 10,
         "hint": "最近 N 轮中 bot 回复后用户超过 ignored_seconds 回的视为被忽略"
+      },
+      "delivery_mode": {
+        "description": "分段回复投递模式 (v1.2.11 Bug-E 重修)",
+        "type": "string",
+        "default": "append",
+        "options": ["append", "event_send"],
+        "hint": "append (默认): segments 追加到 result_chain, 经 on_decorating_result 钩子 → 兼容 meme_manager 表情包, 但失去段间 delay (一次性 send); event_send: 逐段 event.send + delay, 保留打字节奏, 但绕过 on_decorating_result → 表情包消失 (Bug-E 旧行为). v1.3+ 待 AstrBot send_delayed API 后可加 delayed_append 两全."
       }
     }
   }

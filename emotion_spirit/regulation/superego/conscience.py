@@ -93,7 +93,7 @@ class ConscienceTracker:
         )
         self.guilt_events.append(event)
         self._raw_pressure += abs(conscience_impact)  # 累加器是真相源, 无上限
-        self._window.append(self._raw_pressure)
+        self._window.append(abs(conscience_impact))  # Bug-G v1.2.11: 增量语义 (P95 = 单次事件强度高分位)
         self._window_quantile = 0.0  # 失效缓存
         return event
 
@@ -113,7 +113,7 @@ class ConscienceTracker:
         )
         self.guilt_events.append(event)
         self._raw_pressure += severity
-        self._window.append(self._raw_pressure)
+        self._window.append(severity)  # Bug-G v1.2.11: 增量
         self._window_quantile = 0.0
         return event
 
@@ -130,7 +130,7 @@ class ConscienceTracker:
         )
         self.guilt_events.append(event)
         self._raw_pressure += severity * 0.5
-        self._window.append(self._raw_pressure)
+        self._window.append(severity * 0.5)  # Bug-G v1.2.11: 增量
         self._window_quantile = 0.0
         return event
 
@@ -147,7 +147,7 @@ class ConscienceTracker:
             )
             self.guilt_events.append(event)
             self._raw_pressure += 0.8
-            self._window.append(self._raw_pressure)
+            self._window.append(0.8)  # Bug-G v1.2.11: 增量
             self._window_quantile = 0.0
             return event
         return None
@@ -164,7 +164,7 @@ class ConscienceTracker:
         )
         self.alignment_events.append(event)
         self._raw_pressure = max(0.0, self._raw_pressure - relief)
-        self._window.append(self._raw_pressure)
+        # Bug-G v1.2.11: record_alignment (缓解) 不入 _window — P95 应反映事件强度而非缓解后水平
         self._window_quantile = 0.0
         return event
 
@@ -173,7 +173,7 @@ class ConscienceTracker:
         relief_map = SUPEREGO_CONFIG["repair_relief"]
         relief = relief_map.get(repair_type, relief_map["simple"])
         self._raw_pressure = max(0.0, self._raw_pressure - relief)
-        self._window.append(self._raw_pressure)
+        # Bug-G v1.2.11: record_repair (缓解) 不入 _window — P95 应反映事件强度而非缓解后水平
         self._window_quantile = 0.0
 
     # ═══ 向后兼容 ═══
@@ -206,11 +206,14 @@ class ConscienceTracker:
         return min(1.0, self._raw_pressure / self._window_quantile)
 
     def tick_pressure(self, hours_elapsed: float) -> None:
-        """自然衰减 (每小时调用)。"""
+        """自然衰减 (每小时调用)。
+
+        Bug-G v1.2.11: 不再 append self._raw_pressure 到 _window — 衰减 tick 不是事件强度,
+        append post-decay 累计值会让 P95 = 当前值, 永饱和. 只失效缓存即可.
+        """
         ratio = (1.0 - self._pressure_decay_rate) ** hours_elapsed
         self._raw_pressure *= ratio
-        self._window.append(self._raw_pressure)
-        self._window_quantile = 0.0
+        self._window_quantile = 0.0  # 失效缓存, 等下次 get_pressure 重算
 
     def get_recent(self, hours: float = 24, event_type: str | None = None) -> list:
         """获取近期事件。可选按类型筛选。"""

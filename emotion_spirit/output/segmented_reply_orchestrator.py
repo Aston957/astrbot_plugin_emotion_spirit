@@ -145,27 +145,46 @@ class SegmentedReplyOrchestrator:
             if not plan:
                 return
 
-            # --- 5. 逐段 send (F4: 先发首段无延迟) ---
-            try:
-                await event.send(MessageChain([Plain(plan[0]["text"])]))
-                for part in plan[1:]:
-                    delay = part.get("delay_before_seconds", 0.0)
-                    if delay > 0:
-                        await asyncio.sleep(delay)
-                    await event.send(MessageChain([Plain(part["text"])]))
-            except Exception:
-                logger.warning(
-                    "emotion_spirit: segmented_reply send failed, "
-                    "some segments may be missing",
-                    exc_info=True,
-                )
+            # Bug-E v1.2.11 方向 1: delivery_mode 切换 (保留 event_send 接口, 默认 append).
+            delivery_mode = seg_config.get("delivery_mode", "append")
 
-            # --- 6. 清空 completion_text (Bug 12b 防 double-send) + result_chain 留空 MessageChain (Bug-E v1.2.11) ---
-            # Bug-E: 不能清 result_chain=None, 会堵死 meme_manager.on_decorating_result (if not result 早退
-            # → 表情包消失). 改设 MessageChain([]) (空但非 None, MessageChain 无 __bool__ → truthy → 不早退;
-            # chain 空 → AstrBot 不 double-send 原文). 用户反馈 §8.2.
-            response.completion_text = ""
-            response.result_chain = MessageChain([])
+            # Bug-D v1.2.11: 成功路径日志 (补全 — 用户反馈: 分段回复像黑盒, 看不到分了几段/共几字/总延迟).
+            logger.info(
+                "emotion_spirit: segmented_reply user=%s mode=%s segments=%d chars=%d total_delay=%.1fs",
+                user_id[:8], delivery_mode, len(plan),
+                sum(len(p["text"]) for p in plan),
+                sum(p.get("delay_before_seconds", 0.0) for p in plan),
+            )
+
+            if delivery_mode == "event_send":
+                # 旧路径 (保留接口): event.send 分段 + delay. 保 delay, 失表情包 (Bug-E 旧行为).
+                # v1.3+ 待 AstrBot send_delayed API, 可实现 delayed_append (append + delay, 两全).
+                try:
+                    await event.send(MessageChain([Plain(plan[0]["text"])]))
+                    for part in plan[1:]:
+                        delay = part.get("delay_before_seconds", 0.0)
+                        if delay > 0:
+                            await asyncio.sleep(delay)
+                        await event.send(MessageChain([Plain(part["text"])]))
+                except Exception:
+                    logger.warning(
+                        "emotion_spirit: segmented_reply send failed, "
+                        "some segments may be missing",
+                        exc_info=True,
+                    )
+                # event_send 模式: 清 result_chain 防 double-send (chain 空 → AstrBot 不发原文)
+                response.completion_text = ""
+                response.result_chain = MessageChain([])
+            else:
+                # 新路径 (默认, Bug-E v1.2.11 方向 1): append segments 到 response.result_chain.
+                # AstrBot 走默认 send (经 result_decorate → on_decorating_result → meme_manager 注入 image).
+                # 代价: 失段间 delay (一次性 send). 用户反馈 §2.
+                if response.result_chain is None:
+                    response.result_chain = MessageChain([])
+                for part in plan:
+                    response.result_chain.chain.append(Plain(part["text"]))
+                response.completion_text = ""  # 防 AstrBot 追加默认链
+                # 不 event.send, 不清 result_chain (让 on_decorating_result 处理)
 
             # --- 7. 推进冷却计数 ---
             self._coordinator.record_response_event(user_id)

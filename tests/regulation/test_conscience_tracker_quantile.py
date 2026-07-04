@@ -24,13 +24,16 @@ def test_window_appends_on_record():
 
 
 def test_get_pressure_quantile_normalized():
-    """冷启动后 (>10 帧), get_pressure 返回 raw_pressure / P95, 非 clip。
+    """冷启动后 (>10 帧), get_pressure 用 P95 归一化, 非 clip raw.
 
-    场景: 10 帧 conscience_impact=0.5 → raw=5.0; 然后 1 次 record_alignment
-    (alignment_base_relief=0.12) → raw=4.88, window 末尾追加 4.88。
-    Window: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 4.88]
-    P95 idx = int(11 * 0.95) = 10, sorted[10] = 5.0
-    normalized = 4.88 / 5.0 = 0.976 (NOT clipped, NOT raw=4.88)
+    v1.2.11 Bug-G 修后场景: _window 改增量语义 (单次 conscience_impact).
+    10 帧 impact=0.5 → raw=5.0, _window=[0.5]*10, P95=0.5.
+    ratio = 5.0/0.5 = 10.0 → cap 1.0 (10 个事件累计已饱和, 期望行为).
+
+    关键不变量 (增量语义):
+    1. _window 含 10 项 (not 11) — alignment 不入 window
+    2. P95 = 0.5 (单次事件强度), 不是 raw 累计 5.0
+    3. alignment 后 _raw_pressure 下降, P95 不变 (验证 Bug-G 修复)
     """
     tracker = ConscienceTracker()
     for _ in range(10):
@@ -38,9 +41,22 @@ def test_get_pressure_quantile_normalized():
             resistance=0.5, conflict_values=["x"], tension_type="intrinsic",
             behavioral_shift=0.1, conscience_impact=0.5,
         )
-    tracker.record_alignment(value_name="honesty", action="repair")
+    # Bug-G 增量语义: window 含 10 项单次增量, 每项 0.5 (not 累计值 5.0)
+    assert len(tracker._window) == 10
+    assert tracker._window[-1] == pytest.approx(0.5)
+
     pressure = tracker.get_pressure()
-    assert pressure == pytest.approx(0.976, abs=0.01)
+    # 10 × 0.5 = 5.0 / 0.5 = 10 → cap 1.0 (saturated by design)
+    assert pressure == pytest.approx(1.0)
+
+    # alignment: raw 减 0.12 → 4.88, 但 _window 不变 (alignment 不入 window per Bug-G)
+    tracker.record_alignment(value_name="honesty", action="repair")
+    assert len(tracker._window) == 10, "Bug-G: alignment 不应 append _window"
+    # 仍 cap 1.0 (raw=4.88 仍 >> P95=0.5)
+    pressure_after = tracker.get_pressure()
+    assert pressure_after == pytest.approx(1.0), (
+        f"alignment 后 _raw 下降但 _window 不变, ratio 仍 > 1 → 应 cap 1.0, 实际 {pressure_after}"
+    )
 
 
 def test_cold_start_returns_raw():
