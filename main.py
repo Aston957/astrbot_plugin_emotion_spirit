@@ -1102,14 +1102,26 @@ class EmotionSpiritPlugin(Star):
         取决于 persona_profiles.get_personality_params(), 返回嵌套 dict 如
         {"deep": {"expression_drive": 0.15, ...}, "surface": {...}}.
         所有消费方必须先用 _flatten_personality() 拍平或按 layer 访问.
+
+        v1.3.0 Y-0b (§1.8): 派生 Big Five 注入 top-level. Big Five 不再硬编码
+        .get(..., 0.5), 由 to_big_five(13dim) 派生 (NEO-PI-R facet 文献背书).
+        13 维 dim + 5 Big Five key 共存; 13 dim 为主源, Big Five 是派生.
         """
         try:
             from emotion_spirit.utils import get_personality_params
-            return get_personality_params(self._labels)
+            from emotion_spirit.utils.persona_profiles import to_big_five
+            result = get_personality_params(self._labels)
+            # §1.8: 派生 Big Five 注入 top-level (13 维 → Big Five 加权平均)
+            flat = {**result.get("deep", {}), **result.get("surface", {})}
+            result.update(to_big_five(flat))
+            return result
         except Exception:
-            # fallback 保持 flat shape (历史兼容性), v1.2.6 再全局统一
-            return {"openness": 0.5, "extraversion": 0.5, "agreeableness": 0.5,
-                    "neuroticism": 0.5, "conscientiousness": 0.5}
+            # §1.8: fallback 13 维中性 + 派生 Big Five (中性 0.5 → Big Five 0.5)
+            from emotion_spirit.core.persona_labels_db import REQUIRED_DIMS
+            from emotion_spirit.utils.persona_profiles import to_big_five
+            flat = {dim: 0.5 for dim in REQUIRED_DIMS}
+            flat.update(to_big_five(flat))
+            return flat
 
     def get_current_force_state(self, labels: dict[str, str] | None = None):
         """三元力学当前 ForceState (v1.2 接线 + 入日记消费; v1.3 叙事层继续用)。

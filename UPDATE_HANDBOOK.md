@@ -235,6 +235,22 @@ emotion_spirit/
 - `SUPEREGO_CONFIG` 整个 dict 固定值,不从 13维 personality 算 → 违反规则 3
 - `EMA_ALPHA` / `BUFFER_POOL_CONFIG` 部分参数(phi/chi 跟反应速度?)→ 需逐个反事实测试判定
 
+### 1.8 Big Five 必须从 13 维派生,不得硬编码 (v1.3.0 Y-0)
+
+**规则**:本系统人格 dict 由 `labels_to_personality()` 产出 **13 维 Sylanne**, 不直接产出 Big Five. 引用 Big Five 的轴心功能必须通过 `to_big_five(personality_13dim)` 派生 (加权平均), 不得硬编码 `.get(..., 0.5)` (死耦合) 也不得 1:1 单维替换 (丢多 facet 信息).
+
+**派生公式**:见 `docs/v1.3.0-y0-derivation-backing.md` (NEO-PI-R facet 文献背书). 要点: 每个 Big Five = 其 facet 对应的多个 13 维 dim 加权平均. `warmth_bias` 同时进 E+A (心理学事实, warmth 是 E1 但含 A6 语义).
+
+**写位点 (drift)**:`personality_feedback` 的 drift 表必须用 **13 维 key** (drift 落权威模型), 不得 Big Five. Big Five delta 按派生权重反向分配到 13 维. 反向分配例: `{"openness": +X}` → `{"curiosity": +0.40X, "exploration_openness": +0.35X, "perception_acuity": +0.25X}`.
+
+**违反会被什么拦下**:`tests/test_big_five_derivation.py`:
+- `to_big_five` 在不同 persona 上产出不同 Big Five 值 (派生生效, 非全 0.5)
+- `personality_feedback.py` drift 表无 Big Five key
+
+**真实落法**:`_get_current_personality_dict` 调 `to_big_five(flat_13dim)` 注入 top-level; 13 个只读 Big Five 文件不变 (`.get("extraversion")` 拿派生值). `personality_feedback` drift 表迁 13 维.
+
+**引用**:Costa & McCrae 1992 (NEO PI-R Manual); McCrae & John 1992 (本地 KB W2071559616); John & Srivastava 1999 (本地 KB W1641003075); Costa & McCrae 1995 (本地 KB W2000014323). 详 `docs/v1.3.0-y0-derivation-backing.md`.
+
 ---
 
 ## 2. 技术债管理

@@ -28,7 +28,54 @@ __all__ = [
     "get_personality_from_labels",
     "get_labels_from_config",
     "compute_conscience_params_from_personality",
+    "to_big_five",
 ]
+
+
+def to_big_five(personality: dict[str, float]) -> dict[str, float]:
+    """13 维 Sylanne → Big Five 派生 (加权平均, handbook §1.8).
+
+    Big Five 是 13 维的粗粒度投影. 每个 Big Five = 其 NEO-PI-R facet 对应的
+    13 维 dim 加权平均. 详 docs/v1.3.0-y0-derivation-backing.md (文献背书).
+
+    权重来源: v1.3.0 Y-0a (last verified 2026-07-05). 30 facet → 13 维
+    对应表见 backing doc §2. warmth_bias 同时进 E+A (心理学事实,
+    E1 warmth 与 A6 tender-mindedness 语义重叠).
+
+    Args:
+        personality: 13 维 flat dict (warmth_bias/patience/...). 缺维度用 0.5 兜底.
+
+    Returns:
+        {extraversion, neuroticism, agreeableness, conscientiousness, openness},
+        每值 clamp 到 [0, 1].
+    """
+    w = personality.get("warmth_bias", 0.5)
+    pat = personality.get("patience", 0.5)
+    bp = personality.get("boundary_permeability", 0.5)
+    rg = personality.get("relational_gravity", 0.5)
+    ip = personality.get("intimacy_pull", 0.5)
+    ed = personality.get("expression_drive", 0.5)
+    gt = personality.get("gossip_tendency", 0.5)
+    ic = personality.get("inner_coherence", 0.5)
+    cu = personality.get("curiosity", 0.5)
+    pa = personality.get("perception_acuity", 0.5)
+    di = personality.get("directness", 0.5)
+    eo = personality.get("exploration_openness", 0.5)
+
+    # ⚠️ 权重来自 docs/v1.3.0-y0-derivation-backing.md (Y-0a 验证). 验证日期 2026-07-05.
+    E = 0.25 * w + 0.25 * ed + 0.20 * gt + 0.15 * ip + 0.15 * rg
+    N = 0.40 * bp + 0.35 * (1 - ic) + 0.25 * (1 - pat)
+    A = 0.40 * w + 0.30 * di + 0.30 * rg
+    C = 0.65 * ic + 0.35 * pat
+    O = 0.40 * cu + 0.35 * eo + 0.25 * pa
+    clamp = lambda x: max(0.0, min(1.0, x))
+    return {
+        "extraversion": clamp(E),
+        "neuroticism": clamp(N),
+        "agreeableness": clamp(A),
+        "conscientiousness": clamp(C),
+        "openness": clamp(O),
+    }
 
 def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -> str:
     """根据人格参数选择叙事变体 (high/low)。
