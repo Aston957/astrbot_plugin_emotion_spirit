@@ -457,9 +457,11 @@ v2 = config.setdefault("life_sim_v2", {})
 
 **判定法**：本次 release 的每个 feature/fix，问一句"用户/二次开发者光看 README 能不能感知到？"→ 答不能 → README 要补。
 
-**违反会被什么拦下**：目前无强拦（文档落后不让 CI 红）。**血教训**：v1.2.5 → v1.2.11 连续 6 版 README 没更新，§1.7 轴心驱动 / Bug-G 双通道 / schedule 6am 逻辑日等都没进 README，用户看 README 以为还在 v1.2.4 时代。**约定值得遵守**：发版前花 5 分钟扫一遍，比事后补省事。
+**违反会被什么拦下**：
+- **版本号强拦** (v1.3.0 血教训加)：`tests/test_public_api_markers.py::test_readme_version_consistency` — bump `_version.py` 后，README 4 处版本号（标题 / zip 文件名 / 期望版本 / 目录树注释）必须同步，否则 ship 测试红。**只拦版本号**，特性列表内容（新 feature 描述）仍需人工扫（见下"血教训"）。
+- **特性列表内容仍无强拦**：**血教训**：v1.2.5 → v1.2.11 连续 6 版 README 没更新，§1.7 轴心驱动 / Bug-G 双通道 / schedule 6am 逻辑日等都没进 README，用户看 README 以为还在 v1.2.4 时代。v1.3.0 ship 时版本号测试也没拦住（因为还没加），README 整体停留在 v1.2.4。**约定值得遵守**：发版前花 5 分钟扫一遍，比事后补省事。
 
-**真实落法**：发版前 `grep` 本次变更涉及的 feature 关键词（如 `logical_day_start_hour` / `set_personality` / `memory_type`），看 README 有没有；没有就补一段特性说明 + 配置项。
+**真实落法**：发版前 `grep` 本次变更涉及的 feature 关键词（如 `logical_day_start_hour` / `set_personality` / `memory_type` / `to_big_five`），看 README 有没有；没有就补一段特性说明 + 配置项。bump 版本后跑 `pytest tests/test_public_api_markers.py::test_readme_version_consistency` 确认 README 版本号已同步。
 
 ---
 

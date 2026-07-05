@@ -89,3 +89,53 @@ def test_public_api_stable_md_version_consistency():
     from packaging.version import Version
     pep_base = str(Version(pep_version).base_version)
     assert md_base == pep_base, f"version base 不一致: md={md_base}, _version={pep_base}"
+
+
+def test_readme_version_consistency():
+    """§4.6: README 4 处版本号必须跟 _version.py 同步 (v1.3.0 血教训强拦).
+
+    handbook §4.6 之前写"目前无强拦", v1.2.5→v1.2.11 连续 6 版 README 没更新,
+    v1.3.0 ship 时又漏 (README 还停留在 v1.2.4). 加测试强制: bump _version.py 后,
+    README 4 处版本号必须同步, 否则 ship 测试红.
+
+    扫 4 处:
+    1. 标题: # emotion_spirit vX.Y.Z
+    2. zip 文件名: astrbot-plugin-emotion-spirit-X.Y.Z.zip
+    3. 期望版本: # 期望: X.Y.Z
+    4. 目录树注释: _version.py ... (X.Y.Z)
+
+    注意: 只拦版本号, 特性列表内容 (新 feature 描述) 仍需人工扫 (§4.6 规则).
+    """
+    from emotion_spirit._version import __version__ as pep_version
+    from packaging.version import Version
+    pep_base = str(Version(pep_version).base_version)
+
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    # 1. 标题: # emotion_spirit vX.Y.Z
+    title = re.search(r'^# emotion_spirit v(\d+\.\d+\.\d+)', readme, re.MULTILINE)
+    assert title, "README 标题缺版本号 (期望 '# emotion_spirit vX.Y.Z')"
+    assert title.group(1) == pep_base, (
+        f"README 标题版本 {title.group(1)} != _version.py {pep_base} (§4.6 文档同步)"
+    )
+
+    # 2. zip 文件名: astrbot-plugin-emotion-spirit-X.Y.Z.zip
+    zip_name = re.search(r'astrbot-plugin-emotion-spirit-(\d+\.\d+\.\d+)\.zip', readme)
+    assert zip_name, "README 缺 zip 文件名版本号 (期望 'astrbot-plugin-emotion-spirit-X.Y.Z.zip')"
+    assert zip_name.group(1) == pep_base, (
+        f"README zip 版本 {zip_name.group(1)} != _version.py {pep_base} (§4.6 文档同步)"
+    )
+
+    # 3. 期望版本: # 期望: X.Y.Z
+    expect = re.search(r'#\s*期望:\s*(\d+\.\d+\.\d+)', readme)
+    assert expect, "README 缺期望版本号 (期望 '# 期望: X.Y.Z')"
+    assert expect.group(1) == pep_base, (
+        f"README 期望版本 {expect.group(1)} != _version.py {pep_base} (§4.6 文档同步)"
+    )
+
+    # 4. 目录树注释: _version.py ... (X.Y.Z)
+    tree = re.search(r'_version\.py[^(]*\((\d+\.\d+\.\d+)\)', readme)
+    assert tree, "README 目录树注释缺 _version.py 版本号 (期望 '_version.py ... (X.Y.Z)')"
+    assert tree.group(1) == pep_base, (
+        f"README 目录树版本 {tree.group(1)} != _version.py {pep_base} (§4.6 文档同步)"
+    )
