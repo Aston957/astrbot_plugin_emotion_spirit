@@ -5,6 +5,33 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.2.11] - 2026-07-05 (§1.7 轴心驱动 + Bug-G/E/F/H/I + schedule 6am, ~1429 tests, 48 modules)
+
+> v1.2.11 引入 handbook §1.7 轴心驱动规约 (4 轴心: 人格/力学/memory/超我), ConscienceTracker 双通道重写 + 13维 personality 耦合, framework 防护 (Bug-E/H), memory_type 彻底修 (Bug-F), schedule 日期偏差 + 6am 逻辑日边界 (Bug-I)。Bug-G 调参微调 + Big Five 迁移推迟到 v1.3.0 (重要更新)。
+
+### 新增 (Features)
+- ✅ **handbook §1.7 轴心驱动规约**: 4 轴心 (人格/力学/memory/超我) + 参数分层 (轴心/算法/系统) + 13维 personality 映射 + `test_axis_coupling` 拦截
+- ✅ **ConscienceTracker 双通道** (rc.2): 急性 (瞬时快衰减) + 慢性 (累计慢衰减), 13维 personality 耦合衰减率/阈值/倍率
+- ✅ **6am 逻辑日边界** (rc.5): `logical_today` + `plan_date_label`, `/view_schedule` 显示今天/明天
+
+### 修复 (Fixes)
+- ✅ **Bug-G** (rc.2/rc.4): `set_personality` 传全 13维 (原只传 deep 5维 → surface 维度取 0.5 兜底, 参数没人格化) + KB `conscience_params.json` 调参 + `_decay_tick_loop` 清理
+- ✅ **Bug-E/H** (rc.3): framework 防护 — `delivery_mode` 默认 `append`→`event_send` (Bug-H 让 append 不可用, bot 不回复) + append 模式诊断 log + `docs/framework-issue-bug-h.md` issue 模板
+- ✅ **Bug-F** (rc.3): `UnifiedEntry` 加 `memory_type` 字段, ephemeral state 入 pool 不再跳过, `search_by_vector` 加 `exclude_memory_types` 过滤
+- ✅ **Bug-I** (rc.5): `plan.date = date.today()` (原 `today+1` → `/view_schedule` 永远显示明天 + dedup 自锁) + `_last_plan_date` 双路径统一 (cron/setup_init) + 启动 catch-up (防 bot 漏 02:00)
+
+### 测试 (Tests)
+- `test_axis_coupling` + `test_pressure_saturation` (rc.2/rc.4, 5 新)
+- `test_delivery_mode_default` + `test_memory_type` (rc.3, 10 新)
+- `test_schedule_plan_loop_cron_consistency` (rc.5, 7 新)
+- 总计: ~**1429 passed**, 0 failed
+
+### 已知待续 (Deferred)
+- Bug-G 调参微调 (`conscience_params.json` rc.5-A 值) 推迟到 Big Five 死耦合清后顺手做
+- Big Five → 13维迁移 (Y effort, 14 文件死耦合, v3.0 前置)
+
+---
+
 ## [1.2.10] - 2026-07-04 (3 P0 fresh-install hotfixes + CI wheel-smoke, ~1373 tests, 48 modules)
 
 > v1.2.10 修 v1.2.9 fresh-install 3 P0 (pip install . 路径, CI 盲点). Bug-A: wheel 缺 KB JSON → FileNotFoundError. Bug-C: public_api KeyError (注册半截). Bug-B: 日记存 prompt 模板 → 复读机 + scheduled loop 同病. 加 CI wheel-install-smoke job.
