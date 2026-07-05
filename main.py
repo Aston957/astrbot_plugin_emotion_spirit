@@ -486,11 +486,14 @@ class EmotionSpiritPlugin(Star):
         self._interaction_count = 0
         logger.info("emotion_spirit: baseline personality updated from labels")
 
-        # Y-转绿 (§1.8): 注入派生 Big Five 到 _baseline_personality top-level.
-        # 覆盖走 _baseline_personality 的 Big Five consumer (e.g. Suppression.compute via
-        # _get_v110c_adaptation_context). ConscienceTracker 路径仍用 13维 full_personality.
-        from emotion_spirit.utils.persona_profiles import personality_with_big_five
-        self._baseline_personality = personality_with_big_five(self._baseline_personality)
+        # Y-转绿 (§1.8): 注入派生 Big Five 到 _baseline_personality top-level (保留 nested).
+        # ⚠️ 不能用赋值 (=) — personality_with_big_five 返 flat, 会破坏 {deep, surface} 结构,
+        # 导致 ConscienceTracker 路径 (.get("deep")/.get("surface")) 拿空 → Bug-G 回归.
+        # 必须用 .update(): 保留 nested + 加 top-level Big Five.
+        from emotion_spirit.utils.persona_profiles import to_big_five
+        _bf_flat = {**self._baseline_personality.get("deep", {}),
+                    **self._baseline_personality.get("surface", {})}
+        self._baseline_personality.update(to_big_five(_bf_flat))
 
         # v1.3.0 rc.2 §1.7: ConscienceTracker 轴心耦合 — 从 13维 personality 算衰减率/阈值/倍率
         # labels 变 → personality 变 → 轴心参数变. 防止 _conscience 用默认参数.

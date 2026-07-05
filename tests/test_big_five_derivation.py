@@ -274,3 +274,84 @@ def test_compute_feedback_current_uses_real_value():
         f"compute_feedback 没拿 13 维真实值: derived_delta={delta['curiosity']} "
         f"vs ocean_only_delta={delta_ocean['curiosity']} 应显著不同"
     )
+
+
+# ════════════════════════════════════════════════════════════════════════
+# Bug-G 回归修复 (Y-green fix): 集成测试防 _baseline_personality 破坏 nested
+# ════════════════════════════════════════════════════════════════════════
+
+
+def test_baseline_personality_keeps_nested_after_big_five_injection():
+    """Bug-G 防回归: 注入派生 Big Five 后必须保留 deep/surface key (ConscienceTracker 路径依赖).
+
+    Y-转绿验收发现: main.py:493 用赋值 (=) 替代 update 会破坏 nested 结构,
+    导致 ConscienceTracker 路径 (.get("deep")/.get("surface")) 拿空 → Bug-G 回归.
+    正确修法: .update(to_big_five(...)) 保留 nested + 加 top-level Big Five.
+
+    此测试模拟正确修法, 不依赖 main.py 实例. 配合 AST 测试可双重保险.
+    """
+    from emotion_spirit.utils.persona_profiles import to_big_five
+
+    nested = {
+        "deep": {"expression_drive": 0.25, "perception_acuity": 0.70,
+                 "boundary_permeability": 0.40, "inner_coherence": 0.95,
+                 "relational_gravity": 0.20},
+        "surface": {"warmth_bias": 0.30, "directness": 0.85, "curiosity": 0.60,
+                    "patience": 0.70, "intimacy_pull": 0.25,
+                    "relational_autonomy": 0.60, "exploration_openness": 0.55,
+                    "gossip_tendency": 0.40},
+    }
+    # 正确修法: update (保留 nested)
+    bf_flat = {**nested.get("deep", {}), **nested.get("surface", {})}
+    nested.update(to_big_five(bf_flat))
+
+    # 断言 1: 仍含 deep/surface (ConscienceTracker 路径依赖)
+    assert "deep" in nested, "_baseline_personality 必须保留 deep key (ConscienceTracker 路径)"
+    assert "surface" in nested, "_baseline_personality 必须保留 surface key"
+    # 断言 2: 含派生 Big Five (Suppression 路径依赖)
+    assert "extraversion" in nested, "_baseline_personality 必须含派生 Big Five"
+    assert "conscientiousness" in nested
+    # 断言 3: ConscienceTracker 拿到 13 维 (Bug-G 核心断言)
+    full = {**nested.get("deep", {}), **nested.get("surface", {})}
+    assert len(full) == 13, f"ConscienceTracker full_personality 必须 13 维, got {len(full)}"
+
+
+def test_update_baseline_uses_update_not_assign():
+    """AST 静态检查: _update_baseline 不能用 = 赋值 personality_with_big_five.
+
+    赋值会破坏 nested {deep, surface} 结构 → ConscienceTracker 拿不到 13 维 → Bug-G 回归.
+    必须用 self._baseline_personality.update(to_big_five(...)).
+
+    posture 注意: personality_with_big_five 是局部 import (line 492),
+    AST 里表现为 ast.Name(id=...) 而非 ast.Attribute. 同时检查两种.
+    """
+    import ast
+    from pathlib import Path
+    import pytest
+
+    src = Path("main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    def _is_pwbf_call(func: ast.AST) -> bool:
+        """检查 func 是否 personality_with_big_five 调用 (Name 或 Attribute 形式)."""
+        if isinstance(func, ast.Name) and func.id == "personality_with_big_five":
+            return True
+        if isinstance(func, ast.Attribute) and func.attr == "personality_with_big_five":
+            return True
+        return False
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "_update_baseline":
+            for stmt in ast.walk(node):
+                if isinstance(stmt, ast.Assign):
+                    for tgt in stmt.targets:
+                        if (isinstance(tgt, ast.Attribute)
+                                and tgt.attr == "_baseline_personality"):
+                            # 赋值右边若是 personality_with_big_five(...) → bug
+                            if isinstance(stmt.value, ast.Call) and _is_pwbf_call(stmt.value.func):
+                                pytest.fail(
+                                    f"line {stmt.lineno}: "
+                                    f"self._baseline_personality = personality_with_big_five(...) "
+                                    f"是赋值, 会破坏 nested 结构 → Bug-G 回归. "
+                                    f"改用 self._baseline_personality.update(to_big_five(...))"
+                                )
