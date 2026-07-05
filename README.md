@@ -1,4 +1,4 @@
-# emotion_spirit v1.2.4
+# emotion_spirit v1.3.0
 
 > [中文] SylannEngine 之上的长期记忆、人格演化与超我调控层
 > [English] Long-term memory, personality evolution, and superego regulation, built on top of SylannEngine
@@ -31,7 +31,7 @@
 GitHub Release 会自动生成**只含运行所需文件**的 slim zip (~4 MB, 含 sylanne + KB), 跳过测试/仿真/开发工具.
 
 1. 访问 [Releases 页面](https://github.com/Aston957/astrbot_plugin_emotion_spirit/releases)
-2. 下载 `astrbot-plugin-emotion-spirit-1.2.4.zip`
+2. 下载 `astrbot-plugin-emotion-spirit-1.3.0.zip`
 3. 解压得到 `astrbot_plugin_emotion_spirit/` 文件夹
 4. **关键**: 进入插件目录执行 `pip install -e .` (v1.2.2+ 必需)
    ```bash
@@ -130,6 +130,14 @@ emotion_spirit is an AstrBot ecosystem emotion-computing plugin responsible for 
 - **人格解析器去偏置** (v1.2.2 B9): `_infer_mbti_from_narrative` tie-breaking 不再偏向 INTJ; 否定词 (而不是/不是/不/没) 预处理; 时间取向否定语境 ("不活在未来") 不再误判
 - **main.py 模块化减负** (v1.2.4): 3 个超长方法 (`on_llm_request` 171→75 行, `_setup_persona_state` 163→8 行, `_load_persistent_data` 126→5 行) 拆分为按职责命名的子方法, 建立可延续拆分范式
 
+### 轴心驱动 + Big Five 派生 / Axis-Driven + Big Five Derivation (v1.2.11 + v1.3.0)
+- **handbook §1.7 轴心驱动规约** (v1.2.11): 4 轴心 (人格/力学/memory/超我) + 参数分层 (轴心/算法/系统) + 13维 personality 映射, `test_axis_coupling` 拦截硬编码
+- **ConscienceTracker 双通道** (v1.2.11): 急性 (瞬时快衰减) + 慢性 (累计慢衰减), 13维 personality 耦合衰减率/阈值/倍率 — 修 Bug-G (所有 persona 同一套参数 → 压力永高)
+- **framework 防护** (v1.2.11): `delivery_mode` 默认 `event_send` (Bug-H 让 append 不可用) + `memory_type` 字段分类 (Bug-F ephemeral 入 pool 不再跳过)
+- **schedule 6am 逻辑日** (v1.2.11): `logical_today` + `plan_date_label`, 修 Bug-I (`/view_schedule` 永远显示明天 + dedup 自锁)
+- **handbook §1.8 Big Five 必须从 13 维派生** (v1.3.0): `to_big_five(personality_13dim)` 加权平均派生 5 个 Big Five (NEO-PI-R 30 facet 文献背书), 不得硬编码 `.get(..., 0.5)` 也不得 1:1 单维替换
+- **Big Five 死耦合清理** (v1.3.0): 13 个只读 Big Five 文件保留引用, 由 `to_big_five` 派生注入修活; 6 个死耦合 consumer 路径 (Suppression/UnifiedEntry/CollapseArchetype/LifeAgent/adapt_plan/Adaptation) 走 `personality_with_big_five` helper; drift 表迁 13 维 (写位点落权威模型)
+
 ### 其他特性
 - **pyproject.toml 现代打包**: `pip install -e .[dev]` 干净, setuptools >=80, python >=3.11
 - **4 层目录结构**: `emotion_spirit/{core|memory|regulation|output}/`, 依赖方向严格单向
@@ -165,7 +173,7 @@ pip install -e .[dev]
 
 # 验证
 python -c "import emotion_spirit; print(emotion_spirit.__version__)"
-# 期望: 1.2.4
+# 期望: 1.3.0
 ```
 
 ### 通过 AstrBot 拖拽 (传统)
@@ -370,7 +378,7 @@ pressure = tracker.get_pressure()
 emotion_spirit/
 ├── __init__.py                # 公开 API 入口 + _DeprecatedImportFinder (C3) + PEP 440 version (C2)
 ├── layer.py                   # 抽象基类 (留根)
-├── _version.py                # PEP 440 version 真相源 (1.2.4)
+├── _version.py                # PEP 440 version 真相源 (1.3.0)
 ├── _v1_compat.py              # v1.x 兼容垫片 + DeprecationWarning
 ├── store.py                   # SpiritStore v3 持久化
 ├── core/                      # L0: 基础 (6 modules)
