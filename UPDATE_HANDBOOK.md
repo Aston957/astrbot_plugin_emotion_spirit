@@ -338,6 +338,7 @@ v2 = config.setdefault("life_sim_v2", {})
 6. 打 tag `v*` 触发 `release.yml` 自动 build slim zip + 发 Release
 7. **到 https://github.com/Aston957/astrbot_plugin_emotion_spirit/actions 验 Release 真出了**（这步 AI 做不了，必须人看）
 8. 若 ship-prep 修复在打 tag 之后才进 main → tag 已过时，需 force 重打 tag 指向新 commit（已用过一次：v1.1.0 54bc65b → 652b58b；v1.2.5 PR1 `830b600` → `3dd9c7d` → `99ef2fa` force 重打 3 次）。**优先选打新 patch tag**，force 重打是最后手段且会改变已下载用户的语义。
+9. **扫相关文档同步**：README / `docs/` / `public_api_stable.md` 是否需要反映本次变更 — 见 §4.6
 
 ### 4.5 ship 阻塞常见模式（v1.2.5 PR1 血教训 4 条）
 
@@ -429,6 +430,20 @@ v2 = config.setdefault("life_sim_v2", {})
 - **Force retag 决策树**：
   1. 打新 patch tag（`v1.2.5-rc.2`）— 跟现有 `v1.2.5-rc.1` 共存，无 cleanup 风险
   2. 必须 force 重打同一 tag（如 PR ship-prep fix 在打 tag 后才进 main） → **必须** workflow 里硬编码 cleanup step + curl REST API
+
+### 4.6 文档同步检查（README 等，v1.2.11 血教训）
+
+**规则**：每次发版前，扫一遍**面向用户的文档**是否需要同步本次变更：
+- `README.md` — 新 feature / 配置项 / 用法有变？特性列表补了吗？
+- `docs/` — 相关 spec / 设计文档是否过期？
+- `public_api_stable.md` — stable API 表是否新增/废弃？（版本号已由 §4.4 step 1 强拦）
+- `CHANGELOG.md` — 已在发版流程，确认 entry 准确
+
+**判定法**：本次 release 的每个 feature/fix，问一句"用户/二次开发者光看 README 能不能感知到？"→ 答不能 → README 要补。
+
+**违反会被什么拦下**：目前无强拦（文档落后不让 CI 红）。**血教训**：v1.2.5 → v1.2.11 连续 6 版 README 没更新，§1.7 轴心驱动 / Bug-G 双通道 / schedule 6am 逻辑日等都没进 README，用户看 README 以为还在 v1.2.4 时代。**约定值得遵守**：发版前花 5 分钟扫一遍，比事后补省事。
+
+**真实落法**：发版前 `grep` 本次变更涉及的 feature 关键词（如 `logical_day_start_hour` / `set_personality` / `memory_type`），看 README 有没有；没有就补一段特性说明 + 配置项。
 
 ---
 
