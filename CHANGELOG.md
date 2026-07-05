@@ -5,6 +5,45 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
+## [1.3.0] - 2026-07-05 (Big Five←13维派生 + 死耦合清理, handbook §1.8, ~1440 tests, 48 modules)
+
+> v1.3.0 完成 Big Five 死耦合清理 (Y-0~Y-4 全闭环). 方向修正 (Y→Z): 不做 1:1 Big Five→13维单维映射, 改 Big Five←13维派生 (加权平均). 13 个只读 Big Five 文件保留引用, 由 `to_big_five(13dim)` 派生注入; 1 个写位点 (drift 表) 迁 13 维. NEO-PI-R 30 facet 文献背书 (10 引用). 6 个死耦合 consumer 路径修活 (Suppression/UnifiedEntry/CollapseArchetype/LifeAgent/adapt_plan/Adaptation). Bug-G 回归引入 + 修复 (AST guard 防回归).
+
+### 新增 (Features)
+- ✅ **handbook §1.8 Big Five 必须从 13 维派生** (Y-0b): 规约 + 派生公式 + 写位点 drift 必须 13 维 + `test_big_five_derivation` 拦截
+- ✅ **`to_big_five(personality_13dim)`** (Y-0b): 加权平均派生 5 个 Big Five (NEO-PI-R facet 背书). 权重: E=0.25warmth+0.25expression+0.20gossip+0.15intimacy+0.15relational / N=0.40boundary+0.35(1−coherence)+0.25(1−patience) / A=0.40warmth+0.30directness+0.30relational / C=0.65coherence+0.35patience / O=0.40curiosity+0.35exploration+0.25perception
+- ✅ **`personality_with_big_five(nested)` helper** (Y-转绿): nested {deep,surface} → flat 13 维 + 派生 Big Five 统一入口, 兼容 nested/flat/OCEAN 三种输入
+- ✅ **Big Five←13维派生 文献背书** (Y-0a): `docs/v1.3.0-y0-derivation-backing.md` — 30 facet → 13 维对应表 + 10 引用 (本地 KB 4 OpenAlex IDs + web 6 URLs)
+- ✅ **drift 表迁 13 维** (Y-0b): `personality_feedback` drift 表 Big Five → 13 维, 按派生权重反向分配 (drift 落权威模型)
+
+### 修复 (Fixes)
+- ✅ **6 个 Big Five 死耦合点清理** (Y-转绿):
+  - `Suppression.compute` (main.py:429 + surface_handler:148) — 走 `personality_with_big_five`
+  - `UnifiedEntry.compute_decay_factor` (surface_handler:278) — 同理
+  - `CollapseArchetype.select` (surface_handler:285) — 同理
+  - `LifeAgent` (main.py:514 同步) — 加 `set_personality` 方法, labels 变化时更新
+  - `LifeSimulator.adapt_plan` + `Adaptation.*` — 经 LifeAgent 传 flat 含 13 维
+- ✅ **Bug-G 回归修复** (Y-转绿 fix): `_baseline_personality` 注入派生 Big Five 用 `.update()` 不用赋值 (`=`). 赋值会破坏 nested {deep,surface} 结构 → ConscienceTracker 拿不到 13 维 → Bug-G 回归. AST 静态测试 `test_update_baseline_uses_update_not_assign` 防回归
+- ✅ **`compute_feedback` current 用真实 13 维值** (Y-转绿): 之前传 nested 拿不到 13 维 → current 永远 0.5; 现传 flat 含 13 维
+
+### 测试 (Tests)
+- `test_big_five_derivation` (Y-0b, 2 新): to_big_five 派生生效 + drift 表无 Big Five
+- `test_big_five_derivation` (Y-转绿, 7 新): helper 单元 + 4 consumer 收到派生 + LifeAgent set_personality + compute_feedback current 真实
+- `test_big_five_derivation` (Bug-G 修复, 2 新): _baseline_personality 保留 nested + AST 静态检查不用赋值
+- 总计: ~**1440 passed**, 0 failed (v1.2.11 ~1429 + 11 新)
+
+### 文档 (Docs)
+- `docs/v1.3.0-y0-derivation-backing.md` (Y-0a, 206 行): 30 facet → 13 维对应表 + 10 引用 + 权重理由
+- `docs/v1.3.0-y0a-derivation-research-plan.md` + `v1.3.0-y0b-z-implementation-plan.md` (Y-0 plans)
+- `docs/v1.3.0-y-green-verification-plan.md` + `v1.3.0-y-green-fix-plan.md` (Y-转绿 + Bug-G 修复 plans)
+- `UPDATE_HANDBOOK.md` §1.8: Big Five 必须派生规约
+
+### 已知待续 (Deferred)
+- Bug-G 调参微调 (`conscience_params.json` rc.5-A 值) — Y 完后顺手做, 下个 patch 可清
+- framework issue Bug-H (send_delayed API) — 待提 AstrBot, `docs/framework-issue-bug-h.md` issue 模板已备
+
+---
+
 ## [1.2.11] - 2026-07-05 (§1.7 轴心驱动 + Bug-G/E/F/H/I + schedule 6am, ~1429 tests, 48 modules)
 
 > v1.2.11 引入 handbook §1.7 轴心驱动规约 (4 轴心: 人格/力学/memory/超我), ConscienceTracker 双通道重写 + 13维 personality 耦合, framework 防护 (Bug-E/H), memory_type 彻底修 (Bug-F), schedule 日期偏差 + 6am 逻辑日边界 (Bug-I)。Bug-G 调参微调 + Big Five 迁移推迟到 v1.3.0 (重要更新)。
