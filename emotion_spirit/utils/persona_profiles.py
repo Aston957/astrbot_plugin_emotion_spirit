@@ -29,6 +29,7 @@ __all__ = [
     "get_labels_from_config",
     "compute_conscience_params_from_personality",
     "to_big_five",
+    "personality_with_big_five",
 ]
 
 
@@ -76,6 +77,38 @@ def to_big_five(personality: dict[str, float]) -> dict[str, float]:
         "conscientiousness": clamp(C),
         "openness": clamp(O),
     }
+
+
+def personality_with_big_five(personality: dict[str, Any]) -> dict[str, float]:
+    """统一入口: nested {deep, surface} 或 flat 13 维 → flat 13 维 Sylanne + 派生 Big Five.
+
+    v1.3.0 Y-转绿 (§1.8): Big Five consumer (Suppression / CollapseArchetype /
+    UnifiedEntry.compute_decay_factor / LifeAgent / PersonalityFeedback 等) 的统一
+    personality 来源. 派生注入而非迁 13 个只读 consumer (Y-0 哲学).
+
+    输入兼容 3 种形态:
+    - nested: {"deep": {...}, "surface": {...}} (e.g. _baseline_personality)
+    - flat 13 维 Sylanne: {"warmth_bias": 0.5, ...} (e.g. signals-derived)
+    - flat OCEAN-only (5 维): 透传 + 派生覆盖
+
+    缺维度用 0.5 兜底 (to_big_five 内部已有).
+
+    Returns:
+        flat dict 含 13 维 Sylanne + 派生 Big Five (OCEAN 5 维),
+        同一层级. caller 可直接 .get("extraversion") 或 .get("curiosity").
+    """
+    # 拍平: nested → flat 13 维
+    if "deep" in personality or "surface" in personality:
+        flat = {
+            **personality.get("deep", {}),
+            **personality.get("surface", {}),
+        }
+    else:
+        flat = dict(personality)  # 已 flat, 复制避免污染原 dict
+
+    # 派生 Big Five 注入到 top-level (覆盖若有 OCEAN key)
+    flat.update(to_big_five(flat))
+    return flat
 
 def _select_variant(dim: str, personality: dict[str, dict[str, float]] | None) -> str:
     """根据人格参数选择叙事变体 (high/low)。

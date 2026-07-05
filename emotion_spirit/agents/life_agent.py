@@ -32,6 +32,8 @@ class LifeAgent(CognitiveAgent):
         # OCEAN-5 personality params (deep layer of _baseline_personality).
         # Defaults to a neutral OCEAN profile so the agent still produces
         # adaptations even when personality has not been wired yet.
+        # Y-转绿 (§1.8): personality 现可含 13 维 Sylanne + 派生 Big Five
+        # (via personality_with_big_five helper in main.py).
         self._personality: dict[str, float] = personality or {
             "openness": 0.5,
             "conscientiousness": 0.5,
@@ -39,6 +41,15 @@ class LifeAgent(CognitiveAgent):
             "agreeableness": 0.5,
             "neuroticism": 0.5,
         }
+
+    def set_personality(self, personality: dict[str, float]) -> None:
+        """Y-转绿: labels 变化时由 main.py:484 调, 注入含派生 Big Five 的 personality.
+
+        之前的 13 维 compute_feedback path 因 self._personality 只含 OCEAN 5 维
+        → curiosity/expression_drive 等取不到 (0.5 兜底) → current 永远 0.5.
+        现传 flat 含 13+Big Five, compute_feedback 拿真实 13 维值.
+        """
+        self._personality = personality
 
     # ── perceive ──
 

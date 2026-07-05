@@ -414,6 +414,7 @@ class EmotionSpiritPlugin(Star):
         to neutral defaults — the rest of the pipeline is never blocked
         by a v1.1.0C bookkeeping call.
         """
+        from emotion_spirit.utils.persona_profiles import personality_with_big_five
         suppression_level = 0.0
         collapse_archetype = getattr(self._pool, "_collapse_archetype", None)
 
@@ -426,7 +427,7 @@ class EmotionSpiritPlugin(Star):
                     "social_audience": 0,
                 }
                 suppression_level = sup_mod.compute(
-                    personality=self._baseline_personality.get("deep", {}),
+                    personality=personality_with_big_five(self._baseline_personality),
                     context=ctx,
                     conscience_pressure=self._conscience.get_pressure() if hasattr(self, "_conscience") else 0.0,
                     relationship_intimacy=self._intimacy.get_intimacy(
@@ -485,6 +486,12 @@ class EmotionSpiritPlugin(Star):
         self._interaction_count = 0
         logger.info("emotion_spirit: baseline personality updated from labels")
 
+        # Y-转绿 (§1.8): 注入派生 Big Five 到 _baseline_personality top-level.
+        # 覆盖走 _baseline_personality 的 Big Five consumer (e.g. Suppression.compute via
+        # _get_v110c_adaptation_context). ConscienceTracker 路径仍用 13维 full_personality.
+        from emotion_spirit.utils.persona_profiles import personality_with_big_five
+        self._baseline_personality = personality_with_big_five(self._baseline_personality)
+
         # v1.3.0 rc.2 §1.7: ConscienceTracker 轴心耦合 — 从 13维 personality 算衰减率/阈值/倍率
         # labels 变 → personality 变 → 轴心参数变. 防止 _conscience 用默认参数.
         if hasattr(self, "_conscience") and self._conscience is not None:
@@ -503,6 +510,11 @@ class EmotionSpiritPlugin(Star):
                     self._conscience._chronic_decay_rate_per_hour,
                     self._conscience._collapse_threshold,
                 )
+
+        # Y-转绿: 同步 LifeAgent personality (用含派生 Big Five 的版本).
+        if hasattr(self, "_life_agent") and self._life_agent is not None:
+            from emotion_spirit.utils.persona_profiles import personality_with_big_five as _pwbf
+            self._life_agent.set_personality(_pwbf(self._baseline_personality))
 
     @staticmethod
     def _validate_labels(labels: tuple[str, ...]) -> dict[str, str] | None:

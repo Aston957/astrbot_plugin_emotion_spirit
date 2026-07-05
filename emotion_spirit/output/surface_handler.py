@@ -145,8 +145,10 @@ class SurfaceHandler:
             "authority_present": 0,
             "social_audience": 0,
         }
+        # Y-转绿 (§1.8): 注入派生 Big Five (含 13 维 + OCEAN), Suppression.compute 需要 OCEAN.
+        from emotion_spirit.utils.persona_profiles import personality_with_big_five
         self._p._suppression_level = self._p._suppression.compute(
-            personality=current_personality.get("deep", {}),
+            personality=personality_with_big_five(current_personality),
             context=suppression_context,
             conscience_pressure=conscience_pressure,
             relationship_intimacy=intimacy,
@@ -271,14 +273,18 @@ class SurfaceHandler:
 
         # MemoryPool decay tick (Phase D: 统一到 MemoryPool, 情境衰减)
         intimacy = self._p._intimacy.get_intimacy(session_id, self._p._current_persona) if session_id else 0.0
+        # Y-转绿 (§1.8): 注入派生 Big Five, UnifiedEntry.compute_decay_factor 需要 OCEAN.
+        from emotion_spirit.utils.persona_profiles import personality_with_big_five
+        derived_personality = personality_with_big_five(current_personality)
         self._p._pool.tick(
-            personality=current_personality.get("deep", {}),
+            personality=derived_personality,
             partner_intimacy=intimacy,
         )
 
         # 记忆崩溃检测 (Phase D+ CollapseArchetype 集成)
         # v1.2.9 HP-3: 边沿检测 + L2 回写 (修 v1.2.8 bug: collapse 持续期间不重复 trigger_recovery)
-        was_collapse = self._p._pool.check_collapse(personality=current_personality.get("deep", {}))
+        # Y-转绿: CollapseArchetype.select 需要 OCEAN, 传 derived_personality.
+        was_collapse = self._p._pool.check_collapse(personality=derived_personality)
         archetype = self._p._pool.get_collapse_archetype()
         curr_collapse = was_collapse and bool(archetype)
         prev_collapse = getattr(self._p, "_prev_collapse_active", False)
