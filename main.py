@@ -900,100 +900,107 @@ class EmotionSpiritPlugin(Star):
             )
 
     async def _schedule_plan_generation_loop(self) -> None:
-        """每天 2am 生成第二天的日程计划。"""
+        """每天 plan_generate_hour (默认 2am, < 6am 逻辑日边界) 生成当日日程.
+
+        v1.3.0 rc.5 Bug-I:
+        - plan.date = date.today() (不再是 today+1)
+        - _last_plan_date = plan.date (与 commands.py setup_init 路径统一, 防 dedup 双路径不一致)
+        - 启动 catch-up: bot 重启漏 02:00 时补生成当天 plan
+        """
         from emotion_spirit.core.config import LIFE_SIM_V2_CONFIG
+
+        # 启动 catch-up: bot 重启漏掉 02:00 时, 立即补生成当天 plan
+        await self._maybe_generate_plan()
 
         while True:
             try:
                 now = datetime.now()
                 target_hour = LIFE_SIM_V2_CONFIG.get("plan_generate_hour", 2)
-                # 计算下一个 2am 的时间
                 target = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
                 if now >= target:
                     target += timedelta(days=1)
                 wait_seconds = (target - now).total_seconds()
                 logger.info("emotion_spirit: 日程生成定时器，下次触发 %s (%.0f 秒后)", target, wait_seconds)
                 await asyncio.sleep(wait_seconds)
-
-                # 检查今天是否已经生成过
-                today_str = date.today().isoformat()  # Bug 13 修: datetime.date.today() -> date.today()
-                if self._last_plan_date == today_str:
-                    logger.info("emotion_spirit: 今天已生成日程，跳过")
-                    continue
-
-                # 生成日程
-                personality = self._get_current_personality_dict()
-                recent_memories = self._get_recent_memory_texts(limit=5)
-                yesterday_events = self._get_yesterday_events()
-
-                plan = await self._life_sim_v2.generate_daily_plan(
-                    personality=personality,
-                    recent_memories=recent_memories,
-                    yesterday_events=yesterday_events,
-                    user_activity=(
-                        self._latest_user_activity
-                        if hasattr(self, '_latest_user_activity') else None
-                    ),
-                )
-                self._last_plan_date = today_str
-
-                # v1.2.9 HP-3: suppression L2 定期回写 (每天 1 次, 慢变量)
-                try:
-                    defense_states = self._defense_modulator.compute_defense_states(
-                        personality=personality,
-                        signals=None,  # schedule loop 无实时 signals
-                        body_state=self._body_state.default() if hasattr(self, "_body_state") else None,
-                        intimacy_level=0.5,  # schedule loop 无特定 user
-                        context={},
-                        force_state=(
-                            self._force_dynamics.force_state_from_labels(self._labels)
-                            if hasattr(self, "_force_dynamics") and hasattr(self, "_labels")
-                            else None
-                        ),
-                        conscience_pressure=self._conscience.get_pressure() if hasattr(self, "_conscience") else 0.0,
-                    )
-                    self._defense_modulator.apply_event("suppression", intensity=defense_states.suppression_level)
-                    logger.debug("emotion_spirit: suppression L2 回写 level=%.3f", defense_states.suppression_level)
-                except Exception:
-                    logger.debug("emotion_spirit: suppression L2 回写失败", exc_info=True)
-
-                logger.info(
-                    "emotion_spirit: 日程已生成 %s, %d 个事件",
-                    plan.date, len(plan.events),
-                )
-
-                # v1.1.0B: 深度睡眠梦境生成
-                if hasattr(self, '_dream_generator') and self._dream_generator._llm:
-                    try:
-                        sleep_hours = 6.0  # 默认 6 小时睡眠
-                        rounds = self._dream_generator.compute_dream_rounds(sleep_hours, personality)
-                        dream_seed = plan.dream_seed or ""
-                        recent_events = [e.activity for e in plan.events if e.status == "done"]
-                        dream = await self._dream_generator.generate_deep_sleep_dream(
-                            personality=personality,
-                            dream_seed=dream_seed,
-                            recent_events=recent_events,
-                        )
-                        if dream:
-                            # 梦境写入 MemoryPool
-                            self._pool.add(
-                                text=f"[梦境] {dream[:200]}",
-                                raw_weight=0.4,
-                                phi=0.2,
-                                tags=["dream", "deep_sleep"],
-                                source_user="dream_generator",
-                            )
-                            logger.info("emotion_spirit: 深度睡眠梦境已生成 (%d 轮)", rounds)
-                    except Exception:
-                        logger.debug("emotion_spirit: 深度睡眠梦境生成失败", exc_info=True)
-
-                self._save_if_dirty()
-
+                await self._maybe_generate_plan()
             except asyncio.CancelledError:
                 break
             except Exception:
-                logger.warning("emotion_spirit: 日程生成失败", exc_info=True)
-                await asyncio.sleep(60)  # 失败后等 1 分钟重试
+                logger.warning("emotion_spirit: 日程生成循环异常", exc_info=True)
+                await asyncio.sleep(60)
+
+    async def _maybe_generate_plan(self) -> None:
+        """生成当天 plan (dedup: _last_plan_date == today 则跳过). rc.5 抽出供 catch-up + cron 复用."""
+        # _life_sim_v2 未就绪 (init race) 则跳过, 等 02:00 cron 再试
+        if not hasattr(self, '_life_sim_v2') or self._life_sim_v2 is None:
+            logger.debug("emotion_spirit: _life_sim_v2 未就绪, 跳过 plan 生成")
+            return
+        today_str = date.today().isoformat()
+        if self._last_plan_date == today_str:
+            logger.info("emotion_spirit: 今天已生成日程，跳过")
+            return
+
+        personality = self._get_current_personality_dict()
+        plan = await self._life_sim_v2.generate_daily_plan(
+            personality=personality,
+            recent_memories=self._get_recent_memory_texts(limit=5),
+            yesterday_events=self._get_yesterday_events(),
+            user_activity=(self._latest_user_activity if hasattr(self, '_latest_user_activity') else None),
+        )
+        # rc.5 Bug-I: 用 plan.date (与 commands.py:162 setup_init 路径统一, 防 dedup 双路径不一致)
+        self._last_plan_date = plan.date
+
+        self._apply_suppression_l2_after_plan(personality)
+        logger.info("emotion_spirit: 日程已生成 %s, %d 个事件", plan.date, len(plan.events))
+        await self._generate_deep_sleep_dream_after_plan(personality, plan)
+        self._save_if_dirty()
+
+    def _apply_suppression_l2_after_plan(self, personality: dict) -> None:
+        """v1.2.9 HP-3: suppression L2 定期回写 (每天 1 次, 慢变量). rc.5 从 _maybe_generate_plan 抽出."""
+        try:
+            defense_states = self._defense_modulator.compute_defense_states(
+                personality=personality,
+                signals=None,
+                body_state=self._body_state.default() if hasattr(self, "_body_state") else None,
+                intimacy_level=0.5,
+                context={},
+                force_state=(
+                    self._force_dynamics.force_state_from_labels(self._labels)
+                    if hasattr(self, "_force_dynamics") and hasattr(self, "_labels")
+                    else None
+                ),
+                conscience_pressure=self._conscience.get_pressure() if hasattr(self, "_conscience") else 0.0,
+            )
+            self._defense_modulator.apply_event("suppression", intensity=defense_states.suppression_level)
+            logger.debug("emotion_spirit: suppression L2 回写 level=%.3f", defense_states.suppression_level)
+        except Exception:
+            logger.debug("emotion_spirit: suppression L2 回写失败", exc_info=True)
+
+    async def _generate_deep_sleep_dream_after_plan(self, personality: dict, plan) -> None:
+        """v1.1.0B: 深度睡眠梦境生成. rc.5 从 _maybe_generate_plan 抽出."""
+        if not (hasattr(self, '_dream_generator') and self._dream_generator._llm):
+            return
+        try:
+            sleep_hours = 6.0
+            rounds = self._dream_generator.compute_dream_rounds(sleep_hours, personality)
+            dream_seed = plan.dream_seed or ""
+            recent_events = [e.activity for e in plan.events if e.status == "done"]
+            dream = await self._dream_generator.generate_deep_sleep_dream(
+                personality=personality,
+                dream_seed=dream_seed,
+                recent_events=recent_events,
+            )
+            if dream:
+                self._pool.add(
+                    text=f"[梦境] {dream[:200]}",
+                    raw_weight=0.4,
+                    phi=0.2,
+                    tags=["dream", "deep_sleep"],
+                    source_user="dream_generator",
+                )
+                logger.info("emotion_spirit: 深度睡眠梦境已生成 (%d 轮)", rounds)
+        except Exception:
+            logger.debug("emotion_spirit: 深度睡眠梦境生成失败", exc_info=True)
 
     async def _schedule_diary_generation_loop(self) -> None:
         """按 diary.schedule_hours 定时生成日记（LLM 或 prompt-only）。"""

@@ -167,6 +167,12 @@
         "default": 2,
         "hint": "每天几点生成第二天的日程计划"
       },
+      "logical_day_start_hour": {
+        "description": "逻辑日开始小时 (6am 边界: 此小时前算前一天)",
+        "type": "int",
+        "default": 6,
+        "hint": "6am 前的夜间算前一天; 日程显示标签 (今天/明天) 按此边界"
+      },
       "events_per_day_min": {
         "description": "每天最少事件数",
         "type": "int",

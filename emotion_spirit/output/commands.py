@@ -777,7 +777,8 @@ class CommandImpl:
             yield event.plain_result("今天没有日程计划。")
             return
 
-        lines = [f"📅 日程计划 ({plan.date})"]
+        from ..utils.time_utils import plan_date_label
+        lines = [f"📅 {plan_date_label(plan.date)}"]
         for e in plan.events:
             status_icon = {"planned": "⬜", "active": "🔵", "done": "✅",
                           "cancelled": "❌", "replaced": "🔄"}.get(e.status, "❓")

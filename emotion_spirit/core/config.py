@@ -145,6 +145,7 @@ SHADOW_DETECTOR_CONFIG: dict[str, float | int] = {
 # ═══ LifeSimulator v2 ═══
 LIFE_SIM_V2_CONFIG: dict[str, int | float | bool] = {
     "plan_generate_hour": 2,
+    "logical_day_start_hour": 6,
     "events_per_day_min": 3,
     "events_per_day_max": 5,
     "adaptation_threshold": 0.3,

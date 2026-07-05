@@ -382,7 +382,12 @@ class LifeSimulatorV2:
         yesterday_events: list[str] | None = None,
         user_activity: dict | None = None,
     ) -> "DailyPlan":
-        """生成明天的日程计划 (模板 + LLM 组合)。"""
+        """生成今天的日程计划 (模板 + LLM 组合)。
+
+        v1.3.0 rc.5 Bug-I: plan.date = date.today() (不是 today+1).
+        cron 在 02:00 (< 6am 逻辑日边界) 触发, date.today() = 即将到来的逻辑日.
+        原 today+1 让 /view_schedule 永远显示明天 + dedup 双路径不一致.
+        """
         from .life_plan import DailyPlan
         import datetime as _dt
 
@@ -433,9 +438,8 @@ class LifeSimulatorV2:
         # 生成 dream_seed
         dream_seed = ", ".join(e.activity for e in all_events[:3])
 
-        tomorrow = _dt.date.today() + _dt.timedelta(days=1)
         plan = DailyPlan(
-            date=tomorrow.isoformat(),
+            date=_dt.date.today().isoformat(),
             generated_at=time.time(),
             events=all_events,
             personality_snapshot=dict(personality),

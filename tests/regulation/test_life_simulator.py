@@ -493,15 +493,19 @@ def test_v2_generate_daily_plan_personality_snapshot():
     assert plan.personality_snapshot["openness"] == 0.7
 
 
-def test_v2_generate_daily_plan_date_is_tomorrow():
-    """plan.date is tomorrow's date in ISO format."""
+def test_v2_generate_daily_plan_date_is_today():
+    """v1.3.0 rc.5 Bug-I: plan.date is today's date (not tomorrow).
+
+    原 test 断言 tomorrow (Bug-I: plan.date = today+1). rc.5 改 plan.date = today,
+    cron 在 02:00 (< 6am 逻辑日边界) 触发, date.today() = 即将到来的逻辑日.
+    """
     import datetime
     sim = _make_sim_v2()
     personality = {"openness": 0.5, "extraversion": 0.5, "conscientiousness": 0.5,
                    "agreeableness": 0.5, "neuroticism": 0.5}
     plan = _run_async(sim.generate_daily_plan(personality))
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    assert plan.date == tomorrow
+    today = datetime.date.today().isoformat()
+    assert plan.date == today
 
 
 # ═══════════════════════════════════════════════════════════════════════
